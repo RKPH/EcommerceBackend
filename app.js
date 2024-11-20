@@ -1,70 +1,35 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
 
-const connectDB = require('./config/db');  // This path should be correct if db.js is inside the config folder
+const connectDB = require('./config/db');
+const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
+const productRouter = require('./routes/product');
+const logger = require('./config/logger');  // Import custom logger
+const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
 
+const app = express();
+
+// Connect to the database
 connectDB();
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
-var productRouter = require('./routes/product'); // Import product router
 
-var swaggerJsdoc = require('swagger-jsdoc');
-var swaggerUi = require('swagger-ui-express');
-
-var app = express();
-
-// Swagger setup
-const swaggerOptions = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Ecommerce API',
-      version: '1.0.0',
-      description: 'A simple Express API with Swagger documentation',
-    },
-    servers: [
-      {
-        url: 'http://localhost:3000', // Adjust if your app uses a different port
-      },
-    ],
-  },
-  apis: ['./routes/*.js'], // Path to your route files
-};
-const swaggerSpec = swaggerJsdoc(swaggerOptions);
-
-// Swagger UI endpoint
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// View engine setup
-app.set('views', path.join(__dirname, 'views'));
-app.set('view engine', 'pug');
-
-app.use(logger('dev'));
+// Middleware
+app.use(logger);  // Use custom logger
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Swagger setup
+app.use('/api-docs', swaggerSetup, swaggerDocs);  // Swagger UI endpoint
+
 // Routes
 app.use('/api/v1', productRouter);
 
-// Catch 404 and forward to error handler
-app.use(function (req, res, next) {
-  next(createError(404));
-});
+// Catch 404 errors
+app.use(notFoundHandler);
 
-// Error handler
-app.use(function (err, req, res, next) {
-  // Set locals, only providing error in development
-  res.locals.message = err.message;
-  res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  // Render the error page
-  res.status(err.status || 500);
-  res.render('error');
-});
+// Error handling
+app.use(errorHandler);
 
 module.exports = app;

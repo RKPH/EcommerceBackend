@@ -22,10 +22,14 @@ const mongoose = require('mongoose');
  *         category:
  *            type: string
  *            description: The category of the product
+ *         image:
+ *            type: string
+ *            description: The image of the product.
  *       required:
  *         - name
  *         - price
  *         - category
+ *         - image
  *
  * /api/v1/products:
  *   get:
@@ -144,7 +148,7 @@ router.get('/:id', async (req, res) => {
 
 // POST a new product
 router.post('/products/addProduct', async (req, res) => {
-    const { name, price , category } = req.body;
+    const { name, price , category, image } = req.body;
 
     // Validate the product data
     if (!name || typeof price !== 'number' || price <= 0) {
@@ -159,6 +163,7 @@ router.post('/products/addProduct', async (req, res) => {
             name,
             price,
             category,
+            image
         });
 
         await newProduct.save();
