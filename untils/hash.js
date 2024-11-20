@@ -1,14 +1,17 @@
 const crypto = require('crypto');
 
-function hash(text) {
-    const salt = crypto.randomBytes(64).toString('hex');
-    const hash = crypto.pbkdf2Sync(text, salt, 1000, 64, 'sha512').toString('hex');
-    return { salt, hash };
+// Function to hash the password with a salt
+function hash(password) {
+    const salt = crypto.randomBytes(64).toString('hex'); // Generate a salt
+    const hashedPassword = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex'); // Hash the password
+    return { salt, hashedPassword }; // Return both salt and hashed password
 }
 
-function verifyPassword(storedSalt,storedHashedPassword, password) {
-    const hashedPassword= crypto.pbkdf2Sync(password,storedSalt,1000, 64, 'sha512').toString('hex');
-    return hashedPassword=== storedHashedPassword;
+// Function to verify if the entered password matches the stored hashed password
+function verifyPassword(storedSalt, storedHashedPassword, password) {
+    // Hash the entered password using the stored salt
+    const hashedPassword = crypto.pbkdf2Sync(password, storedSalt, 1000, 64, 'sha512').toString('hex');
+    return hashedPassword === storedHashedPassword; // Compare the hashed entered password with the stored one
 }
 
-module.exports = {hash, verifyPassword};
+module.exports = { hash, verifyPassword };

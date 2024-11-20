@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
 const productRouter = require('./routes/product');
+const userRouter = require('./routes/user');
 const logger = require('./config/logger');  // Import custom logger
 const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
 
@@ -25,7 +26,7 @@ app.use('/api-docs', swaggerSetup, swaggerDocs);  // Swagger UI endpoint
 
 // Routes
 app.use('/api/v1', productRouter);
-
+app.use('/api/v1', userRouter);
 // Catch 404 errors
 app.use(notFoundHandler);
 
