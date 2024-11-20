@@ -77,6 +77,6 @@ router.post('/users/register', registerUser);
  *       500:
  *         description: Server error
  */
-router.post('/login', loginUser);
+router.post('/users/login', loginUser);
 
 module.exports = router;

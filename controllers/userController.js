@@ -55,6 +55,7 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
+        console.log(req.body);  // Log the request body
 
         // Validate required fields
         if (!email || !password) {
@@ -63,12 +64,14 @@ exports.loginUser = async (req, res) => {
 
         // Check if the user exists
         const user = await User.findOne({ email });
+
+
         if (!user) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         // Verify the password
-        const isPasswordValid = await verifyPassword(user.password, password);
+        const isPasswordValid =verifyPassword(user.salt, user.password, password);
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
