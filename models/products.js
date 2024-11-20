@@ -1,4 +1,3 @@
-// models/product.js
 const mongoose = require('mongoose');
 
 // Define the product schema
@@ -7,10 +6,16 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    category: {
+        type: String,
+        required: true,
+    },
     price: {
         type: Number,
         required: true,
     },
+}, {
+    versionKey: false,  // Disable the __v field
 });
 
 // Create and export the Product model
