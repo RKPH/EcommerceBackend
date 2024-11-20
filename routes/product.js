@@ -37,7 +37,7 @@ const {
 
 /**
  * @swagger
- * /api/v1/products:
+ * /api/v1/products/all:
  *   get:
  *     summary: Retrieve a list of products
  *     tags: [Products]
@@ -53,7 +53,7 @@ const {
  *       500:
  *         description: Internal server error. Failed to retrieve products.
  */
-router.get('/products', getAllProducts);
+router.get('/products/all', getAllProducts);
 
 /**
  * @swagger
