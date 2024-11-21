@@ -19,20 +19,41 @@ const {
  *         name:
  *           type: string
  *           description: The name of the product
- *         price:
- *           type: number
- *           description: The price of the product
  *         category:
  *           type: string
  *           description: The category of the product
+ *         subcategory:
+ *           type: string
+ *           description: The subcategory of the product
+ *         type:
+ *           type: string
+ *           description: The type of the product
+ *         brand:
+ *           type: string
+ *           description: The brand of the product
+ *         sport:
+ *           type: string
+ *           description: The sport the product is associated with (optional)
+ *         price:
+ *           type: number
+ *           description: The price of the product
  *         image:
  *           type: string
- *           description: The image of the product.
+ *           description: The main image URL of the product
+ *         productImage:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Additional images of the product
  *       required:
  *         - name
  *         - price
  *         - category
+ *         - subcategory
+ *         - type
+ *         - brand
  *         - image
+ *         - productImage
  */
 
 /**
@@ -104,7 +125,7 @@ router.get('/products/:id', getProductById);
  *             schema:
  *               $ref: '#/components/schemas/Product'
  *       400:
- *         description: Invalid product data. Name and a positive price are required.
+ *         description: Invalid product data. Ensure all required fields are valid.
  *       500:
  *         description: Internal server error. Failed to create the product.
  */

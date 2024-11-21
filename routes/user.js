@@ -6,9 +6,33 @@ const { registerUser, loginUser } = require('../controllers/userController'); //
 
 /**
  * @swagger
- * tags:
- *   name: Users
- *   description: User management and authentication
+ * components:
+ *   schemas:
+ *     User:
+ *       type: object
+ *       required:
+ *         - name
+ *         - email
+ *         - password
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: The user ID (MongoDB ObjectId)
+ *         name:
+ *           type: string
+ *           description: The name of the user
+ *         email:
+ *           type: string
+ *           description: The email address of the user
+ *           format: email
+ *         password:
+ *           type: string
+ *           description: The hashed password of the user
+ *           writeOnly: true
+ *       example:
+ *         id: 63f9b25c4f0e1234abc12345
+ *         name: John Doe
+ *         email: johndoe@example.com
  */
 
 /**

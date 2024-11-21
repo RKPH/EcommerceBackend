@@ -54,22 +54,49 @@ exports.getProductById = async (req, res) => {
 
 // Controller to create a new product
 exports.addProduct = async (req, res) => {
-    const { name, price, category, image } = req.body;
+    const {
+        name,
+        price,
+        category,
+        subcategory,
+        type,
+        brand,
+        sport,
+        image,
+        productImage,
+    } = req.body;
 
     // Validate the product data
-    if (!name || typeof price !== 'number' || price <= 0) {
+    if (
+        !name ||
+        !category ||
+        !subcategory ||
+        !type ||
+        !brand ||
+        !image ||
+        !productImage ||
+        !Array.isArray(productImage) ||
+        productImage.length === 0 ||
+        typeof price !== 'number' ||
+        price <= 0
+    ) {
         return res.status(400).json({
             status: 'error',
-            message: 'Invalid product data. Name and a positive price are required.',
+            message: 'Invalid product data. Please ensure all required fields are provided and valid.',
         });
     }
 
     try {
         const newProduct = new Product({
             name,
-            price,
             category,
+            subcategory,
+            type,
+            brand,
+            sport: sport || null, // Optional field with a default value
+            price,
             image,
+            productImage,
         });
 
         await newProduct.save();
