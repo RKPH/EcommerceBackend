@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 // Import controllers
-const { registerUser, loginUser } = require('../controllers/authController'); // Update the path if necessary
+const { registerUser, loginUser, getUserProfile } = require('../controllers/authController'); // Update the path if necessary
+const  authorizationMiddleware =require('../middlewares/authorizationMIddleware');
 
 /**
  * @swagger
@@ -102,5 +103,39 @@ router.post('/auth/register', registerUser);
  *         description: Server error
  */
 router.post('/auth/login', loginUser);
+
+/**
+ * @swagger
+ * /api/v1/auth/profile:
+ *   get:
+ *     summary: Get user profile information
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []  # Ensure the request is authenticated via token
+ *     responses:
+ *       200:
+ *         description: User profile fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   description: The user ID (MongoDB ObjectId)
+ *                 name:
+ *                   type: string
+ *                   description: The user's name
+ *                 email:
+ *                   type: string
+ *                   description: The user's email
+ *       401:
+ *         description: Unauthorized - No token provided or token is invalid
+ *       403:
+ *         description: Forbidden - Invalid token
+ *       500:
+ *         description: Server error
+ */
+router.get('/auth/profile', authorizationMiddleware, getUserProfile); // Apply protectRoute here
 
 module.exports = router;

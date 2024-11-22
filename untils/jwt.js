@@ -3,8 +3,14 @@ const res = require("express/lib/response");
 
 function generateJwt (userId) {
     const secret = process.env.JWT_SECRET;
-    return jwt.sign({userId, secret}, secret, {expiresIn: '1h'});
+    return jwt.sign({userId}, secret, {expiresIn: '1h'});
 }
+
+function generateRefreshToken(userId) {
+    const secret = process.env.JWT_SECRET;
+    return jwt.sign({userId}, secret, {expiresIn: '24h'});
+}
+
 function verifyJwt (token) {
     const secret = process.env.JWT_SECRET;
     try {
@@ -15,4 +21,4 @@ function verifyJwt (token) {
     }
 }
 
-module.exports = {generateJwt,verifyJwt}
+module.exports = {generateJwt,verifyJwt, generateRefreshToken};

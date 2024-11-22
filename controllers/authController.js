@@ -1,6 +1,6 @@
 const User = require('../models/user');
 const { hash, verifyPassword } = require('../untils/hash');  // Import password utility
-const { generateJwt } = require('../untils/jwt');  // Import JWT generation utility
+const { generateJwt, generateRefreshToken } = require('../untils/jwt');  // Import JWT generation utility
 
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
@@ -31,11 +31,12 @@ exports.registerUser = async (req, res) => {
 
         // Generate a JWT token
         const token = generateJwt(user._id);
-
+        const refreshToken = generateRefreshToken(token);
         // Respond with success
         res.status(201).json({
             message: 'User registered successfully',
             token,
+            refreshToken,
             user: {
                 id: user._id,
                 name: user.name,
@@ -76,11 +77,12 @@ exports.loginUser = async (req, res) => {
 
         // Generate a JWT token
         const token = generateJwt(user._id);
-
+        const refreshToken = generateRefreshToken(token);
         // Send response
         res.status(200).json({
             message: 'Login successful',
             token,
+            refreshToken,
             user: {
                 id: user._id,
                 name: user.name,
@@ -92,3 +94,29 @@ exports.loginUser = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+// @desc    Get user profile
+// @route   GET /api/v1/auth/profile
+// @access  Private (Protected by token)
+exports.getUserProfile = async (req, res) => {
+    try {
+        console.log(req.user);
+        // The userId is available in req.userId, added by the protectRoute middleware
+        const user = await User.findById(req.user.userId);
+
+        // If user not found, return 404
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Respond with the user's profile data
+        res.status(200).json({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+        });
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+

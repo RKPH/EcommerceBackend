@@ -16,6 +16,20 @@ const swaggerOptions = {
                 url: 'http://localhost:3000', // Adjust if your app uses a different port
             },
         ],
+        components: {
+            securitySchemes: {
+                bearerAuth: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT', // Optional, can help Swagger UI understand the token format
+                },
+            },
+        },
+        security: [
+            {
+                bearerAuth: [],  // This applies the Bearer token authentication globally, but you can override it in individual routes if necessary
+            },
+        ],
     },
     apis: ['./routes/*.js'], // Path to your route files
 };

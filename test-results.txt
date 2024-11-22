@@ -9,13 +9,13 @@ Test #1
 Route: GET /api/v1/products/all
 Description: return all products
 Status: ✅ passed
-Time: 868 ms
+Time: 764 ms
 ____
 Test #2
 Route: GET /api/v1/products/:id
 Description: return a product with a valid ID
 Status: ✅ passed
-Time: 43 ms
+Time: 40 ms
 ____
 Test #3
 Route: GET /api/v1/products/:id
@@ -27,19 +27,19 @@ Test #4
 Route: GET /api/v1/products/:id
 Description: return 404 for non-existing product ID
 Status: ✅ passed
-Time: 40 ms
+Time: 38 ms
 ____
 Test #5
 Route: POST /api/v1/products/addProduct
 Description: create a new product with valid data
 Status: ✅ passed
-Time: 157 ms
+Time: 166 ms
 ____
 Test #6
 Route: POST /api/v1/products/addProduct
 Description: return 400 for missing required fields
 Status: ✅ passed
-Time: 4 ms
+Time: 3 ms
 ____
 Test #7
 Route: POST /api/v1/products/addProduct
@@ -55,49 +55,55 @@ Test #1
 Route: /api/v1/auth/register
 Description: register a new user successfully
 Status: ✅ passed
-Time: 1163 ms
+Time: 742 ms
 ____
 Test #2
 Route: /api/v1/auth/register
 Description: fail when email already exists
 Status: ✅ passed
-Time: 49 ms
+Time: 39 ms
 ____
 Test #3
 Route: /api/v1/auth/register
 Description: fail when required fields are missing
 Status: ✅ passed
-Time: 41 ms
+Time: 36 ms
 ____
 Test #4
 Route: /api/v1/auth/login
 Description: login successfully with correct credentials
 Status: ✅ passed
-Time: 45 ms
+Time: 38 ms
 ____
 Test #5
 Route: /api/v1/auth/login
 Description: fail with incorrect password
 Status: ✅ passed
-Time: 45 ms
+Time: 79 ms
 ____
 Test #6
 Route: /api/v1/auth/login
 Description: fail with non-existent email
 Status: ✅ passed
-Time: 48 ms
+Time: 39 ms
 ____
 Test #7
 Route: /api/v1/auth/login
 Description: fail when required fields are missing
 Status: ✅ passed
-Time: 4 ms
+Time: 3 ms
+____
+Test #8
+Route: /api/v1/auth/profile
+Description: return user information when authenticated
+Status: ✅ passed
+Time: 50 ms
 ____
 
 ========================================
 📊 Summary:
 ----------------------------------------
 ✔ Test Suites: 2 Passed (2 Total)
-✔ Tests:       14 Passed (14 Total)
-✔ Time Taken:  2.061 seconds
+✔ Tests:       15 Passed (15 Total)
+✔ Time Taken:  1.738 seconds
 ========================================

@@ -1,5 +1,6 @@
 const supertest = require('supertest');
 const mongoose = require('mongoose');
+const {} = require('../untils/jwt')
 const app = require('../app');
 const User = require('../models/user'); // Assuming you have a User model
 
@@ -15,7 +16,7 @@ afterAll(async () => {
 
 describe('Auth Routes', () => {
     let createdUser; // Variable to store the created user for register tests
-
+    let token;
     describe('POST /api/v1/auth/register', () => {
         afterEach(async () => {
             if (createdUser) {
@@ -35,6 +36,8 @@ describe('Auth Routes', () => {
             // Store the created user for cleanup
             createdUser = await User.findOne({ email: user.email });
             expect(createdUser).not.toBeNull();
+
+
         });
 
         it('should fail when email already exists', async () => {
@@ -81,4 +84,13 @@ describe('Auth Routes', () => {
             expect(response.status).toBe(400);
         });
     });
+
+    describe('GET /api/v1/auth/profile', ()=> {
+        const token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzQwNDNiOTFjNjQwOGQ3ODNmNjhlZTYiLCJpYXQiOjE3MzIyNjY1ODIsImV4cCI6MTczMjI3MDE4Mn0.E6KJg_lsVxHydQ3PF85wEOHV3SAqFy6xtbRNSpFKXkA";
+        it('should return user information when authenticated', async () => {
+            const response = await supertest(app).get('/api/v1/auth/profile').set('Authorization', `Bearer ${token}`);
+            expect(response.status).toBe(200);
+
+        })
+    })
 });
