@@ -1,0 +1,98 @@
+========================================
+ MongoDB connected successfully
+----------------------------------------
+----------------------------------------
+ ✅ 13 Tests Passed
+----------------------------------------
+
+========================================
+📊 Summary:
+----------------------------------------
+✔ Test Suites: 1 Passed (2 Total)
+✔ Tests:       13 Passed (14 Total)
+✔ Time Taken:  1.757 seconds
+========================================
+
+========================================
+[INFO] PRODUCTS Tests
+----------------------------------------
+Test #1
+Route: GET /api/v1/products/all
+Test case description: should return all products
+Status: ✅ passed (765 ms)
+____
+Test #2
+Route: GET /api/v1/products/:id
+Test case description: should return a product with a valid ID
+Status: ✅ passed (41 ms)
+____
+Test #3
+Route: GET /api/v1/products/:id
+Test case description: should return 400 for invalid product ID format
+Status: ✅ passed (3 ms)
+____
+Test #4
+Route: GET /api/v1/products/:id
+Test case description: should return 404 for non-existing product ID
+Status: ✅ passed (40 ms)
+____
+Test #5
+Route: POST /api/v1/products/addProduct
+Test case description: should create a new product with valid data
+Status: ❌ failed (91 ms)
+Failure Reason: Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 200
+Received: 201
+    at Object.toBe (/Users/giahung/WebstormProjects/Learning/Tests/products.test.js:79:37)
+    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+____
+Test #6
+Route: POST /api/v1/products/addProduct
+Test case description: should return 400 for missing required fields
+Status: ✅ passed (3 ms)
+____
+Test #7
+Route: POST /api/v1/products/addProduct
+Test case description: should return 400 for invalid price
+Status: ✅ passed (2 ms)
+____
+
+========================================
+[INFO] AUTH Tests
+----------------------------------------
+Test #8
+Route: /api/v1/auth/register
+Test case description: should register a new user successfully
+Status: ✅ passed (869 ms)
+____
+Test #9
+Route: /api/v1/auth/register
+Test case description: should fail when email already exists
+Status: ✅ passed (69 ms)
+____
+Test #10
+Route: /api/v1/auth/register
+Test case description: should fail when required fields are missing
+Status: ✅ passed (42 ms)
+____
+Test #11
+Route: /api/v1/auth/login
+Test case description: should login successfully with correct credentials
+Status: ✅ passed (36 ms)
+____
+Test #12
+Route: /api/v1/auth/login
+Test case description: should fail with incorrect password
+Status: ✅ passed (42 ms)
+____
+Test #13
+Route: /api/v1/auth/login
+Test case description: should fail with non-existent email
+Status: ✅ passed (36 ms)
+____
+Test #14
+Route: /api/v1/auth/login
+Test case description: should fail when required fields are missing
+Status: ✅ passed (2 ms)
+____

@@ -7,6 +7,12 @@
     "dev": "nodemon ./bin/www",
     "test": "jest"
   },
+  "jest": {
+    "reporters": [
+      "default",
+      "./config/customReporter.js"
+    ]
+  },
   "dependencies": {
     "cookie-parser": "~1.4.4",
     "debug": "~2.6.9",

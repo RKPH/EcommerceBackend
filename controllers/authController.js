@@ -3,12 +3,11 @@ const { hash, verifyPassword } = require('../untils/hash');  // Import password 
 const { generateJwt } = require('../untils/jwt');  // Import JWT generation utility
 
 // @desc    Register a new user
-// @route   POST /api/v1/users/register
+// @route   POST /api/v1/auth/register
 // @access  Public
 exports.registerUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
-        console.log(req.body);  // Log the request body
 
         // Check if the user already exists
         let user = await User.findOne({ email });
@@ -50,12 +49,11 @@ exports.registerUser = async (req, res) => {
 };
 
 // @desc    Login a user
-// @route   POST /api/v1/users/login
+// @route   POST /api/v1/auth/login
 // @access  Public
 exports.loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        console.log(req.body);  // Log the request body
 
         // Validate required fields
         if (!email || !password) {

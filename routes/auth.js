@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import controllers
-const { registerUser, loginUser } = require('../controllers/userController'); // Update the path if necessary
+const { registerUser, loginUser } = require('../controllers/authController'); // Update the path if necessary
 
 /**
  * @swagger
@@ -37,10 +37,10 @@ const { registerUser, loginUser } = require('../controllers/userController'); //
 
 /**
  * @swagger
- * /api/v1/users/register:
+ * /api/v1/auth/register:
  *   post:
  *     summary: Register a new user
- *     tags: [Users]
+ *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
@@ -69,14 +69,14 @@ const { registerUser, loginUser } = require('../controllers/userController'); //
  *       500:
  *         description: Server error
  */
-router.post('/users/register', registerUser);
+router.post('/auth/register', registerUser);
 
 /**
  * @swagger
- * /api/v1/users/login:
+ * /api/v1/auth/login:
  *   post:
  *     summary: Authenticate user and return a token
- *     tags: [Users]
+ *     tags: [Auth]
  *     requestBody:
  *       required: true
  *       content:
@@ -101,6 +101,6 @@ router.post('/users/register', registerUser);
  *       500:
  *         description: Server error
  */
-router.post('/users/login', loginUser);
+router.post('/auth/login', loginUser);
 
 module.exports = router;
