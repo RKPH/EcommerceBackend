@@ -3,7 +3,7 @@ const { verifyJwt, generateRefreshToken} = require('../untils/jwt'); // Correcte
 
 const authorizationMiddleware = (req, res, next) => {
     const token = req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
-
+    console.log("token take in", token);
     if (!token) {
         return res.status(401).json({ message: 'Token is required' });
     }

@@ -1,6 +1,6 @@
 const supertest = require('supertest');
 const mongoose = require('mongoose');
-const {} = require('../untils/jwt')
+const {generateJwt} = require('../untils/jwt')
 const app = require('../app');
 const User = require('../models/user'); // Assuming you have a User model
 
@@ -20,13 +20,13 @@ describe('Auth Routes', () => {
     describe('POST /api/v1/auth/register', () => {
         afterEach(async () => {
             if (createdUser) {
-                await User.deleteOne({ _id: createdUser._id });
+                await User.deleteOne({ _id: createdUser.id });
                 createdUser = null; // Reset the variable after deletion
             }
         });
 
         it('should register a new user successfully', async () => {
-            const user = { name: 'Test6', email: 'test6@example.com', password: 'password123' };
+            const user = { name: 'Test6', email: 'test8@example.com', password: 'password123' };
             const response = await supertest(app).post('/api/v1/auth/register').send(user);
 
             expect(response.status).toBe(201);
@@ -36,7 +36,8 @@ describe('Auth Routes', () => {
             // Store the created user for cleanup
             createdUser = await User.findOne({ email: user.email });
             expect(createdUser).not.toBeNull();
-
+            token=generateJwt(createdUser.id);
+            console.log("created test user token:", token);
 
         });
 
@@ -86,9 +87,10 @@ describe('Auth Routes', () => {
     });
 
     describe('GET /api/v1/auth/profile', ()=> {
-        const token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzQwNDNiOTFjNjQwOGQ3ODNmNjhlZTYiLCJpYXQiOjE3MzIyNjY1ODIsImV4cCI6MTczMjI3MDE4Mn0.E6KJg_lsVxHydQ3PF85wEOHV3SAqFy6xtbRNSpFKXkA";
+        const tokens= token;
+        // const token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzQwNDNiOTFjNjQwOGQ3ODNmNjhlZTYiLCJpYXQiOjE3MzIyNjY1ODIsImV4cCI6MTczMjI3MDE4Mn0.E6KJg_lsVxHydQ3PF85wEOHV3SAqFy6xtbRNSpFKXkA";
         it('should return user information when authenticated', async () => {
-            const response = await supertest(app).get('/api/v1/auth/profile').set('Authorization', `Bearer ${token}`);
+            const response = await supertest(app).get('/api/v1/auth/profile').set('Authorization', `Bearer ${tokens}`);
             expect(response.status).toBe(200);
 
         })
