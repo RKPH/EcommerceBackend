@@ -1,16 +1,13 @@
 ========================================
  MongoDB connected successfully
 ----------------------------------------
-----------------------------------------
- ✅ 13 Tests Passed
-----------------------------------------
 
 ========================================
 📊 Summary:
 ----------------------------------------
-✔ Test Suites: 1 Passed (2 Total)
-✔ Tests:       13 Passed (14 Total)
-✔ Time Taken:  1.757 seconds
+✔ Test Suites: 2 Passed (2 Total)
+✔ Tests:       14 Passed (14 Total)
+✔ Time Taken:  8.803 seconds
 ========================================
 
 ========================================
@@ -18,81 +15,89 @@
 ----------------------------------------
 Test #1
 Route: GET /api/v1/products/all
-Test case description: should return all products
-Status: ✅ passed (765 ms)
+Description: return all products
+Status: ✅ passed
+Time: 737 ms
 ____
 Test #2
 Route: GET /api/v1/products/:id
-Test case description: should return a product with a valid ID
-Status: ✅ passed (41 ms)
+Description: return a product with a valid ID
+Status: ✅ passed
+Time: 58 ms
 ____
 Test #3
 Route: GET /api/v1/products/:id
-Test case description: should return 400 for invalid product ID format
-Status: ✅ passed (3 ms)
+Description: return 400 for invalid product ID format
+Status: ✅ passed
+Time: 3 ms
 ____
 Test #4
 Route: GET /api/v1/products/:id
-Test case description: should return 404 for non-existing product ID
-Status: ✅ passed (40 ms)
+Description: return 404 for non-existing product ID
+Status: ✅ passed
+Time: 38 ms
 ____
 Test #5
 Route: POST /api/v1/products/addProduct
-Test case description: should create a new product with valid data
-Status: ❌ failed (91 ms)
-Failure Reason: Error: expect(received).toBe(expected) // Object.is equality
-
-Expected: 200
-Received: 201
-    at Object.toBe (/Users/giahung/WebstormProjects/Learning/Tests/products.test.js:79:37)
-    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+Description: create a new product with valid data
+Status: ✅ passed
+Time: 158 ms
 ____
 Test #6
 Route: POST /api/v1/products/addProduct
-Test case description: should return 400 for missing required fields
-Status: ✅ passed (3 ms)
+Description: return 400 for missing required fields
+Status: ✅ passed
+Time: 3 ms
 ____
 Test #7
 Route: POST /api/v1/products/addProduct
-Test case description: should return 400 for invalid price
-Status: ✅ passed (2 ms)
+Description: return 400 for invalid price
+Status: ✅ passed
+Time: 3 ms
 ____
 
 ========================================
 [INFO] AUTH Tests
 ----------------------------------------
-Test #8
+Test #1
 Route: /api/v1/auth/register
-Test case description: should register a new user successfully
-Status: ✅ passed (869 ms)
+Description: register a new user successfully
+Status: ✅ passed
+Time: 851 ms
 ____
-Test #9
+Test #2
 Route: /api/v1/auth/register
-Test case description: should fail when email already exists
-Status: ✅ passed (69 ms)
+Description: fail when email already exists
+Status: ✅ passed
+Time: 75 ms
 ____
-Test #10
+Test #3
 Route: /api/v1/auth/register
-Test case description: should fail when required fields are missing
-Status: ✅ passed (42 ms)
+Description: fail when required fields are missing
+Status: ✅ passed
+Time: 43 ms
 ____
-Test #11
+Test #4
 Route: /api/v1/auth/login
-Test case description: should login successfully with correct credentials
-Status: ✅ passed (36 ms)
+Description: login successfully with correct credentials
+Status: ✅ passed
+Time: 45 ms
 ____
-Test #12
+Test #5
 Route: /api/v1/auth/login
-Test case description: should fail with incorrect password
-Status: ✅ passed (42 ms)
+Description: fail with incorrect password
+Status: ✅ passed
+Time: 53 ms
 ____
-Test #13
+Test #6
 Route: /api/v1/auth/login
-Test case description: should fail with non-existent email
-Status: ✅ passed (36 ms)
+Description: fail with non-existent email
+Status: ✅ passed
+Time: 41 ms
 ____
-Test #14
+Test #7
 Route: /api/v1/auth/login
-Test case description: should fail when required fields are missing
-Status: ✅ passed (2 ms)
+Description: fail when required fields are missing
+Status: ✅ passed
+Time: 2 ms
 ____

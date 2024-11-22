@@ -76,7 +76,7 @@ describe('Product Controller Tests', () => {
             };
 
             const response = await supertest(app).post('/api/v1/products/addProduct').send(newProduct);
-            expect(response.status).toBe(200);
+            expect(response.status).toBe(201);
             expect(response.body.status).toBe('success');
             expect(response.body.data).toHaveProperty('_id');
             expect(response.body.data).toHaveProperty('name', newProduct.name);
