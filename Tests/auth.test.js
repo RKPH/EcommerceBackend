@@ -87,10 +87,9 @@ describe('Auth Routes', () => {
     });
 
     describe('GET /api/v1/auth/profile', ()=> {
-        const tokens= token;
-        // const token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzQwNDNiOTFjNjQwOGQ3ODNmNjhlZTYiLCJpYXQiOjE3MzIyNjY1ODIsImV4cCI6MTczMjI3MDE4Mn0.E6KJg_lsVxHydQ3PF85wEOHV3SAqFy6xtbRNSpFKXkA";
+        const token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzQwOTEyYzgyNTBiODE5NTRiMGRhNmIiLCJpYXQiOjE3MzIyODQ3MTYsImV4cCI6MTczMjI4ODMxNn0.Jyej_s-GJjOrTWi_XkOlKzWTwMfylkVjr9MkA_x7P7w";
         it('should return user information when authenticated', async () => {
-            const response = await supertest(app).get('/api/v1/auth/profile').set('Authorization', `Bearer ${tokens}`);
+            const response = await supertest(app).get('/api/v1/auth/profile').set('Authorization', `Bearer ${token}`);
             expect(response.status).toBe(200);
 
         })

@@ -32,6 +32,11 @@ exports.registerUser = async (req, res) => {
         // Generate a JWT token
         const token = generateJwt(user._id);
         const refreshToken = generateRefreshToken(token);
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true, // Secure cookie, not accessible from JavaScript
+            secure: false, // Set to true in production if using HTTPS
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
         // Respond with success
         res.status(201).json({
             message: 'User registered successfully',
@@ -78,6 +83,13 @@ exports.loginUser = async (req, res) => {
         // Generate a JWT token
         const token = generateJwt(user._id);
         const refreshToken = generateRefreshToken(token);
+
+        res.cookie('refreshToken', refreshToken, {
+
+            maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
+            path: '/',  // Ensure the cookie is accessible to the entire app
+        });
+        console.log("Cookies after setting refreshToken:", req.cookies);
         // Send response
         res.status(200).json({
             message: 'Login successful',

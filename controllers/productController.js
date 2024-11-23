@@ -113,3 +113,20 @@ exports.addProduct = async (req, res) => {
         });
     }
 };
+
+exports.getAllTypes = async (req, res) => {
+    try {
+        const types = await Product.distinct('type');
+        console.log(types);
+        res.json({
+            status: 'success',
+            message: 'Types retrieved successfully',
+            data: types,
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message,
+        });
+    }
+};

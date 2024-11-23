@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const cors = require("cors");
 
 const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
@@ -15,6 +16,12 @@ const app = express();
 connectDB();
 
 // Middleware
+const corsOptions = {
+    origin: 'http://localhost:5173',  // Or your client’s domain
+    credentials: true,                // Allow cookies to be sent
+};
+app.use(cors(corsOptions));
+
 app.use(logger);  // Use custom logger
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -27,6 +34,7 @@ app.use('/api-docs', swaggerSetup, swaggerDocs);  // Swagger UI endpoint
 // Routes
 app.use('/api/v1', productRouter);
 app.use('/api/v1', authRouter);
+
 // Catch 404 errors
 app.use(notFoundHandler);
 

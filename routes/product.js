@@ -4,6 +4,7 @@ const {
     getAllProducts,
     getProductById,
     addProduct,
+    getAllTypes, // Import the new controller method
 } = require('../controllers/productController'); // Import controller methods
 
 /**
@@ -78,6 +79,26 @@ router.get('/products/all', getAllProducts);
 
 /**
  * @swagger
+ * /api/v1/products/types:
+ *   get:
+ *     summary: Retrieve all distinct product types
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: A list of distinct product types retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: string
+ *       500:
+ *         description: Internal server error. Failed to retrieve product types.
+ */
+router.get('/products/types', getAllTypes); // Add the new route
+
+/**
+ * @swagger
  * /api/v1/products/{id}:
  *   get:
  *     summary: Retrieve a single product by ID
@@ -130,5 +151,7 @@ router.get('/products/:id', getProductById);
  *         description: Internal server error. Failed to create the product.
  */
 router.post('/products/addProduct', addProduct);
+
+
 
 module.exports = router;

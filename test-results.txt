@@ -9,13 +9,13 @@ Test #1
 Route: GET /api/v1/products/all
 Description: return all products
 Status: ✅ passed
-Time: 817 ms
+Time: 566 ms
 ____
 Test #2
 Route: GET /api/v1/products/:id
 Description: return a product with a valid ID
 Status: ✅ passed
-Time: 49 ms
+Time: 40 ms
 ____
 Test #3
 Route: GET /api/v1/products/:id
@@ -27,25 +27,25 @@ Test #4
 Route: GET /api/v1/products/:id
 Description: return 404 for non-existing product ID
 Status: ✅ passed
-Time: 42 ms
+Time: 34 ms
 ____
 Test #5
 Route: POST /api/v1/products/addProduct
 Description: create a new product with valid data
 Status: ✅ passed
-Time: 138 ms
+Time: 140 ms
 ____
 Test #6
 Route: POST /api/v1/products/addProduct
 Description: return 400 for missing required fields
 Status: ✅ passed
-Time: 4 ms
+Time: 5 ms
 ____
 Test #7
 Route: POST /api/v1/products/addProduct
 Description: return 400 for invalid price
 Status: ✅ passed
-Time: 2 ms
+Time: 3 ms
 ____
 
 ========================================
@@ -55,61 +55,55 @@ Test #1
 Route: /api/v1/auth/register
 Description: register a new user successfully
 Status: ✅ passed
-Time: 908 ms
+Time: 627 ms
 ____
 Test #2
 Route: /api/v1/auth/register
 Description: fail when email already exists
 Status: ✅ passed
-Time: 40 ms
+Time: 38 ms
 ____
 Test #3
 Route: /api/v1/auth/register
 Description: fail when required fields are missing
 Status: ✅ passed
-Time: 39 ms
+Time: 35 ms
 ____
 Test #4
 Route: /api/v1/auth/login
 Description: login successfully with correct credentials
 Status: ✅ passed
-Time: 44 ms
+Time: 39 ms
 ____
 Test #5
 Route: /api/v1/auth/login
 Description: fail with incorrect password
 Status: ✅ passed
-Time: 39 ms
+Time: 41 ms
 ____
 Test #6
 Route: /api/v1/auth/login
 Description: fail with non-existent email
 Status: ✅ passed
-Time: 42 ms
+Time: 39 ms
 ____
 Test #7
 Route: /api/v1/auth/login
 Description: fail when required fields are missing
 Status: ✅ passed
-Time: 2 ms
+Time: 3 ms
 ____
 Test #8
 Route: /api/v1/auth/profile
 Description: return user information when authenticated
-Status: ❌ failed
-Time: 7 ms
-Failure Reason: Error: expect(received).toBe(expected) // Object.is equality
-
-Expected: 200
-Received: 500
-    at Object.toBe (/Users/giahung/WebstormProjects/Learning/Tests/auth.test.js:94:37)
-    at processTicksAndRejections (node:internal/process/task_queues:95:5)
+Status: ✅ passed
+Time: 49 ms
 ____
 
 ========================================
 📊 Summary:
 ----------------------------------------
-✔ Test Suites: 1 Passed (2 Total)
-✔ Tests:       14 Passed (15 Total)
-✔ Time Taken:  1.832 seconds
+✔ Test Suites: 2 Passed (2 Total)
+✔ Tests:       15 Passed (15 Total)
+✔ Time Taken:  2.530 seconds
 ========================================
