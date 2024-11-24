@@ -62,6 +62,7 @@ const {
  * /api/v1/products/all:
  *   get:
  *     summary: Retrieve a list of products
+ *     security: []
  *     tags: [Products]
  *     responses:
  *       200:
@@ -81,6 +82,7 @@ router.get('/products/all', getAllProducts);
  * @swagger
  * /api/v1/products/types:
  *   get:
+ *     security: []
  *     summary: Retrieve all distinct product types
  *     tags: [Products]
  *     responses:
@@ -102,6 +104,7 @@ router.get('/products/types', getAllTypes); // Add the new route
  * /api/v1/products/{id}:
  *   get:
  *     summary: Retrieve a single product by ID
+ *     security: []
  *     tags: [Products]
  *     parameters:
  *       - in: path
@@ -131,6 +134,7 @@ router.get('/products/:id', getProductById);
  * /api/v1/products/addProduct:
  *   post:
  *     summary: Add a new product
+ *     security: []
  *     tags: [Products]
  *     requestBody:
  *       required: true

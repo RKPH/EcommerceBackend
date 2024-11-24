@@ -83,17 +83,19 @@ exports.loginUser = async (req, res) => {
         // Generate a JWT token
         const token = generateJwt(user._id);
         const refreshToken = generateRefreshToken(token);
-
+        req.session.user = { id: user._id, name: user.name, email: user.email };
         res.cookie('refreshToken', refreshToken, {
 
             maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
             path: '/',  // Ensure the cookie is accessible to the entire app
         });
         console.log("Cookies after setting refreshToken:", req.cookies);
+        console.log("Session after setting refreshToken:", req.session);
         // Send response
         res.status(200).json({
             message: 'Login successful',
             token,
+            sessionID: req.sessionID,
             refreshToken,
             user: {
                 id: user._id,
@@ -122,6 +124,7 @@ exports.getUserProfile = async (req, res) => {
 
         // Respond with the user's profile data
         res.status(200).json({
+            sessionID: req.sessionID,
             id: user._id,
             name: user.name,
             email: user.email,
