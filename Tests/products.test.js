@@ -35,7 +35,7 @@ describe('Product Controller Tests', () => {
     });
 
     describe('GET /api/v1/products/:id', () => {
-        const productId = '673ea929f15ede4046eb85f4'; // Replace with a valid product ID from your DB
+        const productId = '6740b3f22429dec7d21844f7'; // Replace with a valid product ID from your DB
 
         it('should return a product with a valid ID', async () => {
             const response = await supertest(app).get(`/api/v1/products/${productId}`);
