@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 
 // Import controllers
-const { registerUser, loginUser, getUserProfile } = require('../controllers/authController'); // Update the path if necessary
-const  authorizationMiddleware =require('../middlewares/authorizationMIddleware');
+const { registerUser, loginUser, getUserProfile, refreshAccessToken } = require('../controllers/authController'); // Update the path if necessary
+const authorizationMiddleware = require('../middlewares/authorizationMiddleware');
 
 /**
  * @swagger
@@ -136,6 +136,30 @@ router.post('/auth/login', loginUser);
  *       500:
  *         description: Server error
  */
-router.get('/auth/profile', authorizationMiddleware, getUserProfile); // Apply protectRoute here
+router.get('/auth/profile', authorizationMiddleware, getUserProfile); // Apply authorizationMiddleware here
+
+/**
+ * @swagger
+ * /api/v1/auth/refresh-token:
+ *   post:
+ *     summary: Refresh the access token using a valid refresh token from cookies or session
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: New access token generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: The new access token
+ *       401:
+ *         description: Invalid or expired refresh token
+ *       500:
+ *         description: Server error
+ */
+router.post('/auth/refresh-token', refreshAccessToken);
 
 module.exports = router;

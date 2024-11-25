@@ -1,6 +1,6 @@
 const User = require('../models/user');
 const { hash, verifyPassword } = require('../untils/hash');  // Import password utility
-const { generateJwt, generateRefreshToken } = require('../untils/jwt');  // Import JWT generation utility
+const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../untils/jwt');  // Import JWT generation utility
 
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
@@ -134,4 +134,40 @@ exports.getUserProfile = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+// @desc    Refresh access token using refresh token
+// @route   POST /api/v1/auth/refresh-token
+// @access  Private (Requires valid refresh token)
+exports.refreshAccessToken = async (req, res) => {
+    try {
+        const { refreshToken } = req.cookies;
+        console.log("Cookies in refreshAccessToken:", refreshToken);
+
+        // Check if the refresh token is present
+        if (!refreshToken) {
+            return res.status(401).json({ message: 'No refresh token provided' });
+        }
+
+        // Verify the refresh token
+        const decoded = verifyRefreshToken(refreshToken);
+        console.log("decoded in refreshAccessToken:", decoded);
+        if (!decoded) {
+            return res.status(401).json({ message: 'Invalid or expired refresh token' });
+        }
+
+        // Generate a new access token using the decoded user ID
+        const token = generateJwt(decoded.userId);
+
+        // Respond with the new access token
+        res.status(200).json({
+            message: 'New access token generated successfully',
+            token,
+        });
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+
+
 

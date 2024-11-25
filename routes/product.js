@@ -12,6 +12,7 @@ const {
  * components:
  *   schemas:
  *     Product:
+ *
  *       type: object
  *       properties:
  *         id:
