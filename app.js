@@ -8,6 +8,7 @@ const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
 const productRouter = require('./routes/product');
 const authRouter = require('./routes/auth');
+const trackingRouter  = require('./routes/tracking');
 const logger = require('./config/logger');  // Import custom logger
 const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
 
@@ -19,7 +20,8 @@ connectDB();
 // Middleware
 const corsOptions = {
     origin: 'http://localhost:5173',  // Or your client’s domain
-    credentials: true,                // Allow cookies to be sent
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"], // Allow cookies to be sent
 };
 app.use(cors(corsOptions));
 
@@ -44,7 +46,7 @@ app.use('/api-docs', swaggerSetup, swaggerDocs);  // Swagger UI endpoint
 // Routes
 app.use('/api/v1', productRouter);
 app.use('/api/v1', authRouter);
-
+app.use('/api/v1', trackingRouter);
 // Catch 404 errors
 app.use(notFoundHandler);
 

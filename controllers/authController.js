@@ -69,13 +69,12 @@ exports.loginUser = async (req, res) => {
         // Check if the user exists
         const user = await User.findOne({ email });
 
-
         if (!user) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         // Verify the password
-        const isPasswordValid =verifyPassword(user.salt, user.password, password);
+        const isPasswordValid = verifyPassword(user.salt, user.password, password);
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
@@ -83,31 +82,42 @@ exports.loginUser = async (req, res) => {
         // Generate a JWT token
         const token = generateJwt(user._id);
         const refreshToken = generateRefreshToken(token);
-        req.session.user = { id: user._id, name: user.name, email: user.email };
-        res.cookie('refreshToken', refreshToken, {
 
-            maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
-            path: '/',  // Ensure the cookie is accessible to the entire app
-        });
-        console.log("Cookies after setting refreshToken:", req.cookies);
-        console.log("Session after setting refreshToken:", req.session);
-        // Send response
-        res.status(200).json({
-            message: 'Login successful',
-            token,
-            sessionID: req.sessionID,
-            refreshToken,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-            },
+        // Regenerate the session ID to ensure it is fresh
+        req.session.regenerate((err) => {
+            if (err) {
+                return res.status(500).json({ message: 'Failed to regenerate session ID' });
+            }
+
+            // Set session data after session regeneration
+            req.session.user = { id: user._id, name: user.name, email: user.email };
+
+            // Set refreshToken as a cookie
+            res.cookie('refreshToken', refreshToken, {
+                httpOnly: true,
+                secure: false, // Set to true if using HTTPS in production
+                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+            });
+
+            // Send response with new session ID
+            res.status(200).json({
+                message: 'Login successful',
+                token,
+                sessionID: req.sessionID,  // This should now reflect the new session ID
+                refreshToken,
+                user: {
+                    id: user._id,
+                    name: user.name,
+                    email: user.email,
+                },
+            });
         });
     } catch (error) {
         console.error(error.message);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 // @desc    Get user profile
 // @route   GET /api/v1/auth/profile
 // @access  Private (Protected by token)
@@ -161,6 +171,28 @@ exports.refreshAccessToken = async (req, res) => {
         res.status(200).json({
             message: 'New access token generated successfully',
             token,
+        });
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+// @desc    Logout user
+// @route   POST /api/v1/auth/logout
+// @access  Private
+exports.logoutUser = async (req, res) => {
+    try {
+        // Destroy server-side session (if applicable)
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error destroying session:', err);
+                return res.status(500).json({ message: 'Error logging out' });
+            }
+
+            // Clear cookies (e.g., refreshToken)
+            res.clearCookie('refreshToken', { path: '/' });
+
+            res.status(200).json({ message: 'Logout successful' });
         });
     } catch (error) {
         console.error(error.message);

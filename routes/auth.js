@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import controllers
-const { registerUser, loginUser, getUserProfile, refreshAccessToken } = require('../controllers/authController'); // Update the path if necessary
+const { registerUser, loginUser, getUserProfile, refreshAccessToken, logoutUser } = require('../controllers/authController'); // Update the path if necessary
 const authorizationMiddleware = require('../middlewares/authorizationMiddleware');
 
 /**
@@ -161,5 +161,19 @@ router.get('/auth/profile', authorizationMiddleware, getUserProfile); // Apply a
  *         description: Server error
  */
 router.post('/auth/refresh-token', refreshAccessToken);
+
+/**
+ * @swagger
+ * /api/v1/auth/logout:
+ *   post:
+ *     summary: Log out the user and clear the session or cookies
+ *     tags: [Auth]
+ *     responses:
+ *       200:
+ *         description: Logout successful
+ *       500:
+ *         description: Server error
+ */
+router.post('/auth/logout', authorizationMiddleware, logoutUser); // Add logout endpoint
 
 module.exports = router;
