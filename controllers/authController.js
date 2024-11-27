@@ -1,7 +1,7 @@
 const User = require('../models/user');
 const { hash, verifyPassword } = require('../untils/hash');  // Import password utility
 const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../untils/jwt');  // Import JWT generation utility
-
+const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique I
 // @desc    Register a new user
 // @route   POST /api/v1/auth/register
 // @access  Public
@@ -80,37 +80,31 @@ exports.loginUser = async (req, res) => {
         }
 
         // Generate a JWT token
-        const token = generateJwt(user._id);
-        const refreshToken = generateRefreshToken(token);
 
-        // Regenerate the session ID to ensure it is fresh
-        req.session.regenerate((err) => {
-            if (err) {
-                return res.status(500).json({ message: 'Failed to regenerate session ID' });
-            }
+        const sessionID = uuidv4();
+        const token = generateJwt(user._id,sessionID);
 
-            // Set session data after session regeneration
-            req.session.user = { id: user._id, name: user.name, email: user.email };
+        const refreshToken = generateRefreshToken(user._id, sessionID);
 
-            // Set refreshToken as a cookie
-            res.cookie('refreshToken', refreshToken, {
-                httpOnly: true,
-                secure: false, // Set to true if using HTTPS in production
-                maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-            });
+        res.cookie('refreshToken', refreshToken, {
 
-            // Send response with new session ID
-            res.status(200).json({
-                message: 'Login successful',
-                token,
-                sessionID: req.sessionID,  // This should now reflect the new session ID
-                refreshToken,
-                user: {
-                    id: user._id,
-                    name: user.name,
-                    email: user.email,
-                },
-            });
+            maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
+            path: '/',  // Ensure the cookie is accessible to the entire app
+        });
+        console.log("Cookies after setting refreshToken:", req.cookies);
+
+        // Send response
+        res.status(200).json({
+            message: 'Login successful',
+            token,
+            sessionID,
+            refreshToken,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+            },
+
         });
     } catch (error) {
         console.error(error.message);
@@ -121,29 +115,36 @@ exports.loginUser = async (req, res) => {
 // @desc    Get user profile
 // @route   GET /api/v1/auth/profile
 // @access  Private (Protected by token)
+// @desc    Get user profile
+// @route   GET /api/v1/auth/profile
+// @access  Private (Protected by token)
 exports.getUserProfile = async (req, res) => {
     try {
-        console.log(req.user);
-        // The userId is available in req.userId, added by the protectRoute middleware
-        const user = await User.findById(req.user.userId);
+        console.log('User from token:', req.user);  // Log the user data from the token
+        const { userId, sessionID } = req.user;  // Destructure from req.user
 
-        // If user not found, return 404
+        const user = await User.findById(userId);
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
-        // Respond with the user's profile data
         res.status(200).json({
-            sessionID: req.sessionID,
-            id: user._id,
-            name: user.name,
-            email: user.email,
+            message: 'User profile fetched successfully',
+            sessionID,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+            },
         });
     } catch (error) {
-        console.error(error.message);
+        console.error('Error fetching user profile:', error.message);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
+
 // @desc    Refresh access token using refresh token
 // @route   POST /api/v1/auth/refresh-token
 // @access  Private (Requires valid refresh token)
@@ -158,14 +159,15 @@ exports.refreshAccessToken = async (req, res) => {
         }
 
         // Verify the refresh token
-        const decoded = verifyRefreshToken(refreshToken);
+        const decoded = verifyRefreshToken(refreshToken);  // Ensure this is a valid decoded payload
         console.log("decoded in refreshAccessToken:", decoded);
+
         if (!decoded) {
             return res.status(401).json({ message: 'Invalid or expired refresh token' });
         }
 
         // Generate a new access token using the decoded user ID
-        const token = generateJwt(decoded.userId);
+        const token = generateJwt(decoded.userId.toString());  // Assuming `decoded.userId` is a string
 
         // Respond with the new access token
         res.status(200).json({
@@ -199,7 +201,6 @@ exports.logoutUser = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
-
 
 
 
