@@ -27,4 +27,6 @@ exports.trackUserBehavior = async (req, res) => {
         console.error('Error tracking user behavior:', error);
         res.status(500).json({ message: 'Error tracking user behavior', error });
     }
+
 };
+
