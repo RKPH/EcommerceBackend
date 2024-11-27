@@ -25,11 +25,6 @@ const swaggerOptions = {
                 },
             },
         },
-        security: [
-            {
-                bearerAuth: [],  // This applies the Bearer token authentication globally, but you can override it in individual routes if necessary
-            },
-        ],
     },
     apis: ['./routes/*.js'], // Path to your route files
 };

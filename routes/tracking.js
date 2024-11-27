@@ -87,6 +87,8 @@ const trackingController = require('../controllers/trackingController');
  */
 
 // POST /api/v1/tracking
-router.post('/tracking', trackingController.trackUserBehavior);
+
+router.post('/', trackingController.trackUserBehavior);
 
 module.exports = router;
+

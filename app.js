@@ -2,13 +2,14 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require("cors");
-const session = require('express-session');
 
 const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
 const productRouter = require('./routes/product');
 const authRouter = require('./routes/auth');
-const trackingRouter  = require('./routes/tracking');
+
+const trackRouter = require('./routes/tracking');
+
 const logger = require('./config/logger');  // Import custom logger
 const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
 
@@ -17,40 +18,46 @@ const app = express();
 // Connect to the database
 connectDB();
 
-// Middleware
+// Middleware setup
 const corsOptions = {
-    origin: 'http://localhost:5173',  // Or your client’s domain
-    credentials: true,
-    allowedHeaders: ["Content-Type", "Authorization"], // Allow cookies to be sent
-};
-app.use(cors(corsOptions));
 
+    origin: 'http://localhost:5173', // Your frontend URL
+    credentials: true,  // Allow credentials (cookies)
+
+};
+
+// Apply CORS for authenticated routes (e.g., tracking, auth)
+app.use('/api/v1/tracking', cors(corsOptions));
+app.use('/api/v1/auth', cors(corsOptions));
+
+// CORS for public routes (e.g., products)
+const openCorsOptions = {
+    origin: 'http://localhost:5173', // Your frontend URL
+    credentials: false,  // Don't allow credentials (cookies)
+};
+app.use('/api/v1/products', cors(openCorsOptions)); // For open routes
+
+// Middleware for logging, request parsing, etc.
 app.use(logger);  // Use custom logger
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+app.use(cookieParser());  // Enable cookie parsing
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(session({
-    secret: '12345678910',       // Secret key for signing session ID cookies
-    resave: false,                 // Don't save session if it's not modified
-    saveUninitialized: false,      // Don't save empty session
-    cookie: {
-        httpOnly: true,            // Helps mitigate XSS attacks
-        secure: false,             // Set to true in production (use HTTPS)
-        maxAge: 30 * 24 * 60 * 60 * 1000,  // Session expiration time (30 days)
-    },
-}));
+
 // Swagger setup
 app.use('/api-docs', swaggerSetup, swaggerDocs);  // Swagger UI endpoint
 
 // Routes
-app.use('/api/v1', productRouter);
-app.use('/api/v1', authRouter);
-app.use('/api/v1', trackingRouter);
+
+app.use('/api/v1/products', productRouter);
+app.use('/api/v1/auth', authRouter);
+app.use('/api/v1/tracking', trackRouter);
+
+
 // Catch 404 errors
 app.use(notFoundHandler);
 
-// Error handling
+// Error handling middleware
 app.use(errorHandler);
 
 module.exports = app;
