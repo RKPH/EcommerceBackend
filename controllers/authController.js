@@ -69,18 +69,18 @@ exports.loginUser = async (req, res) => {
         // Check if the user exists
         const user = await User.findOne({ email });
 
-
         if (!user) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         // Verify the password
-        const isPasswordValid =verifyPassword(user.salt, user.password, password);
+        const isPasswordValid = verifyPassword(user.salt, user.password, password);
         if (!isPasswordValid) {
             return res.status(401).json({ message: 'Invalid email or password' });
         }
 
         // Generate a JWT token
+
         const sessionID = uuidv4();
         const token = generateJwt(user._id,sessionID);
 
@@ -104,12 +104,14 @@ exports.loginUser = async (req, res) => {
                 name: user.name,
                 email: user.email,
             },
+
         });
     } catch (error) {
         console.error(error.message);
         res.status(500).json({ message: 'Server error' });
     }
 };
+
 // @desc    Get user profile
 // @route   GET /api/v1/auth/profile
 // @access  Private (Protected by token)
@@ -171,6 +173,28 @@ exports.refreshAccessToken = async (req, res) => {
         res.status(200).json({
             message: 'New access token generated successfully',
             token,
+        });
+    } catch (error) {
+        console.error(error.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+// @desc    Logout user
+// @route   POST /api/v1/auth/logout
+// @access  Private
+exports.logoutUser = async (req, res) => {
+    try {
+        // Destroy server-side session (if applicable)
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Error destroying session:', err);
+                return res.status(500).json({ message: 'Error logging out' });
+            }
+
+            // Clear cookies (e.g., refreshToken)
+            res.clearCookie('refreshToken', { path: '/' });
+
+            res.status(200).json({ message: 'Logout successful' });
         });
     } catch (error) {
         console.error(error.message);
