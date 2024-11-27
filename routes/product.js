@@ -77,7 +77,7 @@ const {
  *       500:
  *         description: Internal server error. Failed to retrieve products.
  */
-router.get('/products/all', getAllProducts);
+router.get('/all', getAllProducts);
 
 /**
  * @swagger
@@ -98,7 +98,7 @@ router.get('/products/all', getAllProducts);
  *       500:
  *         description: Internal server error. Failed to retrieve product types.
  */
-router.get('/products/types', getAllTypes); // Add the new route
+router.get('/types', getAllTypes); // Add the new route
 
 /**
  * @swagger
@@ -128,7 +128,7 @@ router.get('/products/types', getAllTypes); // Add the new route
  *       500:
  *         description: Internal server error. Failed to retrieve the product.
  */
-router.get('/products/:id', getProductById);
+router.get('/:id', getProductById);
 
 /**
  * @swagger
@@ -155,7 +155,7 @@ router.get('/products/:id', getProductById);
  *       500:
  *         description: Internal server error. Failed to create the product.
  */
-router.post('/products/addProduct', addProduct);
+router.post('/addProduct', addProduct);
 
 
 

@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-
+const verifyAccessToken = require('../middlewares/verifyToken');
 // Import controllers
 const { registerUser, loginUser, getUserProfile, refreshAccessToken } = require('../controllers/authController'); // Update the path if necessary
-const authorizationMiddleware = require('../middlewares/authorizationMiddleware');
+
 
 /**
  * @swagger
@@ -70,7 +70,7 @@ const authorizationMiddleware = require('../middlewares/authorizationMiddleware'
  *       500:
  *         description: Server error
  */
-router.post('/auth/register', registerUser);
+router.post('/register', registerUser);
 
 /**
  * @swagger
@@ -102,7 +102,7 @@ router.post('/auth/register', registerUser);
  *       500:
  *         description: Server error
  */
-router.post('/auth/login', loginUser);
+router.post('/login', loginUser);
 
 /**
  * @swagger
@@ -136,7 +136,7 @@ router.post('/auth/login', loginUser);
  *       500:
  *         description: Server error
  */
-router.get('/auth/profile', authorizationMiddleware, getUserProfile); // Apply authorizationMiddleware here
+router.get('/profile', verifyAccessToken,getUserProfile); // Apply authorizationMiddleware here
 
 /**
  * @swagger
