@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const verifyAccessToken = require('../middlewares/verifyToken');
-// Import controllers
 
-const { registerUser, loginUser, getUserProfile, refreshAccessToken } = require('../controllers/authController'); // Update the path if necessary
+
+const { registerUser, loginUser, getUserProfile, refreshAccessToken,logoutUser } = require('../controllers/authController'); // Update the path if necessary
 
 
 /**
@@ -175,6 +175,6 @@ router.post('/auth/refresh-token', refreshAccessToken);
  *       500:
  *         description: Server error
  */
-router.post('/auth/logout', authorizationMiddleware, logoutUser); // Add logout endpoint
+router.post('/auth/logout', logoutUser); // Add logout endpoint
 
 module.exports = router;
