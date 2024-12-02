@@ -3,7 +3,7 @@ const router = express.Router();
 const verifyAccessToken = require('../middlewares/verifyToken');
 
 
-const { registerUser, loginUser, getUserProfile, refreshAccessToken,logoutUser } = require('../controllers/authController'); // Update the path if necessary
+const { registerUser, loginUser, getUserProfile,refreshAccessToken ,logoutUser } = require('../controllers/authController'); // Update the path if necessary
 
 
 /**
@@ -161,7 +161,7 @@ router.get('/profile', verifyAccessToken,getUserProfile); // Apply authorization
  *       500:
  *         description: Server error
  */
-router.post('/auth/refresh-token', refreshAccessToken);
+router.post('/refresh-token', refreshAccessToken);
 
 /**
  * @swagger
@@ -175,6 +175,6 @@ router.post('/auth/refresh-token', refreshAccessToken);
  *       500:
  *         description: Server error
  */
-router.post('/auth/logout', logoutUser); // Add logout endpoint
+router.post('/logout', logoutUser); // Add logout endpoint
 
 module.exports = router;
