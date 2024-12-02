@@ -86,12 +86,6 @@ exports.loginUser = async (req, res) => {
 
         const refreshToken = generateRefreshToken(user._id, sessionID);
 
-        res.cookie('refreshToken', refreshToken, {
-
-            maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
-            path: '/',  // Ensure the cookie is accessible to the entire app
-        });
-        console.log("Cookies after setting refreshToken:", req.cookies);
 
         // Send response
         res.status(200).json({
@@ -167,7 +161,7 @@ exports.refreshAccessToken = async (req, res) => {
         }
 
         // Generate a new access token using the decoded user ID
-        const token = generateJwt(decoded.userId.toString());  // Assuming `decoded.userId` is a string
+        const token = generateJwt(decoded.userId.toString(),decoded.sessionID.toString());  // Assuming `decoded.userId` is a string
 
         // Respond with the new access token
         res.status(200).json({
