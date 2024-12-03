@@ -83,7 +83,7 @@ exports.loginUser = async (req, res) => {
 
         const sessionID = uuidv4();
         const token = generateJwt(user._id,sessionID);
-
+        const isLoggedid =true
         const refreshToken = generateRefreshToken(user._id, sessionID);
 
 
@@ -93,6 +93,7 @@ exports.loginUser = async (req, res) => {
             token,
             sessionID,
             refreshToken,
+            isLoggedid,
             user: {
                 id: user._id,
                 name: user.name,
@@ -116,7 +117,7 @@ exports.getUserProfile = async (req, res) => {
     try {
         console.log('User from token:', req.user);  // Log the user data from the token
         const { userId, sessionID } = req.user;  // Destructure from req.user
-
+        console.log("user at get profile", req.user);
         const user = await User.findById(userId);
 
         if (!user) {
@@ -144,7 +145,7 @@ exports.getUserProfile = async (req, res) => {
 // @access  Private (Requires valid refresh token)
 exports.refreshAccessToken = async (req, res) => {
     try {
-        const { refreshToken } = req.cookies;
+       const refreshToken  = req.header('Authorization')?.replace('Bearer ', '')
         console.log("Cookies in refreshAccessToken:", refreshToken);
 
         // Check if the refresh token is present
