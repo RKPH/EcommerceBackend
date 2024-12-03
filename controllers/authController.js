@@ -83,7 +83,7 @@ exports.loginUser = async (req, res) => {
 
         const sessionID = uuidv4();
         const token = generateJwt(user._id,sessionID);
-        const isLoggedid =true
+        const LoggedinSession = uuidv4();
         const refreshToken = generateRefreshToken(user._id, sessionID);
 
 
@@ -93,7 +93,7 @@ exports.loginUser = async (req, res) => {
             token,
             sessionID,
             refreshToken,
-            isLoggedid,
+            LoggedinSession,
             user: {
                 id: user._id,
                 name: user.name,
@@ -116,7 +116,7 @@ exports.loginUser = async (req, res) => {
 exports.getUserProfile = async (req, res) => {
     try {
         console.log('User from token:', req.user);  // Log the user data from the token
-        const { userId, sessionID } = req.user;  // Destructure from req.user
+        const { userId, sessionID,LoggedinSession } = req.user;  // Destructure from req.user
         console.log("user at get profile", req.user);
         const user = await User.findById(userId);
 
@@ -127,6 +127,7 @@ exports.getUserProfile = async (req, res) => {
         res.status(200).json({
             message: 'User profile fetched successfully',
             sessionID,
+
             user: {
                 id: user._id,
                 name: user.name,
