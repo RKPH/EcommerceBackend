@@ -4,7 +4,8 @@ const {
     getAllProducts,
     getProductById,
     addProduct,
-    getAllTypes, // Import the new controller method
+    getAllTypes,
+    getProductByTypes// Import the new controller method
 } = require('../controllers/productController'); // Import controller methods
 
 /**
@@ -99,6 +100,36 @@ router.get('/all', getAllProducts);
  *         description: Internal server error. Failed to retrieve product types.
  */
 router.get('/types', getAllTypes); // Add the new route
+
+/**
+ * @swagger
+ * /api/v1/products/types/{type}:
+ *   get:
+ *     summary: Retrieve products by type
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: type
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The type of the products to retrieve
+ *     responses:
+ *       200:
+ *         description: A list of products of the given type retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       404:
+ *         description: No products found for the specified type.
+ *       500:
+ *         description: Internal server error. Failed to retrieve products by type.
+ */
+router.get('/types/:type', getProductByTypes); // Add the route to get products by type
 
 /**
  * @swagger
