@@ -84,7 +84,19 @@ exports.loginUser = async (req, res) => {
         const token = generateJwt(user._id,sessionID);
 
         const refreshToken = generateRefreshToken(user._id, sessionID);
+        res.cookie('accessToken', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',  // Set to true if you're using HTTPS
+            sameSite: 'Strict',  // or 'Lax' depending on your needs
+            maxAge: 24 * 60 * 60 * 1000,  // 1 day
+        });
 
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Set to true if you're using HTTPS
+            sameSite: 'Strict',  // or 'Lax'
+            maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
+        });
         // Send response
         res.status(200).json({
             message: 'Login successful',
@@ -144,7 +156,7 @@ exports.getUserProfile = async (req, res) => {
 // @access  Private (Requires valid refresh token)
 exports.refreshAccessToken = async (req, res) => {
     try {
-       const refreshToken  = req.header('Authorization')?.replace('Bearer ', '')
+       const refreshToken  = req.header('Authorization')?.replace('Bearer ', '') || req.cookies.refreshToken;
         console.log("Cookies in refreshAccessToken:", refreshToken);
 
         // Check if the refresh token is present
@@ -162,7 +174,12 @@ exports.refreshAccessToken = async (req, res) => {
 
         // Generate a new access token using the decoded user ID
         const token = generateJwt(decoded.userId.toString(),decoded.sessionID.toString());  // Assuming `decoded.userId` is a string
-
+        res.cookie('accessToken', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 24 * 60 * 60 * 1000,
+        })
         // Respond with the new access token
         res.status(200).json({
             message: 'New access token generated successfully',
