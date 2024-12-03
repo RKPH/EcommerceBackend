@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const trackingController = require('../controllers/trackingController');
+const verifyToken = require('../middlewares/verifyToken');
 
 /**
  * @swagger
@@ -88,7 +89,7 @@ const trackingController = require('../controllers/trackingController');
 
 // POST /api/v1/tracking
 
-router.post('/', trackingController.trackUserBehavior);
+router.post('/', verifyToken ,trackingController.trackUserBehavior);
 
 module.exports = router;
 
