@@ -83,9 +83,8 @@ exports.loginUser = async (req, res) => {
 
         const sessionID = uuidv4();
         const token = generateJwt(user._id,sessionID);
-        const LoggedinSession = uuidv4();
-        const refreshToken = generateRefreshToken(user._id, sessionID);
 
+        const refreshToken = generateRefreshToken(user._id, sessionID);
 
         // Send response
         res.status(200).json({
@@ -93,7 +92,7 @@ exports.loginUser = async (req, res) => {
             token,
             sessionID,
             refreshToken,
-            LoggedinSession,
+
             user: {
                 id: user._id,
                 name: user.name,
