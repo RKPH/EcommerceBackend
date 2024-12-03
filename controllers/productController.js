@@ -32,6 +32,7 @@ exports.getProductById = async (req, res) => {
 
     try {
         const product = await Product.findById(id);
+        console.log("is called or fecth",product);
         if (!product) {
             return res.status(404).json({
                 status: 'error',
@@ -130,3 +131,29 @@ exports.getAllTypes = async (req, res) => {
         });
     }
 };
+
+exports.getProductByTypes = async (req, res) => {
+    const { type } = req.params;
+
+    try {
+        const product = await Product.find({type});
+        if (!product) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Product not found',
+            })
+        }
+        res.json({
+            status: 'success',
+            message: 'Products retrieved successfully',
+            data: product,
+        })
+
+    }
+    catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message,
+        })
+    }
+}
