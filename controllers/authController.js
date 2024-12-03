@@ -30,16 +30,15 @@ exports.registerUser = async (req, res) => {
         await user.save();
 
         // Generate a JWT token
-        const token = generateJwt(user._id);
-        const refreshToken = generateRefreshToken(token);
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true, // Secure cookie, not accessible from JavaScript
-            secure: false, // Set to true in production if using HTTPS
-            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        });
+        const sessionID = uuidv4();
+        const token = generateJwt(user._id,sessionID);
+
+        const refreshToken = generateRefreshToken(user._id, sessionID);
+
         // Respond with success
         res.status(201).json({
             message: 'User registered successfully',
+            sessionID,
             token,
             refreshToken,
             user: {
