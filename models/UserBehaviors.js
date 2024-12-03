@@ -5,6 +5,9 @@ const userBehaviorSchema = new mongoose.Schema({
         type: String, // sessionId as key
         required: true,
     },
+    SessionActionId: {
+        type: String,
+    },
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
