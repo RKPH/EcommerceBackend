@@ -6,7 +6,7 @@ const Cart = require('../models/cart');
 exports.addProductToCart = async (req, res) => {
     const { productId, quantity } = req.body; // Extract productId and quantity from the request body
     const { userId} = req.user;// Extract userId from authenticated user's information
-    console.log("userId in addProductToCart:", userId);
+    // console.log("userId in addProductToCart:", userId);
     try {
         // Validate input
         if (!productId || !quantity) {
