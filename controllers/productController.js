@@ -32,7 +32,7 @@ exports.getProductById = async (req, res) => {
 
     try {
         const product = await Product.findById(id);
-        console.log("is called or fecth",product);
+        // console.log("is called or fecth",product);
         if (!product) {
             return res.status(404).json({
                 status: 'error',
@@ -118,7 +118,7 @@ exports.addProduct = async (req, res) => {
 exports.getAllTypes = async (req, res) => {
     try {
         const types = await Product.distinct('type');
-        console.log(types);
+        // console.log(types);
         res.json({
             status: 'success',
             message: 'Types retrieved successfully',

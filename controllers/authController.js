@@ -137,9 +137,9 @@ exports.loginUser = async (req, res) => {
 // @access  Private (Protected by token)
 exports.getUserProfile = async (req, res) => {
     try {
-        console.log('User from token:', req.user);  // Log the user data from the token
+        // console.log('User from token:', req.user);  // Log the user data from the token
         const { userId, sessionID,LoggedinSession } = req.user;  // Destructure from req.user
-        console.log("user at get profile", req.user);
+        // console.log("user at get profile", req.user);
         const user = await User.findById(userId);
 
         if (!user) {
@@ -169,7 +169,7 @@ exports.getUserProfile = async (req, res) => {
 exports.refreshAccessToken = async (req, res) => {
     try {
        const refreshToken  = req.header('Authorization')?.replace('Bearer ', '') || req.cookies.refreshToken;
-        console.log("Cookies in refreshAccessToken:", refreshToken);
+        // console.log("Cookies in refreshAccessToken:", refreshToken);
 
         // Check if the refresh token is present
         if (!refreshToken) {
@@ -178,7 +178,7 @@ exports.refreshAccessToken = async (req, res) => {
 
         // Verify the refresh token
         const decoded = verifyRefreshToken(refreshToken);  // Ensure this is a valid decoded payload
-        console.log("decoded in refreshAccessToken:", decoded);
+        // console.log("decoded in refreshAccessToken:", decoded);
 
         if (!decoded) {
             return res.status(401).json({ message: 'Invalid or expired refresh token' });
@@ -207,23 +207,29 @@ exports.refreshAccessToken = async (req, res) => {
 // @access  Private
 exports.logoutUser = async (req, res) => {
     try {
-        // Destroy server-side session (if applicable)
-        req.session.destroy((err) => {
-            if (err) {
-                console.error('Error destroying session:', err);
-                return res.status(500).json({ message: 'Error logging out' });
-            }
-
-            // Clear cookies (e.g., refreshToken)
-            res.clearCookie('refreshToken', { path: '/' });
-
-            res.status(200).json({ message: 'Logout successful' });
+        // Clear authentication cookies
+        res.clearCookie('accessToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Use true in production for HTTPS
+            sameSite: 'Strict',
         });
+
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Use true in production for HTTPS
+            sameSite: 'Strict',
+        });
+
+        // Optionally, log out the action or handle token invalidation if stored in DB
+        console.log('User logged out and cookies cleared.');
+
+        res.status(200).json({ message: 'Logout successful' });
     } catch (error) {
-        console.error(error.message);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error during logout:', error.message);
+        res.status(500).json({ message: 'Server error during logout' });
     }
 };
+
 
 
 
