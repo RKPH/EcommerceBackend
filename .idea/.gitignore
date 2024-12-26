@@ -10,3 +10,5 @@
 # Ignore environment variable file
 .env
 
+/Data/2019-Nov.csv
+/Data/20219-Oct.csv
