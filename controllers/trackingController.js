@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique IDs
 
 exports.trackUserBehavior = async (req, res) => {
     try {
-        const { user, productId, behavior, sessionId: reqSessionId, isLoggedid } = req.body;
+        const { user, productId, behavior, sessionId: reqSessionId,} = req.body;
 
         // Ensure all required fields are provided
         if (!user || !productId || !behavior || !reqSessionId) {
@@ -28,7 +28,13 @@ exports.trackUserBehavior = async (req, res) => {
             } else {
                 // Session ID matches, compare time difference
                 const timeDifference = now.getTime() - new Date(lastBehavior.createdAt).getTime();
-                console.log('Time difference (ms):', timeDifference);
+                const timeDifferenceMinutes = Math.floor(timeDifference / 60000); // Convert milliseconds to minutes
+                const timeDifferenceSeconds = Math.floor((timeDifference % 60000) / 1000); // Remainder as seconds
+
+                console.log(
+                    `Time difference: ${timeDifferenceMinutes} minute(s) and ${timeDifferenceSeconds} second(s).`
+                );
+                ;
 
                 if (timeDifference > 1 * 60 * 1000) {
                     console.log('Time gap greater than 1 minute, generating new sessionActionId.');
@@ -49,7 +55,7 @@ exports.trackUserBehavior = async (req, res) => {
             sessionId: newSessionId,
             SessionActionId: sessionActionId,
             user: new mongoose.Types.ObjectId(user), // Ensure ObjectId format
-            product: new mongoose.Types.ObjectId(productId), // Ensure ObjectId format
+            product:productId, // Ensure ObjectId format
             behavior, // Behavior from the request body
         };
 

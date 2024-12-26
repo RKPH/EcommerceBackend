@@ -4,39 +4,44 @@ const Cart = require('../models/cart');
 
 
 exports.addProductToCart = async (req, res) => {
-    const { productId, quantity } = req.body; // Extract productId and quantity from the request body
-    const { userId} = req.user;// Extract userId from authenticated user's information
-    // console.log("userId in addProductToCart:", userId);
+    const { productId, quantity, color, size } = req.body; // Extract product details from request body
+    const { userId } = req.user; // Extract userId from authenticated user's information
+
+    console.log(req.body);
     try {
         // Validate input
-        if (!productId || !quantity) {
+        if (!productId || !quantity || !color) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Product ID and quantity are required',
+                message: 'Product ID, quantity, color, and size are required',
             });
         }
 
-        // Check if the product exists
-        const product = await Product.findById(productId);
+        // Check if the product exists by productId
+        const product = await Product.findOne({ productID: productId });
         if (!product) {
             return res.status(404).json({
                 status: 'error',
                 message: 'Product not found',
             });
         }
-        console.log("product in addProductToCart:", product);
 
-        // Check if the cart item already exists for this user
-        let cartItem = await Cart.findOne({ product: productId, user: userId });
+        // Check if the cart item already exists for this user with the same productId, color, and size
+        let cartItem = await Cart.findOne({
+            product: productId,
+            user: userId,
+            color,
+            size // Match exact color and size
+        });
 
         if (cartItem) {
-            // If cart item exists, update the quantity
+            // If cart item exists (same product, color, and size), update the quantity
             cartItem.quantity += quantity;
             await cartItem.save();
 
             return res.status(200).json({
                 status: 'success',
-                message: 'Product added to cart successfully',
+                message: 'Product quantity updated in cart successfully',
                 data: cartItem,
             });
         } else {
@@ -44,6 +49,8 @@ exports.addProductToCart = async (req, res) => {
             const newCartItem = new Cart({
                 product: productId,
                 quantity,
+                color,
+                size,
                 user: userId,
             });
             await newCartItem.save();
@@ -89,6 +96,50 @@ exports.getCartItems = async (req, res) => {
         });
     } catch (error) {
         console.error('Error retrieving cart items:', error.message);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error',
+        });
+    }
+};
+
+// @desc    Update quantity of a product in the cart
+// @route   PUT /api/v1/cart/:cartItemId
+// @access  Private
+exports.updateCartItem = async (req, res) => {
+    const { cartItemId } = req.params; // Extract cartItemId from request parameters
+    const { quantity } = req.body; // Extract updated quantity from request body
+
+    try {
+        // Validate input
+        if (!quantity) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Quantity is required',
+            });
+        }
+
+        // Check if the cart item exists
+        let cartItem = await Cart.findById(cartItemId);
+        if (!cartItem) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart item not found',
+            });
+        }
+
+        // Update the quantity of the cart item
+        cartItem.quantity = quantity;
+        await cartItem.save();
+
+        // Respond with the updated cart item
+        return res.status(200).json({
+            status: 'success',
+            message: 'Cart item updated successfully',
+            data: cartItem,
+        });
+    } catch (error) {
+        console.error('Error updating cart item:', error.message);
         return res.status(500).json({
             status: 'error',
             message: 'Internal server error',

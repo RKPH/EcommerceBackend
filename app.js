@@ -23,7 +23,6 @@ const corsOptions = {
 
     origin: 'http://localhost:5173', // Your frontend URL
     credentials: true,  // Allow credentials (cookies)
-
 };
 
 // Apply CORS for authenticated routes (e.g., tracking, auth)

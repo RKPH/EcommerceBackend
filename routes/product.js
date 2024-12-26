@@ -3,17 +3,16 @@ const router = express.Router();
 const {
     getAllProducts,
     getProductById,
-    addProduct,
     getAllTypes,
-    getProductByTypes// Import the new controller method
-} = require('../controllers/productController'); // Import controller methods
+    getProductByTypes,
+    addProduct,
+} = require('../controllers/productController');
 
 /**
  * @swagger
  * components:
  *   schemas:
  *     Product:
- *
  *       type: object
  *       properties:
  *         id:
@@ -22,39 +21,50 @@ const {
  *         name:
  *           type: string
  *           description: The name of the product
+ *         price:
+ *           type: number
+ *           description: The price of the product
  *         category:
  *           type: string
  *           description: The category of the product
- *         subcategory:
- *           type: string
- *           description: The subcategory of the product
  *         type:
  *           type: string
  *           description: The type of the product
  *         brand:
- *           type: string
- *           description: The brand of the product
- *         sport:
- *           type: string
- *           description: The sport the product is associated with (optional)
- *         price:
- *           type: number
- *           description: The price of the product
+ *            type: string
+ *            description: The brand of the product
+ *         color:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: An array of colors for the product
+ *         size:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: An array of sizes for the product
+ *         description:
+ *             type: string
+ *             description: A description of the product
  *         image:
- *           type: string
- *           description: The main image URL of the product
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: A URL to the product's image
  *         productImage:
  *           type: array
  *           items:
  *             type: string
- *           description: Additional images of the product
+ *           description: An array of URLs to detailed product images
  *       required:
  *         - name
  *         - price
  *         - category
- *         - subcategory
- *         - type
  *         - brand
+ *         - type
+ *         - color
+ *         - description
+ *         - size
  *         - image
  *         - productImage
  */
@@ -79,57 +89,6 @@ const {
  *         description: Internal server error. Failed to retrieve products.
  */
 router.get('/all', getAllProducts);
-
-/**
- * @swagger
- * /api/v1/products/types:
- *   get:
- *     security: []
- *     summary: Retrieve all distinct product types
- *     tags: [Products]
- *     responses:
- *       200:
- *         description: A list of distinct product types retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: string
- *       500:
- *         description: Internal server error. Failed to retrieve product types.
- */
-router.get('/types', getAllTypes); // Add the new route
-
-/**
- * @swagger
- * /api/v1/products/types/{type}:
- *   get:
- *     summary: Retrieve products by type
- *     security: []
- *     tags: [Products]
- *     parameters:
- *       - in: path
- *         name: type
- *         schema:
- *           type: string
- *         required: true
- *         description: The type of the products to retrieve
- *     responses:
- *       200:
- *         description: A list of products of the given type retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
- *       404:
- *         description: No products found for the specified type.
- *       500:
- *         description: Internal server error. Failed to retrieve products by type.
- */
-router.get('/types/:type', getProductByTypes); // Add the route to get products by type
 
 /**
  * @swagger
@@ -163,7 +122,60 @@ router.get('/:id', getProductById);
 
 /**
  * @swagger
- * /api/v1/products/addProduct:
+ * /api/v1/products/types:
+ *   get:
+ *     summary: Retrieve all product types
+ *     security: []
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: A list of product types retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: string
+ *       500:
+ *         description: Internal server error. Failed to retrieve product types.
+ */
+router.get('/types', getAllTypes);
+
+/**
+ * @swagger
+ * /api/v1/products/type/{type}:
+ *   get:
+ *     summary: Retrieve products by type
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: type
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The product type
+ *     responses:
+ *       200:
+ *         description: A list of products by type retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Invalid product type format.
+ *       404:
+ *         description: No products found for the given type.
+ *       500:
+ *         description: Internal server error. Failed to retrieve products by type.
+ */
+router.get('/type/:type', getProductByTypes);
+
+/**
+ * @swagger
+ * /api/v1/products/add:
  *   post:
  *     summary: Add a new product
  *     security: []
@@ -176,18 +188,16 @@ router.get('/:id', getProductById);
  *             $ref: '#/components/schemas/Product'
  *     responses:
  *       201:
- *         description: The product was successfully created
+ *         description: Product added successfully
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Product'
  *       400:
- *         description: Invalid product data. Ensure all required fields are valid.
+ *         description: Invalid request body. Missing required fields.
  *       500:
- *         description: Internal server error. Failed to create the product.
+ *         description: Internal server error. Failed to add the product.
  */
-router.post('/addProduct', addProduct);
-
-
+router.post('/add', addProduct);
 
 module.exports = router;

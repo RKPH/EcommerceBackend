@@ -2,6 +2,10 @@ const mongoose = require('mongoose');
 
 // Define the product schema
 const productSchema = new mongoose.Schema({
+    productID: {
+        type: String,
+        required: true,
+    },
     name: {
         type: String,
         required: true,
@@ -10,7 +14,7 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    subcategory: {
+    brand: {
         type: String,
         required: true,
     },
@@ -18,12 +22,12 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    brand: {
-        type: String,
-        required: true,
+    color: {
+        type: [String],
+        required: false,
     },
-    sport: {
-        type: String,
+    size: {
+        type: [String],
         required: false,
     },
     price: {
@@ -31,8 +35,12 @@ const productSchema = new mongoose.Schema({
         required: true,
     },
     image: {
-        type: String,
+        type: [String],
         required: true,
+    },
+    description: {
+        type: String,
+        required: false,
     },
     productImage: {
         type: [String],

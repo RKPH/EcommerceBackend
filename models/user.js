@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
         default: 'customer',
     },
     salt: {
-        type: String,
+        type: String
     },
 }, {
     timestamps: true, // Adds createdAt and updatedAt fields

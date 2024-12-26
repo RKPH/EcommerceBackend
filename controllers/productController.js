@@ -21,28 +21,21 @@ exports.getAllProducts = async (req, res) => {
 // Controller to get a product by ID
 exports.getProductById = async (req, res) => {
     const { id } = req.params;
-
-    // Check if the ID is a valid MongoDB ObjectId
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({
-            status: 'error',
-            message: 'Invalid product ID format',
-        });
-    }
-
+    console.log (id);
     try {
-        const product = await Product.findById(id);
-        // console.log("is called or fecth",product);
+        const product = await Product.findOne({ productID: id });
+
         if (!product) {
             return res.status(404).json({
                 status: 'error',
-                message: `Product with ID ${id} not found`,
+                message: `Product with productID ${id} not found`,
                 data: null,
             });
         }
+
         res.json({
             status: 'success',
-            message: `Product with ID ${id} retrieved successfully`,
+            message: `Product with productID ${id} retrieved successfully`,
             data: product,
         });
     } catch (error) {
@@ -59,10 +52,11 @@ exports.addProduct = async (req, res) => {
         name,
         price,
         category,
-        subcategory,
         type,
         brand,
-        sport,
+        color,
+        size,
+        description,
         image,
         productImage,
     } = req.body;
@@ -71,10 +65,8 @@ exports.addProduct = async (req, res) => {
     if (
         !name ||
         !category ||
-        !subcategory ||
         !type ||
-        !brand ||
-        !image ||
+        !Array.isArray(image) ||
         !productImage ||
         !Array.isArray(productImage) ||
         productImage.length === 0 ||
@@ -91,12 +83,13 @@ exports.addProduct = async (req, res) => {
         const newProduct = new Product({
             name,
             category,
-            subcategory,
             type,
             brand,
-            sport: sport || null, // Optional field with a default value
+            color: color || [],
+            size: size || [],
             price,
-            image,
+            description,
+            image: image || [],
             productImage,
         });
 
@@ -115,10 +108,10 @@ exports.addProduct = async (req, res) => {
     }
 };
 
+// Controller to get all distinct types
 exports.getAllTypes = async (req, res) => {
     try {
         const types = await Product.distinct('type');
-        // console.log(types);
         res.json({
             status: 'success',
             message: 'Types retrieved successfully',
@@ -132,28 +125,27 @@ exports.getAllTypes = async (req, res) => {
     }
 };
 
+// Controller to get products by type
 exports.getProductByTypes = async (req, res) => {
     const { type } = req.params;
 
     try {
-        const product = await Product.find({type});
-        if (!product) {
+        const products = await Product.find({ type });
+        if (!products || products.length === 0) {
             return res.status(404).json({
                 status: 'error',
-                message: 'Product not found',
-            })
+                message: `No products found for type: ${type}`,
+            });
         }
         res.json({
             status: 'success',
             message: 'Products retrieved successfully',
-            data: product,
-        })
-
-    }
-    catch (error) {
+            data: products,
+        });
+    } catch (error) {
         res.status(500).json({
             status: 'error',
             message: error.message,
-        })
+        });
     }
-}
+};
