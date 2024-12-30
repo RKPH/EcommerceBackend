@@ -19,6 +19,7 @@ exports.addProductToCart = async (req, res) => {
 
         // Check if the product exists by productId
         const product = await Product.findOne({ productID: productId });
+
         if (!product) {
             return res.status(404).json({
                 status: 'error',
@@ -28,7 +29,7 @@ exports.addProductToCart = async (req, res) => {
 
         // Check if the cart item already exists for this user with the same productId, color, and size
         let cartItem = await Cart.findOne({
-            product: productId,
+            productID: productId,
             user: userId,
             color,
             size // Match exact color and size
@@ -47,7 +48,8 @@ exports.addProductToCart = async (req, res) => {
         } else {
             // If cart item does not exist, create a new cart item
             const newCartItem = new Cart({
-                product: productId,
+                productID: productId,
+                product: product._id,
                 quantity,
                 color,
                 size,

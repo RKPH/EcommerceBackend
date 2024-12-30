@@ -5,7 +5,7 @@ const {
     getProductById,
     getAllTypes,
     getProductByTypes,
-    addProduct,
+    addProduct, getRecommendations, sessionBasedRecommendation,
 } = require('../controllers/productController');
 
 /**
@@ -199,5 +199,9 @@ router.get('/type/:type', getProductByTypes);
  *         description: Internal server error. Failed to add the product.
  */
 router.post('/add', addProduct);
+
+router.post('/predict/:product_id', getRecommendations)
+
+router.post('/recommendations', sessionBasedRecommendation)
 
 module.exports = router;

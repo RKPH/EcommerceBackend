@@ -6,9 +6,14 @@ const CartSchema = new mongose.Schema({
         ref: 'User',
         required: true,
     },
-    product: {
+    productID: {
         type: String,
         required: true,
+    },
+    product:{
+        type: mongose.Schema.Types.ObjectId,
+        ref: 'Product',
+        required: false,
     },
     color: {
         type: String,

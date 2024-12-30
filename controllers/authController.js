@@ -7,7 +7,7 @@ const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique I
 // @access  Public
 exports.registerUser = async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password ,user_id } = req.body;
 
         // Check if the user already exists
         let user = await User.findOne({ email });
@@ -22,6 +22,7 @@ exports.registerUser = async (req, res) => {
         user = new User({
             name,
             email,
+            user_id,
             password: hashedPassword,  // Store the hashed password
             salt,  // Store the salt
         });
@@ -55,6 +56,7 @@ exports.registerUser = async (req, res) => {
             refreshToken,
             user: {
                 id: user._id,
+                user_id: user.user_id,
                 name: user.name,
                 email: user.email,
             },
@@ -118,6 +120,7 @@ exports.loginUser = async (req, res) => {
 
             user: {
                 id: user._id,
+                user_id: user.user_id,
                 name: user.name,
                 email: user.email,
             },
@@ -153,7 +156,9 @@ exports.getUserProfile = async (req, res) => {
             user: {
                 id: user._id,
                 name: user.name,
+                user_id: user.user_id,
                 email: user.email,
+                address: user.address,
             },
         });
     } catch (error) {

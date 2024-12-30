@@ -8,6 +8,8 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers')
 const productRouter = require('./routes/product');
 const authRouter = require('./routes/auth');
 const cartRouter = require('./routes/cart');
+const orderRouter = require('./routes/order');
+const userRouter = require('./routes/user');
 const trackRouter = require('./routes/tracking');
 
 const logger = require('./config/logger');  // Import custom logger
@@ -29,6 +31,9 @@ const corsOptions = {
 app.use('/api/v1/tracking', cors(corsOptions));
 app.use('/api/v1/auth', cors(corsOptions));
 app.use('/api/v1/cart', cors(corsOptions));
+app.use('/api/v1/users', cors(corsOptions));
+app.use('/api/v1/orders', cors(corsOptions));  // Add this in your main app.js or server file
+
 // CORS for public routes (e.g., products)
 const openCorsOptions = {
     origin: 'http://localhost:5173', // Your frontend URL
@@ -52,7 +57,8 @@ app.use('/api/v1/products', productRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/tracking', trackRouter);
 app.use('/api/v1/cart', cartRouter);
-
+app.use('/api/v1/orders', orderRouter);
+app.use('/api/v1/users', userRouter);
 // Catch 404 errors
 app.use(notFoundHandler);
 

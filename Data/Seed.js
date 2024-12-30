@@ -18,7 +18,7 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .catch((err) => console.error('Error connecting to MongoDB:', err));
 
 // Path to the CSV file
-const datasetPath = './cleaned_dataset.csv';
+// const datasetPath = './cleaned_dataset.csv';
 
 // Function to fetch images from Pixabay API
 const fetchPixabayImages = async (query, numImages) => {
