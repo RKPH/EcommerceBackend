@@ -126,30 +126,44 @@ exports.getAllTypes = async (req, res) => {
     }
 };
 
-// Controller to get products by type
 exports.getProductByTypes = async (req, res) => {
-    const { type } = req.params;
+    const { type } = req.params; // Extract the product type from the route parameters
+    const { limit } = req.query; // Extract the limit from query parameters (if provided)
 
     try {
-        const products = await Product.find({ type });
+        // Use Mongoose to query products by type
+        let query = Product.find({ type });
+
+        // Apply the limit if it's provided and a valid number
+        if (limit && !isNaN(limit)) {
+            query = query.limit(Number(limit));
+        }
+
+        const products = await query;
+
+        // Check if any products were found
         if (!products || products.length === 0) {
             return res.status(404).json({
                 status: 'error',
                 message: `No products found for type: ${type}`,
             });
         }
+
+        // Send the retrieved products in the response
         res.json({
             status: 'success',
             message: 'Products retrieved successfully',
             data: products,
         });
     } catch (error) {
+        // Handle any errors that occur during the query
         res.status(500).json({
             status: 'error',
             message: error.message,
         });
     }
 };
+
 exports.getRecommendations = async (req, res) => {
     const { product_id } = req.params;  // Get product_id from URL parameter
     console.log("Received Product ID:", product_id);  // Log the received product ID

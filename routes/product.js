@@ -69,56 +69,6 @@ const {
  *         - productImage
  */
 
-/**
- * @swagger
- * /api/v1/products/all:
- *   get:
- *     summary: Retrieve a list of products
- *     security: []
- *     tags: [Products]
- *     responses:
- *       200:
- *         description: A list of products retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
- *       500:
- *         description: Internal server error. Failed to retrieve products.
- */
-router.get('/all', getAllProducts);
-
-/**
- * @swagger
- * /api/v1/products/{id}:
- *   get:
- *     summary: Retrieve a single product by ID
- *     security: []
- *     tags: [Products]
- *     parameters:
- *       - in: path
- *         name: id
- *         schema:
- *           type: string
- *         required: true
- *         description: The product ID
- *     responses:
- *       200:
- *         description: A single product retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Product'
- *       400:
- *         description: Invalid product ID format.
- *       404:
- *         description: Product not found with the given ID.
- *       500:
- *         description: Internal server error. Failed to retrieve the product.
- */
-router.get('/:id', getProductById);
 
 /**
  * @swagger
@@ -172,6 +122,59 @@ router.get('/types', getAllTypes);
  *         description: Internal server error. Failed to retrieve products by type.
  */
 router.get('/type/:type', getProductByTypes);
+
+
+
+/**
+ * @swagger
+ * /api/v1/products/all:
+ *   get:
+ *     summary: Retrieve a list of products
+ *     security: []
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: A list of products retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       500:
+ *         description: Internal server error. Failed to retrieve products.
+ */
+router.get('/all', getAllProducts);
+
+/**
+ * @swagger
+ * /api/v1/products/{id}:
+ *   get:
+ *     summary: Retrieve a single product by ID
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The product ID
+ *     responses:
+ *       200:
+ *         description: A single product retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Invalid product ID format.
+ *       404:
+ *         description: Product not found with the given ID.
+ *       500:
+ *         description: Internal server error. Failed to retrieve the product.
+ */
+router.get('/:id', getProductById);
 
 /**
  * @swagger
