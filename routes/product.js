@@ -5,7 +5,8 @@ const {
     getProductById,
     getAllTypes,
     getProductByTypes,
-    addProduct, getRecommendations, sessionBasedRecommendation,
+    getAllCategories,
+    addProduct, getRecommendations, sessionBasedRecommendation, getTopTrendingProducts
 } = require('../controllers/productController');
 
 /**
@@ -123,7 +124,48 @@ router.get('/types', getAllTypes);
  */
 router.get('/type/:type', getProductByTypes);
 
+/**
+ * @swagger
+ * /api/v1/products/categories:
+ *   get:
+ *     summary: Retrieve all product categories
+ *     security: []
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: A list of product categories retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: string
+ *       500:
+ *         description: Internal server error. Failed to retrieve product categories.
+ */
+router.get('/categories', getAllCategories);
 
+
+/**
+ * @swagger
+ * /api/v1/products/trending:
+ *   get:
+ *     summary: Retrieve the top 10 trending products
+ *     security: []
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: A list of the top 10 trending products retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       500:
+ *         description: Internal server error. Failed to retrieve trending products.
+ */
+router.get('/trending', getTopTrendingProducts);
 
 /**
  * @swagger
@@ -203,8 +245,72 @@ router.get('/:id', getProductById);
  */
 router.post('/add', addProduct);
 
+/**
+ * @swagger
+ * /api/v1/products/predict/{product_id}:
+ *   post:
+ *     summary: Get product recommendations based on a specific product
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: product_id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The product ID for which recommendations are generated
+ *     responses:
+ *       200:
+ *         description: Recommendations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Invalid product ID format.
+ *       404:
+ *         description: No recommendations found for the given product ID.
+ *       500:
+ *         description: Internal server error. Failed to retrieve recommendations.
+ */
 router.post('/predict/:product_id', getRecommendations)
 
+
+/**
+ * @swagger
+ * /api/v1/products/recommendations:
+ *   post:
+ *     summary: Get session-based product recommendations
+ *     security: []
+ *     tags: [Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sessionData:
+ *                 type: object
+ *                 description: Session data used to generate recommendations
+ *                 additionalProperties:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Session-based recommendations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Invalid request body or session data format.
+ *       500:
+ *         description: Internal server error. Failed to retrieve session-based recommendations.
+ */
 router.post('/recommendations', sessionBasedRecommendation)
 
 module.exports = router;

@@ -24,6 +24,7 @@
     "express": "~4.16.1",
     "faker": "^6.6.6",
     "http-errors": "~1.6.3",
+    "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.2",
     "morgan": "~1.9.1",
     "pug": "2.0.0-beta11",

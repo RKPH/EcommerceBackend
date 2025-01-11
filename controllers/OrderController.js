@@ -84,3 +84,31 @@ exports.getAllOrders = async (req, res) => {
         });
     }
 };
+
+exports.getOrdersDetail = async (req, res) => {
+    console.log(req.user)
+    try {
+        // Retrieve orders for the specific user and populate the product details
+        const orders = await Order.find({ user: req.user.userId }).populate('products.product'); // Assuming 'products' is an array in the order with a reference to 'product'
+
+        // Check if no orders were found for the user
+        if (orders.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: `No orders found for user ${req.user.user}`,
+            });
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'Order details retrieved successfully',
+            data: orders,
+        });
+    } catch (error) {
+        console.error('Error retrieving order details:', error.message);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error',
+        });
+    }
+};

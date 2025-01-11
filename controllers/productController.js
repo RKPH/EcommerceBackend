@@ -18,25 +18,29 @@ exports.getAllProducts = async (req, res) => {
         });
     }
 };
-
-// Controller to get a product by ID
 exports.getProductById = async (req, res) => {
-    const { id } = req.params;
-    console.log (id);
+    let { id } = req.params;
+    console.log("productID param:", id); // Log the incoming id
+
+    // Convert the id to an integer (Int32)
+    const productId = parseInt(id.trim(), 10); // Ensure the input is an integer
+    console.log("productID as integer:", productId);
+
     try {
-        const product = await Product.findOne({ productID: id });
+        const product = await Product.findOne({ productID: productId });
+        console.log("Fetched product:", product);
 
         if (!product) {
             return res.status(404).json({
                 status: 'error',
-                message: `Product with productID ${id} not found`,
+                message: `Product with productID ${productId} not found`,
                 data: null,
             });
         }
 
         res.json({
             status: 'success',
-            message: `Product with productID ${id} retrieved successfully`,
+            message: `Product with productID ${productId} retrieved successfully`,
             data: product,
         });
     } catch (error) {
@@ -46,6 +50,7 @@ exports.getProductById = async (req, res) => {
         });
     }
 };
+
 
 // Controller to create a new product
 exports.addProduct = async (req, res) => {
@@ -126,6 +131,22 @@ exports.getAllTypes = async (req, res) => {
     }
 };
 
+exports.getAllCategories = async (req, res) => {
+    try {
+        const categories = await Product.distinct('category');
+        res.json({
+            status: 'success',
+            message: 'Categories retrieved successfully',
+            data: categories,
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message,
+        });
+    }
+}
+
 exports.getProductByTypes = async (req, res) => {
     const { type } = req.params; // Extract the product type from the route parameters
     const { limit } = req.query; // Extract the limit from query parameters (if provided)
@@ -170,7 +191,7 @@ exports.getRecommendations = async (req, res) => {
 
     try {
         // Fetch recommendations from the recommendation API
-        const response = await axios.post("http://127.0.0.1:5000/predict",
+        const response = await axios.post("http://flask-app:5000/predict",
             { product_id },
             { headers: { 'Content-Type': 'application/json' } });
 
@@ -234,72 +255,100 @@ exports.getRecommendations = async (req, res) => {
     }
 };
 
-
-
 // Controller for session-based recommendations
 exports.sessionBasedRecommendation = async (req, res) => {
-    const { user_id , product_id } = req.body;  // Get user_id from request body
-    console.log("Received User ID:", user_id);  // Log the received user_id
+    const { user_id, product_id } = req.body;
+    console.log("Received User ID:", user_id, "Product ID:", product_id);
 
     try {
-        // Hash the user_id to convert it into a unique numeric value
+        // Fetch recommendations from the Flask API
+        const response = await axios.post(
+            "http://flask-app:5000/session-recommend",
+            { user_id, product_id },
+            { headers: { 'Content-Type': 'application/json' } }
+        );
 
+        console.log("Raw Response from Flask:", response?.data);
 
-        // Fetch recommendations from the recommendation API
-        const response = await axios.post("http://127.0.0.1:5000/session-recommend",
-            { user_id: user_id , product_id: product_id },
-            { headers: { 'Content-Type': 'application/json' } });
+        // Handle invalid JSON containing NaN
+        let data;
+        if (typeof response?.data === "string") {
+            try {
+                data = JSON.parse(response.data);
+            } catch (error) {
+                console.error("JSON parse failed, attempting to sanitize response:", error.message);
 
-        // Log the full response from the Flask API
-        console.log("Response from Flask:", response.data);
-
-        if (response.data && response.data.recommendations) {
-            const recommendations = response.data.recommendations;
-
-            // Fetch the recommended products by productID
-            const recommendedProducts = await Product.find({
-                productID: { $in: recommendations.map(r => r.product_id) }
-            });
-
-            // Log the products fetched from the database
-            console.log("Fetched recommended products from DB:", recommendedProducts);
-
-            if (recommendedProducts.length === 0) {
-                console.warn("No matching products found in the database for the recommendations.");
+                // Sanitize the invalid JSON manually
+                const sanitized = response.data.replace(/NaN/g, "0");
+                data = JSON.parse(sanitized); // Retry parsing with sanitized data
             }
-
-            // Map recommendations to product details
-            const detailedRecommendations = recommendations.map(rec => {
-                const product = recommendedProducts.find(p => p.productID === rec.product_id.toString());
-                console.log("Matching product for recommendation:", product);
-
-                // Ensure the product is found before adding its details
-                return {
-                    ...rec,
-                    productDetails: product ? {
-                        name: product.name,
-                        category: product.category,
-                        price: product.price,
-                        image: product.image,
-                        description: product.description,
-                    } : null  // Add the product details if found
-                };
-            });
-
-            res.json({
-                status: 'success',
-                message: 'Recommendations retrieved successfully',
-                data: detailedRecommendations,
-            });
         } else {
-            res.status(404).json({
+            data = response.data;
+        }
+
+        const Recommendations = data?.recommendations || [];
+        console.log("Extracted Recommendations:", Recommendations);
+
+        // Fetch the recommended products by productID
+        const recommendedProducts = await Product.find({
+            productID: { $in: Recommendations.map(r => r.product_id) }
+        });
+
+        console.log("Fetched recommended products from DB:", recommendedProducts);
+
+        const detailedRecommendations = Recommendations.map(rec => {
+            const product = recommendedProducts.find(p => p.productID === rec.product_id.toString());
+            console.log("Matching product for recommendation:", product);
+
+            return {
+                ...rec,
+                productDetails: product ? {
+                    name: product.name,
+                    category: product.category,
+                    price: product.price,
+                    image: product.image,
+                    description: product.description,
+                } : null,
+            };
+        });
+
+        res.json({
+            status: 'success',
+            message: 'Recommendations retrieved successfully',
+            data: detailedRecommendations,
+        });
+    } catch (error) {
+        console.error("Error in sessionBasedRecommendation:", error.message);
+        res.status(500).json({
+            status: 'error',
+            message: error.message,
+        });
+    }
+};
+
+
+// Controller to get 10 products with the highest trending_score
+exports.getTopTrendingProducts = async (req, res) => {
+    try {
+        // Fetch the top 10 products sorted by trending_score in descending order
+        const products = await Product.find()
+            .sort({ trending_score: -1 }) // Sort by trending_score in descending order
+            .limit(10); // Limit the results to 10
+
+        if (products.length === 0) {
+            return res.status(404).json({
                 status: 'error',
-                message: 'No recommendations found',
+                message: 'No trending products found',
+                data: [],
             });
         }
+
+        res.json({
+            status: 'success',
+            message: 'Top trending products retrieved successfully',
+            data: products,
+        });
     } catch (error) {
-        // Log the error from Express.js
-        console.error("Error in sessionBasedRecommendation:", error.message);
         res.status(500).json({
             status: 'error',
             message: error.message,

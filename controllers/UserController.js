@@ -1,4 +1,4 @@
-const User = require('../models/User'); // Assuming your model is in the `models` folder
+const User = require('../models/user'); // Assuming your model is in the `models` folder
 
 // Update user profile
 const updateUserProfile = async (req, res) => {

@@ -8,8 +8,8 @@ const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers')
 const productRouter = require('./routes/product');
 const authRouter = require('./routes/auth');
 const cartRouter = require('./routes/cart');
-const orderRouter = require('./routes/order');
-const userRouter = require('./routes/user');
+const orderRouter = require('./routes/Order');
+const userRouter = require('./routes/User');
 const trackRouter = require('./routes/tracking');
 
 const logger = require('./config/logger');  // Import custom logger

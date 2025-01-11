@@ -1,5 +1,5 @@
 const express = require('express');
-const { createOrder, getAllOrders } = require('../controllers/orderController'); // Adjust path as needed
+const { createOrder, getOrdersDetail } = require('../controllers/OrderController'); // Adjust path as needed
 const verifyToken = require('../middlewares/verifyToken'); // Adjust path as needed
 
 const router = express.Router();
@@ -108,9 +108,9 @@ router.post('/addOrder', verifyToken, createOrder);
 
 /**
  * @swagger
- * /api/v1/orders/get:
+ * /api/v1/orders/getUserOrders:
  *   get:
- *     summary: Get all orders
+ *     summary: Get orders for the authenticated user
  *     tags: [Orders]
  *     responses:
  *       200:
@@ -133,6 +133,6 @@ router.post('/addOrder', verifyToken, createOrder);
  *       401:
  *         description: Unauthorized
  */
-router.get('/get', verifyToken, getAllOrders);
+router.get('/getUserOrders', verifyToken, getOrdersDetail);
 
 module.exports = router;

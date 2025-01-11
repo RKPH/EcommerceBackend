@@ -47,6 +47,10 @@ const productSchema = new mongoose.Schema({
         type: [String],
         required: true,
     },
+    trending_score: {
+        type: Number,
+        default: 0,
+    }
 }, {
     versionKey: false,  // Disable the __v field
 });
