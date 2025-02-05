@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 const UserBehavior = require('../models/UserBehaviors');
+const {sendToKafka} = require('../kafka/kafka-producer');
 const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique IDs
 
 exports.trackUserBehavior = async (req, res) => {
     try {
-        const { user, productId, behavior, sessionId: reqSessionId,} = req.body;
+        const { user, productId,product_name, behavior, sessionId: reqSessionId,} = req.body;
 
         // Ensure all required fields are provided
         if (!user || !productId || !behavior || !reqSessionId) {
@@ -56,13 +57,14 @@ exports.trackUserBehavior = async (req, res) => {
             SessionActionId: sessionActionId,
             user: new mongoose.Types.ObjectId(user), // Ensure ObjectId format
             product:productId, // Ensure ObjectId format
+            product_name:product_name,
             behavior, // Behavior from the request body
         };
 
         // Save the user behavior data to the database
         const newBehavior = new UserBehavior(trackingData);
         await newBehavior.save();
-
+        await sendToKafka(trackingData);
         res.status(201).json({
             message: 'User behavior tracked successfully',
             sessionId: newSessionId,

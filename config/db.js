@@ -1,8 +1,7 @@
-// db.js or database.js
 const mongoose = require("mongoose");
 
-// Use the internal service name and container port (27017)
-const mongoUrl = "mongodb://mongodb-service:27017/ecommerce";
+// Remote MongoDB connection URL
+const mongoUrl = "mongodb://root:example@103.155.161.94:27017/recommendation_system?authSource=admin";
 
 const connectDB = async () => {
     try {
@@ -10,10 +9,10 @@ const connectDB = async () => {
             useNewUrlParser: true,
             useUnifiedTopology: true,
         });
-        console.log("Connected to MongoDB");
+        console.log("✅ Successfully connected to MongoDB!");
     } catch (err) {
-        console.error("Error connecting to MongoDB:", err.message);
-        process.exit(1); // Exit process with failure
+        console.error("❌ MongoDB connection error:", err.message);
+        process.exit(1); // Exit process on failure
     }
 };
 

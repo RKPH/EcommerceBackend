@@ -11,6 +11,10 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    rating: {
+        type: Number,
+        required: false,
+    },
     category: {
         type: String,
         required: true,
@@ -31,6 +35,15 @@ const productSchema = new mongoose.Schema({
         type: [String],
         required: false,
     },
+    storage: {
+        type: [String],
+        required: false,
+
+    },
+    ram: {
+        type: [String],
+        required: false,
+    },
     price: {
         type: Number,
         required: true,
@@ -47,10 +60,6 @@ const productSchema = new mongoose.Schema({
         type: [String],
         required: true,
     },
-    trending_score: {
-        type: Number,
-        default: 0,
-    }
 }, {
     versionKey: false,  // Disable the __v field
 });

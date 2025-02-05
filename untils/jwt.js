@@ -4,7 +4,7 @@ const res = require("express/lib/response");
 function generateJwt(userId, sessionID) {
     console.log("userId in generateJwt:", userId);
     const secret = process.env.JWT_SECRET;
-    return jwt.sign({ userId: userId.toString(), sessionID }, secret, { expiresIn: '1m' });
+    return jwt.sign({ userId: userId.toString(), sessionID }, secret, { expiresIn: '1h' });
 }
 
 function generateRefreshToken(userId, sessionID) {

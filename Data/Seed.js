@@ -2,55 +2,56 @@ const mongoose = require('mongoose');
 const csvParser = require('csv-parser');
 const fs = require('fs');
 const { faker } = require('@faker-js/faker');
-const axios = require('axios');
 const Product = require('../models/products');
 
 // MongoDB connection URI
-const mongoURI = 'mongodb://localhost:27017/EcommerceDB';
-
-// Pixabay API configuration
-const PIXABAY_API_KEY = '47892725-1c5523b9678c4aa47b6ffcf22';
-const PIXABAY_API_URL = 'https://pixabay.com/api/';
+const mongoURI = 'mongodb://mongodb-service:27017/ecommerce';
 
 // Connect to MongoDB
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('Error connecting to MongoDB:', err));
+    .catch((err) => {
+        console.error('Error connecting to MongoDB:', err);
+        process.exit(1); // Exit process on connection failure
+    });
 
 // Path to the CSV file
-// const datasetPath = './cleaned_dataset.csv';
+const datasetPath = './cleaned_dataset.csv';
 
-// Function to fetch images from Pixabay API
-const fetchPixabayImages = async (query, numImages) => {
-    try {
-        const response = await axios.get(PIXABAY_API_URL, {
-            params: {
-                key: PIXABAY_API_KEY,
-                q: query || 'product', // Default query if `type` is undefined
-                image_type: 'photo',
-                per_page: Math.max(3, numImages) // Ensure at least 3 images
-            }
-        });
+// Helper function to capitalize the first letter of each word
+const capitalizeWords = (str) => {
+    return str
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+};
 
-        const hits = response.data.hits || [];
-        return hits.slice(0, numImages).map(hit => hit.webformatURL);
-    } catch (error) {
-        console.error(`Error fetching images for query "${query}":`, error.message);
-        return Array.from({ length: numImages }, () => `https://via.placeholder.com/150?text=${encodeURIComponent(query || 'Image')}`);
+// Function to generate unique and ordered arrays
+const generateUniqueAndOrderedArray = (options, count) => {
+    const selected = new Set();
+    while (selected.size < count) {
+        const randomOption = options[Math.floor(Math.random() * options.length)];
+        selected.add(randomOption);
     }
+    return Array.from(selected).sort((a, b) => {
+        // Ensure "4GB", "8GB", etc. are sorted numerically and lexicographically
+        const parseValue = (val) => parseInt(val.replace(/\D/g, ''), 10);
+        return parseValue(a) - parseValue(b);
+    });
 };
 
 // Function to generate fake product data
 const generateProductData = async (row) => {
     const { product_id, category_code, brand } = row;
 
-    // Skip if essential data is missing
     if (!product_id || !category_code || !brand) {
-        console.log(`Skipping row due to missing required fields: ${JSON.stringify(row)}`);
-        return null;
+        return null; // Skip row if essential fields are missing
     }
 
-    const [category, type] = category_code.split('.') || ['Uncategorized', 'General'];
+    // Parse category_code and handle cases with 2 or 3 segments
+    const parts = category_code.split('.');
+    const category = parts[0] || 'Uncategorized';
+    const type = parts.length === 3 ? parts[2] : parts[1] || 'General';
 
     const numColors = Math.floor(Math.random() * 3) + 1;
     const colors = Array.from({ length: numColors }, () => faker.color.rgb());
@@ -58,20 +59,38 @@ const generateProductData = async (row) => {
     const sizeOptions = ['S', 'M', 'L', 'XL', 'XXL'];
     const selectedSizes = sizeOptions.sort(() => 0.5 - Math.random()).slice(0, Math.floor(Math.random() * 3) + 1);
 
-    const images = await fetchPixabayImages(type, numColors);
+    const ramOptions = ['4GB', '8GB', '16GB', '32GB'];
+    const storageOptions = ['64GB', '128GB', '256GB', '512GB'];
+
+    // Generate unique and ordered RAM and storage options
+    const ram = generateUniqueAndOrderedArray(ramOptions, Math.floor(Math.random() * 2) + 1);
+    const storage = generateUniqueAndOrderedArray(storageOptions, Math.floor(Math.random() * 2) + 1);
+
+    const rating = (Math.random() * 4 + 1).toFixed(1);
+
+    // Placeholder images
+    const placeholderImage = "https://via.placeholder.com/150?text=Product+Image";
+    const images = Array(3).fill(placeholderImage); // 3 placeholder images for the 'image' field
+    const uniqueImages = Array(3).fill(placeholderImage); // 3 placeholder images for the 'productImage' field
+
+    // Capitalize the product name
+    const name = capitalizeWords(`${type} ${brand.trim()} ${product_id.trim()}`);
 
     return {
         productID: product_id.trim(),
-        name: `${type || 'Product'} ${brand.trim()} ${faker.string.uuid()}`,
-        category: category || 'Uncategorized',
+        name: name,
+        category: category,
         brand: brand.trim(),
-        type: type || 'General',
+        type: type,
         color: colors,
         size: selectedSizes,
+        ram: ram,
+        storage: storage,
+        rating: rating,
         price: parseFloat(faker.commerce.price()),
         image: images,
         description: faker.commerce.productDescription(),
-        productImage: images,
+        productImage: uniqueImages,
     };
 };
 
@@ -80,42 +99,43 @@ const readCSVAndInsert = async () => {
     const stream = fs.createReadStream(datasetPath)
         .pipe(csvParser());
 
-    let rowCount = 0; // Initialize row counter
+    let rowCount = 0;
 
-    for await (const row of stream) {
-        // Stop processing if we've already processed 30 rows
-
-        // Skip rows with missing essential data
-        if (!row.product_id || !row.category_code || !row.brand) {
-            console.log(`Skipping row due to missing required fields: ${JSON.stringify(row)}`);
-            continue; // Skip this row and move to the next one
-        }
-
-        try {
-            const productData = await generateProductData(row);
-
-            if (!productData) {
-                continue; // Skip if product data is null due to missing required fields
+    try {
+        for await (const row of stream) {
+            if (!row.product_id || !row.category_code || !row.brand) {
+                console.log(`Skipping row due to missing fields: ${JSON.stringify(row)}`);
+                continue;
             }
 
-            // Check if a product with the same productID already exists
-            const existingProduct = await Product.findOne({ productID: productData.productID });
-            if (existingProduct) {
-                console.log(`Product with ID ${productData.productID} already exists, skipping.`);
-                continue; // Skip this product
-            }
+            try {
+                const productData = await generateProductData(row);
 
-            const product = new Product(productData);
-            await product.save();
-            console.log(`Inserted product with ID: ${product.productID}`);
-            rowCount++; // Increment row counter
-        } catch (error) {
-            console.error('Error inserting row:', error);
+                if (!productData) {
+                    continue; // Skip if product data generation fails
+                }
+
+                // Check if the product already exists
+                const existingProduct = await Product.findOne({ productID: productData.productID });
+                if (existingProduct) {
+                    console.log(`Product with ID ${productData.productID} already exists. Skipping.`);
+                    continue;
+                }
+
+                const product = new Product(productData);
+                await product.save();
+                console.log(`Inserted product with ID: ${product.productID}`);
+                rowCount++;
+            } catch (innerError) {
+                console.error('Error processing row:', innerError);
+            }
         }
+    } catch (outerError) {
+        console.error('Error reading CSV file:', outerError);
+    } finally {
+        console.log(`CSV processing completed. Total rows inserted: ${rowCount}`);
+        mongoose.connection.close();
     }
-
-    console.log('CSV processing completed.');
-    mongoose.connection.close();
 };
 
 // Start the process

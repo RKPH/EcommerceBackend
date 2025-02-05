@@ -17,9 +17,13 @@ const userBehaviorSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    product_name : {
+        type: String,
+        required: true,
+    },
     behavior: {
         type: String,
-        enum: ['view', 'like', 'dislike', 'cart', 'purchase'],
+        enum: ['view', 'like', 'dislike','checkout' ,'cart', 'purchase'],
         required: true,
     },
 }, {

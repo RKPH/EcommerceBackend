@@ -5,7 +5,7 @@ const crypto = require('crypto');
 // Controller to get all products
 exports.getAllProducts = async (req, res) => {
     try {
-        const products = await Product.find();
+        const products = await Product.find().limit(50);
         res.json({
             status: 'success',
             message: 'Products retrieved successfully',
@@ -149,32 +149,53 @@ exports.getAllCategories = async (req, res) => {
 
 exports.getProductByTypes = async (req, res) => {
     const { type } = req.params; // Extract the product type from the route parameters
-    const { limit } = req.query; // Extract the limit from query parameters (if provided)
+    const { page = 1 } = req.query; // Extract the page from query parameters, default to 1
 
     try {
-        // Use Mongoose to query products by type
-        let query = Product.find({ type });
+        // Set a default page size (number of products per page)
+        const pageSize = 20;
 
-        // Apply the limit if it's provided and a valid number
-        if (limit && !isNaN(limit)) {
-            query = query.limit(Number(limit));
-        }
+        // Convert page to a number
+        const pageNum = parseInt(page, 10);
 
-        const products = await query;
-
-        // Check if any products were found
-        if (!products || products.length === 0) {
-            return res.status(404).json({
+        // Validate the page number
+        if (isNaN(pageNum) || pageNum <= 0) {
+            return res.status(400).json({
                 status: 'error',
-                message: `No products found for type: ${type}`,
+                message: 'Invalid page value. Must be a positive number.',
             });
         }
 
-        // Send the retrieved products in the response
+        // Calculate the total number of products of the given type
+        const totalProducts = await Product.countDocuments({ type });
+
+        // Calculate total pages
+        const totalPages = Math.ceil(totalProducts / pageSize);
+
+        // Validate that the requested page is within range
+        if (pageNum > totalPages) {
+            return res.status(404).json({
+                status: 'error',
+                message: `Page ${pageNum} exceeds the total number of pages (${totalPages}).`,
+            });
+        }
+
+        // Use Mongoose to query products by type with pagination
+        const products = await Product.find({ type })
+            .skip((pageNum - 1) * pageSize) // Skip documents for previous pages
+            .limit(pageSize); // Limit the number of documents to the per-page limit
+
+        // Send the retrieved products, along with pagination info
         res.json({
             status: 'success',
             message: 'Products retrieved successfully',
             data: products,
+            pagination: {
+                totalProducts,
+                totalPages,
+                currentPage: pageNum,
+                pageSize,
+            },
         });
     } catch (error) {
         // Handle any errors that occur during the query
@@ -196,13 +217,13 @@ exports.getRecommendations = async (req, res) => {
             { headers: { 'Content-Type': 'application/json' } });
 
         // Log the full response from Flask API
-        console.log("Response from Flask:", response.data);
+        // console.log("Response from Flask:", response.data);
 
         if (response.data && response.data.recommendations) {
             const recommendations = response.data.recommendations;
 
             // Log the recommendations for debugging
-            console.log("Recommendations received:", recommendations);
+            // console.log("Recommendations received:", recommendations);
 
             // Fetch the recommended products by productID
             const recommendedProducts = await Product.find({
@@ -210,7 +231,7 @@ exports.getRecommendations = async (req, res) => {
             });
 
             // Log the products fetched from the database
-            console.log("Fetched recommended products from DB:", recommendedProducts);
+            // console.log("Fetched recommended products from DB:", recommendedProducts);
 
             if (recommendedProducts.length === 0) {
                 console.warn("No matching products found in the database for the recommendations.");
@@ -219,7 +240,7 @@ exports.getRecommendations = async (req, res) => {
             // Map recommendations to product details
             const detailedRecommendations = recommendations.map(rec => {
                 const product = recommendedProducts.find(p => p.productID === rec.product_id.toString());
-                console.log("Matching product for recommendation:", product);
+                // console.log("Matching product for recommendation:", product);
 
                 // Ensure the product is found before adding its details
                 return {
@@ -227,8 +248,10 @@ exports.getRecommendations = async (req, res) => {
                     productDetails: product ? {
                         name: product.name,
                         category: product.category,
+                        rating: product.rating,
                         price: product.price,
                         image: product.image,
+                        productImage: product.productImage,
                         description: product.description,
                     } : null  // Add the product details if found
                 };
@@ -257,18 +280,18 @@ exports.getRecommendations = async (req, res) => {
 
 // Controller for session-based recommendations
 exports.sessionBasedRecommendation = async (req, res) => {
-    const { user_id, product_id } = req.body;
+    const { user_id, product_id, event_type } = req.body;
     console.log("Received User ID:", user_id, "Product ID:", product_id);
 
     try {
         // Fetch recommendations from the Flask API
         const response = await axios.post(
             "http://flask-app:5000/session-recommend",
-            { user_id, product_id },
+            { user_id, product_id ,event_type},
             { headers: { 'Content-Type': 'application/json' } }
         );
 
-        console.log("Raw Response from Flask:", response?.data);
+        // console.log("Raw Response from Flask:", response?.data);
 
         // Handle invalid JSON containing NaN
         let data;
@@ -287,18 +310,18 @@ exports.sessionBasedRecommendation = async (req, res) => {
         }
 
         const Recommendations = data?.recommendations || [];
-        console.log("Extracted Recommendations:", Recommendations);
+        // console.log("Extracted Recommendations:", Recommendations);
 
         // Fetch the recommended products by productID
         const recommendedProducts = await Product.find({
             productID: { $in: Recommendations.map(r => r.product_id) }
         });
 
-        console.log("Fetched recommended products from DB:", recommendedProducts);
+        // console.log("Fetched recommended products from DB:", recommendedProducts);
 
         const detailedRecommendations = Recommendations.map(rec => {
             const product = recommendedProducts.find(p => p.productID === rec.product_id.toString());
-            console.log("Matching product for recommendation:", product);
+            // console.log("Matching product for recommendation:", product);
 
             return {
                 ...rec,
@@ -306,7 +329,9 @@ exports.sessionBasedRecommendation = async (req, res) => {
                     name: product.name,
                     category: product.category,
                     price: product.price,
+                    rating: product.rating,
                     image: product.image,
+                    productImage: product.productImage,
                     description: product.description,
                 } : null,
             };
@@ -332,7 +357,7 @@ exports.getTopTrendingProducts = async (req, res) => {
     try {
         // Fetch the top 10 products sorted by trending_score in descending order
         const products = await Product.find()
-            .sort({ trending_score: -1 }) // Sort by trending_score in descending order
+            .sort({ rating: -1 }) // Sort by trending_score in descending order
             .limit(10); // Limit the results to 10
 
         if (products.length === 0) {

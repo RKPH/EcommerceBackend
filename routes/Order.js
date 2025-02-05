@@ -1,5 +1,5 @@
 const express = require('express');
-const { createOrder, getOrdersDetail } = require('../controllers/OrderController'); // Adjust path as needed
+const { createOrder, getOrdersDetail, purchaseOrder,updateOrderStatus , getOrderDetailByID  } = require('../controllers/OrderController'); // Adjust path as needed
 const verifyToken = require('../middlewares/verifyToken'); // Adjust path as needed
 
 const router = express.Router();
@@ -135,4 +135,120 @@ router.post('/addOrder', verifyToken, createOrder);
  */
 router.get('/getUserOrders', verifyToken, getOrdersDetail);
 
+/**
+ * @swagger
+ * /api/v1/orders/purchase:
+ *   post:
+ *     summary: Purchase an order (change status to "Purchased" and clear cart)
+ *     tags: [Orders]
+ *     responses:
+ *       200:
+ *         description: Order purchased and cart cleared
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the response
+ *                 message:
+ *                   type: string
+ *                   description: Message about the response
+ *                 data:
+ *                   type: object
+ *                   description: Updated order
+ *       404:
+ *         description: Pending order not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/purchase', verifyToken, purchaseOrder);
+
+
+/**
+ * @swagger
+ * /api/v1/orders/updateOrderStatus/{orderId}:
+ *   put:
+ *     summary: Update the status of an order
+ *     tags: [Orders]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the order to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               action:
+ *                 type: string
+ *                 description: The action to update the order status
+ *     responses:
+ *       200:
+ *         description: Order status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the response
+ *                 message:
+ *                   type: string
+ *                   description: Message about the response
+ *                 data:
+ *                   $ref: '#/components/schemas/Order'
+ *       404:
+ *         description: Order not found
+ *       500:
+ *         description: Internal server error
+ */
+router.put('/updateOrderStatus/:orderId', updateOrderStatus);
+
+/**
+ * @swagger
+ * /api/v1/orders/getUserDetailById/{orderId}:
+ *   get:
+ *     summary: Get user details by order ID
+ *     tags: [Orders]
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the order to retrieve details for
+ *     responses:
+ *       200:
+ *         description: User details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the response
+ *                 message:
+ *                   type: string
+ *                   description: Message about the response
+ *                 data:
+ *                   type: object
+ *                   description: order details
+ *       404:
+ *         description: order not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getUserDetailById/:orderId', verifyToken, getOrderDetailByID);
+
 module.exports = router;
+
+

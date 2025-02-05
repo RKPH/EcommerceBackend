@@ -22,6 +22,22 @@ const OrderSchema = new mongoose.Schema({
         ],
         required: true
     },
+    totalPrice: {
+        type: Number,
+        required: false
+    },
+    isPaid: {
+        type: Boolean,
+        required: true
+    },
+    createdAt: {
+        type: String,
+        required: true
+    },
+    DeliveredAt: {
+        type: String,
+        required: false
+    },
     shippingAddress: {
         type: String,
         required: true
@@ -32,10 +48,24 @@ const OrderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Processing', 'Shipped', 'Delivered'],
+        enum: ['Pending', 'Processing', 'Delivered', 'Cancelled'],
         default: 'Pending'
     },
-
+    history: {
+        type: [
+            {
+                action: {
+                    type: String,
+                    required: true
+                },
+                date: {
+                    type: String,
+                    required: true
+                }
+            }
+        ],
+        required: true
+    },
 
 });
 

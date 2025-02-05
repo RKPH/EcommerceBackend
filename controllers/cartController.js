@@ -106,12 +106,12 @@ exports.getCartItems = async (req, res) => {
 };
 
 // @desc    Update quantity of a product in the cart
-// @route   PUT /api/v1/cart/:cartItemId
+// @route   PUT /api/v1/cart/update
 // @access  Private
 exports.updateCartItem = async (req, res) => {
-    const { cartItemId } = req.params; // Extract cartItemId from request parameters
-    const { quantity } = req.body; // Extract updated quantity from request body
-
+    const { cartItemID, quantity } = req.body; // Match the exact case from the request body
+    console.log(req.body); // Check the body to ensure you are receiving the correct data
+    console.log(cartItemID, typeof(cartItemID)); // Log the extracted values to the console
     try {
         // Validate input
         if (!quantity) {
@@ -122,7 +122,7 @@ exports.updateCartItem = async (req, res) => {
         }
 
         // Check if the cart item exists
-        let cartItem = await Cart.findById(cartItemId);
+        let cartItem = await Cart.findById(cartItemID);
         if (!cartItem) {
             return res.status(404).json({
                 status: 'error',
@@ -142,6 +142,48 @@ exports.updateCartItem = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating cart item:', error.message);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error',
+        });
+    }
+};
+
+// @desc    Remove a product from the cart
+// @route   DELETE /api/v1/cart/remove
+// @access  Private
+exports.removeCartItem = async (req, res) => {
+    const { cartItemID } = req.body; // Extract cart item ID from request body
+    const { userId } = req.user; // Extract user ID from the authenticated user
+
+    try {
+        // Validate input
+        if (!cartItemID) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Cart item ID is required',
+            });
+        }
+
+        // Check if the cart item exists and belongs to the user
+        const cartItem = await Cart.findOne({ _id: cartItemID, user: userId });
+        if (!cartItem) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart item not found or does not belong to the user',
+            });
+        }
+
+        // Remove the cart item
+        await Cart.findByIdAndDelete(cartItemID);
+
+        // Respond with success message
+        return res.status(200).json({
+            status: 'success',
+            message: 'Cart item removed successfully',
+        });
+    } catch (error) {
+        console.error('Error removing cart item:', error.message);
         return res.status(500).json({
             status: 'error',
             message: 'Internal server error',
