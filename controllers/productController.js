@@ -281,7 +281,7 @@ exports.getRecommendations = async (req, res) => {
 // Controller for session-based recommendations
 exports.sessionBasedRecommendation = async (req, res) => {
     const { user_id, product_id, event_type } = req.body;
-    console.log("Received User ID:", user_id, "Product ID:", product_id);
+    console.log("Received User ID from sessionbase:", user_id, "Product ID:", product_id);
 
     try {
         // Fetch recommendations from the Flask API

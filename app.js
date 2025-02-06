@@ -18,27 +18,26 @@ const promClient = require('prom-client');
 
 const logger = require('./config/logger');  // Import custom logger
 const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
-
-// startKafkaConsumer()
-//     .then(() => {
-//         console.log('Kafka consumer is now running.');
-//     })
-//     .catch((error) => {
-//         console.error('Error starting Kafka consumer:', error);
-//     });
+startKafkaConsumer()
+    .then(() => {
+        console.log('Kafka consumer is now running.');
+    })
+    .catch((error) => {
+        console.error('Error starting Kafka consumer:', error);
+    });
 const app = express();
-// const collectDefaultMetrics = promClient.collectDefaultMetrics;
-// collectDefaultMetrics();
-//
-// app.get('/metrics', async (req, res) => {
-//     try {
-//         res.set('Content-Type', promClient.register.contentType);
-//         const metrics = await promClient.register.metrics();
-//         res.send(metrics);
-//     } catch (err) {
-//         res.status(500).send(`Error collecting metrics: ${err.message}`);
-//     }
-// });
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+collectDefaultMetrics();
+
+app.get('/metrics', async (req, res) => {
+    try {
+        res.set('Content-Type', promClient.register.contentType);
+        const metrics = await promClient.register.metrics();
+        res.send(metrics);
+    } catch (err) {
+        res.status(500).send(`Error collecting metrics: ${err.message}`);
+    }
+});
 
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy' });
@@ -51,9 +50,10 @@ connectDB();
 
 // Middleware setup
 const corsOptions = {
-
-    origin: '*', // Your frontend URL
-    credentials: true,  // Allow credentials (cookies)
+    origin: function (origin, callback) {
+        callback(null, origin || '*'); // Allow all origins, including non-browser clients
+    },
+    credentials: true, // Allow credentials (cookies)
 };
 
 // Apply CORS for authenticated routes (e.g., tracking, auth)
@@ -65,10 +65,16 @@ app.use('/api/v1/orders', cors(corsOptions));  // Add this in your main app.js o
 
 // CORS for public routes (e.g., products)
 const openCorsOptions = {
-    origin: '*', // Your frontend URL
+    origin: 'http://localhost:5173', // Your frontend URL
     credentials: true  // Don't allow credentials (cookies)
 };
-app.use('/api/v1/products', cors(openCorsOptions)); // For open routes
+
+const specialNoneedCorsOptions = {
+    origin: '*',
+    credentials: false, // Set to false for public
+}
+
+app.use('/api/v1/products', cors(specialNoneedCorsOptions)); // For open routes
 app.use('/api/v1/types', cors(openCorsOptions)); // For open routes
 app.use('/api/v1/categories', cors(openCorsOptions)); // For open routes
 app.use('/api/v1/subcategories', cors(openCorsOptions)); // For open routes
