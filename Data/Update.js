@@ -3,7 +3,8 @@ const axios = require("axios");
 const Product = require("../models/products");
 
 // MongoDB connection
-const mongoURI = "mongodb://mongodb-service:27017/ecommerce";
+// const mongoURI = "mongodb://mongodb-service:27017/ecommerce";
+const mongoURI = "mongodb://root:example@103.155.161.94:27017/recommendation_system?authSource=admin";
 mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log("Connected to MongoDB"))
     .catch((err) => console.error("Error connecting to MongoDB:", err));
@@ -43,8 +44,8 @@ const shuffleArray = (array) => {
 
 // Function to update product images
 const updateImageColumns = async () => {
-    const type = "kettle"; // Example: TV
-    const brand = "scarlett"; // Example: LG
+    const type = "notebook"; // Example: TV
+    const brand = "dell"; // Example: LG
 
     try {
         // Find all products where type = "tv" and brand = "lg"
