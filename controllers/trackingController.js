@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const UserBehavior = require('../models/UserBehaviors');
-const {sendToKafka} = require('../kafka/kafka-producer');
+// const {sendToKafka} = require('../kafka/kafka-producer');
 const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique IDs
 
 exports.trackUserBehavior = async (req, res) => {
@@ -64,7 +64,7 @@ exports.trackUserBehavior = async (req, res) => {
         // Save the user behavior data to the database
         const newBehavior = new UserBehavior(trackingData);
         await newBehavior.save();
-        await sendToKafka(trackingData);
+        // await sendToKafka(trackingData);
         res.status(201).json({
             message: 'User behavior tracked successfully',
             sessionId: newSessionId,
