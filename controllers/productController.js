@@ -212,7 +212,7 @@ exports.getRecommendations = async (req, res) => {
 
     try {
         // Fetch recommendations from the recommendation API
-        const response = await axios.post("http://103.155.161.94:5000/predict",
+        const response = await axios.post("http://flask-app:5000/predict",
             { product_id },
             { headers: { 'Content-Type': 'application/json' } });
 
@@ -286,7 +286,7 @@ exports.sessionBasedRecommendation = async (req, res) => {
     try {
         // Fetch recommendations from the Flask API
         const response = await axios.post(
-            "http://103.155.161.94:5000/session-recommend",
+            "http://flask-app:5000/session-recommend",
             { user_id, product_id ,event_type},
             { headers: { 'Content-Type': 'application/json' } }
         );

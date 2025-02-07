@@ -50,12 +50,9 @@ connectDB();
 
 // Middleware setup
 const corsOptions = {
-    origin: function (origin, callback) {
-        callback(null, origin || '*'); // Allow all origins, including non-browser clients
-    },
-    credentials: true, // Allow credentials (cookies)
+    origin: ['http://103.155.161.94:5173', 'http://localhost:5173'],  // ✅ Add both frontend URLs
+    credentials: true,  // ✅ Required to allow cookies
 };
-
 // Apply CORS for authenticated routes (e.g., tracking, auth)
 app.use('/api/v1/tracking', cors(corsOptions));
 app.use('/api/v1/auth', cors(corsOptions));
