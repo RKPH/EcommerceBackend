@@ -3,7 +3,11 @@ const res = require("express/lib/response");
 
 function generateJwt(userId, sessionID) {
     console.log("userId in generateJwt:", userId);
+    console.log("JWT_SECRET from process.env:", process.env.JWT_SECRET);
+
     const secret = process.env.JWT_SECRET;
+    console.log(secret);
+    
     return jwt.sign({ userId: userId.toString(), sessionID }, secret, { expiresIn: '1h' });
 }
 

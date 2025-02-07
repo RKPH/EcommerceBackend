@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: ecommerce-backend
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env  # Automatically loads environment variables
+    volumes:
+      - .:/usr/src/app
+    restart: always  # Restarts if it crashes
