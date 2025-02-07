@@ -50,7 +50,7 @@ connectDB();
 
 // Middleware setup
 const corsOptions = {
-    origin: ['http://103.155.161.94:3000', 'http://localhost:5173'],  // ✅ Add both frontend URLs
+    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173'],  // ✅ Add both frontend URLs
     credentials: true,  // ✅ Required to allow cookies
 };
 // Apply CORS for authenticated routes (e.g., tracking, auth)
@@ -62,7 +62,7 @@ app.use('/api/v1/orders', cors(corsOptions));  // Add this in your main app.js o
 
 // CORS for public routes (e.g., products)
 const openCorsOptions = {
-    origin: 'http://localhost:5173', // Your frontend URL
+    origin: 'http://103.155.161.94:5173', // Your frontend URL
     credentials: true  // Don't allow credentials (cookies)
 };
 
