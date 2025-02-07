@@ -52,15 +52,15 @@ exports.registerUser = async (req, res) => {
         // Set cookies
         res.cookie('accessToken', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Set to true if you're using HTTPS
-            sameSite: 'Strict', // or 'Lax' depending on your needs
+            secure: false, // Set to true if you're using HTTPS
+            sameSite: 'Lax', // or 'Lax' depending on your needs
             maxAge: 24 * 60 * 60 * 1000, // 1 day
         });
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Set to true if you're using HTTPS
-            sameSite: 'Strict', // or 'Lax'
+            secure: false, // Set to true if you're using HTTPS
+            sameSite: 'Lax', // or 'Lax'
             maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
 
@@ -117,15 +117,15 @@ exports.loginUser = async (req, res) => {
         const refreshToken = generateRefreshToken(user._id, sessionID);
         res.cookie('accessToken', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',  // Set to true if you're using HTTPS
-            sameSite: 'Strict',  // or 'Lax' depending on your needs
+            secure: false,  // Set to true if you're using HTTPS
+            sameSite: 'Lax',  // or 'Lax' depending on your needs
             maxAge: 24 * 60 * 60 * 1000,  // 1 day
         });
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Set to true if you're using HTTPS
-            sameSite: 'Strict',  // or 'Lax'
+            secure: false, // Set to true if you're using HTTPS
+            sameSite: 'Lax',  // or 'Lax'
             maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
         });
         // Send response
@@ -211,14 +211,14 @@ exports.refreshAccessToken = async (req, res) => {
         // Set new cookies for access and refresh tokens
         res.cookie('accessToken', accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
+            secure: false,
+            sameSite: 'Lax',
             maxAge: 24 * 60 * 60 * 1000,  // 1 day
         });
         res.cookie('refreshToken', newRefreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'Strict',
+            secure: false,
+            sameSite: 'Lax',
             maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
         });
 
@@ -242,13 +242,13 @@ exports.logoutUser = async (req, res) => {
         // Clear authentication cookies
         res.clearCookie('accessToken', {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Use true in production for HTTPS
+            secure: false, // Use true in production for HTTPS
             sameSite: 'Strict',
         });
 
         res.clearCookie('refreshToken', {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Use true in production for HTTPS
+            secure: false, // Use true in production for HTTPS
             sameSite: 'Strict',
         });
 
