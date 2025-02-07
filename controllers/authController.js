@@ -1,7 +1,7 @@
 const User = require('../models/user');
 const Cart = require('../models/cart');
-const { hash, verifyPassword } = require('../utils/hash');
-const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const { hash, verifyPassword } = require('../untils/hash');
+const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../untils/jwt');
 const { v4: uuidv4 } = require('uuid');
 
 // @desc    Register a new user
