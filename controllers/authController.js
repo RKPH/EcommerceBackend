@@ -158,7 +158,7 @@ exports.loginUser = async (req, res) => {
 // @access  Private (Protected by token)
 exports.getUserProfile = async (req, res) => {
     try {
-        // console.log('User from token:', req.user);  // Log the user data from the token
+        console.log('User from token:', req.user);  // Log the user data from the token
         const { userId, sessionID,LoggedinSession } = req.user;  // Destructure from req.user
         // console.log("user at get profile", req.user);
         const user = await User.findById(userId);
