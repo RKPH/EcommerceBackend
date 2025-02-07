@@ -1,7 +1,7 @@
 const User = require('../models/user');
 const Cart = require('../models/cart');
-const { hash, verifyPassword } = require('../untils/hash');
-const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../untils/jwt');
+const { hash, verifyPassword } = require('../utils/hash');
+const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');
 const { v4: uuidv4 } = require('uuid');
 
 // @desc    Register a new user
@@ -28,8 +28,8 @@ exports.registerUser = async (req, res) => {
         const token = generateJwt(user._id, sessionID);
         const refreshToken = generateRefreshToken(user._id, sessionID);
 
-        res.cookie('accessToken', token, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 86400000 });
-        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 2592000000 });
+        res.cookie('accessToken', token, { httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 86400000 });
+        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 2592000000 });
 
         res.status(201).json({
             message: 'User registered successfully',
@@ -62,8 +62,8 @@ exports.loginUser = async (req, res) => {
         const token = generateJwt(user._id, sessionID);
         const refreshToken = generateRefreshToken(user._id, sessionID);
 
-        res.cookie('accessToken', token, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 86400000 });
-        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 2592000000 });
+        res.cookie('accessToken', token, { httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 86400000 });
+        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 2592000000 });
 
         res.status(200).json({
             message: 'Login successful',
@@ -114,8 +114,8 @@ exports.refreshAccessToken = async (req, res) => {
         const accessToken = generateJwt(decoded.userId, decoded.sessionID);
         const newRefreshToken = generateRefreshToken(decoded.userId, decoded.sessionID);
 
-        res.cookie('accessToken', accessToken, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 86400000 });
-        res.cookie('refreshToken', newRefreshToken, { httpOnly: true, secure: true, sameSite: 'None', maxAge: 2592000000 });
+        res.cookie('accessToken', accessToken, { httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 86400000 });
+        res.cookie('refreshToken', newRefreshToken, { httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 2592000000 });
 
         res.status(200).json({ message: 'New access token generated successfully', token: accessToken, refreshToken: newRefreshToken });
     } catch (error) {
@@ -129,8 +129,8 @@ exports.refreshAccessToken = async (req, res) => {
 // @access  Private
 exports.logoutUser = async (req, res) => {
     try {
-        res.clearCookie('accessToken', { httpOnly: true, secure: true, sameSite: 'Strict' });
-        res.clearCookie('refreshToken', { httpOnly: true, secure: true, sameSite: 'Strict' });
+        res.clearCookie('accessToken', { httpOnly: true, secure: false, sameSite: 'Strict' });
+        res.clearCookie('refreshToken', { httpOnly: true, secure: false, sameSite: 'Strict' });
 
         console.log('User logged out successfully.');
         res.status(200).json({ message: 'Logout successful' });

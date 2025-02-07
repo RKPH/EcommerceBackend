@@ -1,6 +1,6 @@
 const supertest = require('supertest');
 const mongoose = require('mongoose');
-const {generateJwt} = require('../untils/jwt')
+const {generateJwt} = require('../utils/jwt')
 const app = require('../app');
 const User = require('../models/user'); // Assuming you have a User model
 
