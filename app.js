@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require("cors");
-// const { startKafkaConsumer } = require('./kafka/kafka-consumer')
+const { startKafkaConsumer } = require('./kafka/kafka-consumer')
 const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
 const productRouter = require('./routes/product');
@@ -18,13 +18,13 @@ const promClient = require('prom-client');
 
 const logger = require('./config/logger');  // Import custom logger
 const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
-// startKafkaConsumer()
-//     .then(() => {
-//         console.log('Kafka consumer is now running.');
-//     })
-//     .catch((error) => {
-//         console.error('Error starting Kafka consumer:', error);
-//     });
+startKafkaConsumer()
+    .then(() => {
+        console.log('Kafka consumer is now running.');
+    })
+    .catch((error) => {
+        console.error('Error starting Kafka consumer:', error);
+    });
 const app = express();
 const collectDefaultMetrics = promClient.collectDefaultMetrics;
 collectDefaultMetrics();

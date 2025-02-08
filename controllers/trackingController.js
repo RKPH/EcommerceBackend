@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const UserBehavior = require('../models/UserBehaviors');
-// const {sendToKafka} = require('../kafka/kafka-producer');
+const {sendToKafka} = require('../kafka/kafka-producer');
 const { v4: uuidv4 } = require('uuid'); // Import UUID for generating unique IDs
 
 exports.trackUserBehavior = async (req, res) => {
