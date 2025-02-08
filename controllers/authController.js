@@ -131,10 +131,9 @@ exports.loginUser = async (req, res) => {
         // Send response
         res.status(200).json({
             message: 'Login successful',
-            token,
             sessionID,
+            token,
             refreshToken,
-
             user: {
                 id: user._id,
                 user_id: user.user_id,

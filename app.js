@@ -50,7 +50,7 @@ connectDB();
 
 // Middleware setup
 const corsOptions = {
-    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173'],  // ✅ Add both frontend URLs
+    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:5173'],  // ✅ Add both frontend URLs
     credentials: true,  // ✅ Required to allow cookies
 };
 // Apply CORS for authenticated routes (e.g., tracking, auth)
@@ -61,10 +61,10 @@ app.use('/api/v1/users', cors(corsOptions));
 app.use('/api/v1/orders', cors(corsOptions));  // Add this in your main app.js or server file
 
 // CORS for public routes (e.g., products)
-const openCorsOptions = {
-    origin: 'http://103.155.161.94:5173', // Your frontend URL
-    credentials: true  // Don't allow credentials (cookies)
-};
+// const openCorsOptions = {
+//     origin: 'http://103.155.161.94:5173', // Your frontend URL
+//     credentials: true  // Don't allow credentials (cookies)
+// };
 
 const specialNoneedCorsOptions = {
     origin: '*',
@@ -72,9 +72,9 @@ const specialNoneedCorsOptions = {
 }
 
 app.use('/api/v1/products', cors(specialNoneedCorsOptions)); // For open routes
-app.use('/api/v1/types', cors(openCorsOptions)); // For open routes
-app.use('/api/v1/categories', cors(openCorsOptions)); // For open routes
-app.use('/api/v1/subcategories', cors(openCorsOptions)); // For open routes
+app.use('/api/v1/types', cors(specialNoneedCorsOptions)); // For open routes
+app.use('/api/v1/categories', cors(specialNoneedCorsOptions)); // For open routes
+app.use('/api/v1/subcategories', cors(specialNoneedCorsOptions)); // For open routes
 // Middleware for logging, request parsing, etc.
 app.use(logger);  // Use custom logger
 app.use(express.json());
