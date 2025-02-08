@@ -6,7 +6,7 @@ const { createTopicWithReplicationFactor } = require('./kafka-producer');
 
 const kafka = new Kafka({
     clientId: 'user-behavior-consumer',
-    brokers: ['http://103.155.161.94:9092'],
+    brokers: ['103.155.161.94:9092'],
     logLevel: logLevel.WARN,
 });
 

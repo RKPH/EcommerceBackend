@@ -3,7 +3,7 @@
 // Kafka setup
 const kafka = new Kafka({
     clientId: 'user-behavior-producer',
-    brokers: ['http://103.155.161.94:9092'],
+    brokers: ['103.155.161.94:9092'],
     logLevel: logLevel.WARN,
 });
 
