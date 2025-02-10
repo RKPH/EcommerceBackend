@@ -234,3 +234,5 @@ updateImageColumns();
 //
 // // Run the function
 // updateImageColumns();
+
+export default updateImageColumns;

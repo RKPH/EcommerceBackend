@@ -8,11 +8,13 @@ function generateJwt(userId, sessionID) {
     const secret = process.env.JWT_SECRET;
     console.log(secret);
     
-    return jwt.sign({ userId: userId.toString(), sessionID }, secret, { expiresIn: '1h' });
+    return jwt.sign({ userId: userId.toString(), sessionID }, secret, { expiresIn: '1m' });
 }
 
 function generateRefreshToken(userId, sessionID) {
-    const secret = process.env.JWT_SECRET;
+    const secret = process.env.JWT_REFRESH_SECRET;
+    console.log("secret in generateRefreshToken:", secret);
+
     return jwt.sign({ userId: userId.toString(), sessionID }, secret, { expiresIn: '24h' });
 }
 
@@ -29,7 +31,8 @@ function verifyJwt (token) {
 }
 
 function verifyRefreshToken (token) {
-    const secret = process.env.JWT_SECRET;
+    const secret = process.env.JWT_REFRESH_SECRET;
+    console.log("secret in verifyRefreshToken:", secret);
     try {
         const decoded = jwt.verify(token, secret);
         console.log("decoded in verifyRefreshToken:", decoded);

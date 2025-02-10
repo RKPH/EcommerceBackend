@@ -26,6 +26,11 @@ startKafkaConsumer()
         console.error('Error starting Kafka consumer:', error);
     });
 const app = express();
+app.use(logger);  // Use custom logger
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());  // Enable cookie parsing
+app.use(express.static(path.join(__dirname, 'public')));
 const collectDefaultMetrics = promClient.collectDefaultMetrics;
 collectDefaultMetrics();
 
@@ -50,7 +55,7 @@ connectDB();
 
 // Middleware setup
 const corsOptions = {
-    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:5173'],  // ✅ Add both frontend URLs
+    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173'],  // ✅ Add both frontend URLs
     credentials: true,  // ✅ Required to allow cookies
 };
 // Apply CORS for authenticated routes (e.g., tracking, auth)
@@ -76,11 +81,7 @@ app.use('/api/v1/types', cors(specialNoneedCorsOptions)); // For open routes
 app.use('/api/v1/categories', cors(specialNoneedCorsOptions)); // For open routes
 app.use('/api/v1/subcategories', cors(specialNoneedCorsOptions)); // For open routes
 // Middleware for logging, request parsing, etc.
-app.use(logger);  // Use custom logger
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());  // Enable cookie parsing
-app.use(express.static(path.join(__dirname, 'public')));
+
 
 // Swagger setup
 app.use('/api-docs', swaggerSetup, swaggerDocs);  // Swagger UI endpoint

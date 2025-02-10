@@ -189,16 +189,27 @@ exports.getUserProfile = async (req, res) => {
 // @route   POST /api/v1/auth/refresh-token
 // @access  Private (Requires valid refresh token)
 exports.refreshAccessToken = async (req, res) => {
+    let tokenSource = "";
+    let token = "";
+
+    if (req.header('Authorization')) {
+        token = req.header('Authorization').replace('Bearer ', '');
+        tokenSource = "Authorization Header";
+    } else if (req.cookies?.refreshToken) {
+        token = req.cookies.refreshToken;
+        tokenSource = "Cookie";
+    }
+    console.log("tokenSource", tokenSource);
     try {
-        const refreshToken = req.header('Authorization')?.replace('Bearer ', '') || req.cookies.refreshToken;
+
 
         // Check if the refresh token is present
-        if (!refreshToken) {
+        if (!token) {
             return res.status(401).json({ message: 'No refresh token provided' });
         }
 
         // Verify the refresh token
-        const decoded = verifyRefreshToken(refreshToken);  // Ensure this is a valid decoded payload
+        const decoded = verifyRefreshToken(token);  // Ensure this is a valid decoded payload
         if (!decoded) {
             return res.status(401).json({ message: 'Invalid or expired refresh token' });
         }
