@@ -148,44 +148,37 @@ exports.getAllCategories = async (req, res) => {
 }
 
 exports.getProductByTypes = async (req, res) => {
-    const { type } = req.params; // Extract the product type from the route parameters
-    const { page = 1 } = req.query; // Extract the page from query parameters, default to 1
+    const { type } = req.params;
+    const { page = 1, brand, price_min, price_max, rating } = req.query;
+    const pageSize = 20;
+
+    // Step 1: Parse page number safely
+    let pageNum = parseInt(page, 10);
+    if (isNaN(pageNum) || pageNum <= 0) pageNum = 1; // Default to page 1
+
+    // Step 2: Build the filter criteria
+    let filter = { type };
+    if (brand) filter.brand = brand;
+    if (price_min || price_max) {
+        filter.price = {};
+        if (price_min) filter.price.$gte = Number(price_min);
+        if (price_max) filter.price.$lte = Number(price_max);
+    }
+    if (rating) filter.rating = { $gte: Number(rating) };
 
     try {
-        // Set a default page size (number of products per page)
-        const pageSize = 20;
-
-        // Convert page to a number
-        const pageNum = parseInt(page, 10);
-
-        // Validate the page number
-        if (isNaN(pageNum) || pageNum <= 0) {
-            return res.status(400).json({
-                status: 'error',
-                message: 'Invalid page value. Must be a positive number.',
-            });
-        }
-
-        // Calculate the total number of products of the given type
-        const totalProducts = await Product.countDocuments({ type });
-
-        // Calculate total pages
+        // Step 3: Get the total number of products after filtering
+        const totalProducts = await Product.countDocuments(filter);
         const totalPages = Math.ceil(totalProducts / pageSize);
 
-        // Validate that the requested page is within range
-        if (pageNum > totalPages) {
-            return res.status(404).json({
-                status: 'error',
-                message: `Page ${pageNum} exceeds the total number of pages (${totalPages}).`,
-            });
-        }
+        // Step 4: Ensure page is valid (reset to 1 if it exceeds available pages)
+        if (pageNum > totalPages) pageNum = 1; // 🔥 Reset page if filtering reduces results
 
-        // Use Mongoose to query products by type with pagination
-        const products = await Product.find({ type })
-            .skip((pageNum - 1) * pageSize) // Skip documents for previous pages
-            .limit(pageSize); // Limit the number of documents to the per-page limit
+        // Step 5: Apply filtering & pagination in query
+        const products = await Product.find(filter)
+            .skip((pageNum - 1) * pageSize)
+            .limit(pageSize);
 
-        // Send the retrieved products, along with pagination info
         res.json({
             status: 'success',
             message: 'Products retrieved successfully',
@@ -193,12 +186,11 @@ exports.getProductByTypes = async (req, res) => {
             pagination: {
                 totalProducts,
                 totalPages,
-                currentPage: pageNum,
+                currentPage: pageNum, // Updated page number if needed
                 pageSize,
             },
         });
     } catch (error) {
-        // Handle any errors that occur during the query
         res.status(500).json({
             status: 'error',
             message: error.message,

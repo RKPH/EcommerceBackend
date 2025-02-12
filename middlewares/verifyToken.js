@@ -15,10 +15,6 @@ const verifyToken = (req, res, next) => {
     console.log("Token in verifyToken:", token);
     console.log("Token Source:", tokenSource);
 
-    if (!token) {
-        return res.status(401).json({ message: 'Access denied. No token provided.' });
-    }
-
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded;  // Attach user data to req.user
@@ -29,7 +25,7 @@ const verifyToken = (req, res, next) => {
     } catch (err) {
         console.log("Invalid JWT token:", token);
         console.log("JWT verify error:", err);
-        return res.status(404).json({ message: 'Invalid token' });
+        return res.status(401).json({ message: 'Invalid token or no token provided' });
     }
 };
 

@@ -163,7 +163,8 @@ exports.getUserProfile = async (req, res) => {
         const user = await User.findById(userId);
         const cart = await Cart.countDocuments({ user: user._id });
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            console.log("User not found");
+            return res.status(401).json({ message: 'User not found' });
         }
 
         res.status(200).json({
