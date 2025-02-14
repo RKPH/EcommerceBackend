@@ -6,7 +6,7 @@ const {
     getAllTypes,
     getProductByTypes,
     getAllCategories,
-    addProduct, getRecommendations, sessionBasedRecommendation, getTopTrendingProducts
+    addProduct, getRecommendations, sessionBasedRecommendation, getTopTrendingProducts, updateProductImage
 } = require('../controllers/productController');
 
 /**
@@ -312,5 +312,8 @@ router.post('/predict/:product_id', getRecommendations)
  *         description: Internal server error. Failed to retrieve session-based recommendations.
  */
 router.post('/recommendations', sessionBasedRecommendation)
+
+
+router.post('/update_image', updateProductImage)
 
 module.exports = router;

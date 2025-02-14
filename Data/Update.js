@@ -4,10 +4,7 @@ const Product = require("../models/products");
 
 // MongoDB connection
 // const mongoURI = "mongodb://mongodb-service:27017/ecommerce";
-const mongoURI = "mongodb://root:example@103.155.161.94:27017/recommendation_system?authSource=admin";
-mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("Connected to MongoDB"))
-    .catch((err) => console.error("Error connecting to MongoDB:", err));
+
 
 // Google Custom Search API details
 const GOOGLE_API_KEY = "AIzaSyBuXJKN6j2gRbicG76-vAbBf2-Jq-52vuQ"; // Replace with your API Key
@@ -43,9 +40,8 @@ const shuffleArray = (array) => {
 };
 
 // Function to update product images
-const updateImageColumns = async () => {
-    const type = "notebook"; // Example: TV
-    const brand = "dell"; // Example: LG
+const updateImageColumns = async (type,brand) => {
+
 
     try {
         // Find all products where type = "tv" and brand = "lg"
@@ -113,13 +109,14 @@ const updateImageColumns = async () => {
     } catch (error) {
         console.error("Error updating image columns:", error);
     } finally {
-        mongoose.connection.close();
+       console.log("done");
     }
 };
 
-// Start the update process
-updateImageColumns();
+// // Start the update process
+// updateImageColumns();
 
+module.exports = updateImageColumns;
 
 // const mongoose = require("mongoose");
 // const axios = require("axios");
@@ -234,5 +231,3 @@ updateImageColumns();
 //
 // // Run the function
 // updateImageColumns();
-
-export default updateImageColumns;

@@ -2,6 +2,7 @@ const Product = require('../models/products');
 const mongoose = require('mongoose');
 const axios = require('axios');
 const crypto = require('crypto');
+const updateImageColumns = require('../Data/Update');
 // Controller to get all products
 exports.getAllProducts = async (req, res) => {
     try {
@@ -372,3 +373,21 @@ exports.getTopTrendingProducts = async (req, res) => {
         });
     }
 };
+
+
+exports.updateProductImage = async (req, res) => {
+    const { type, brand } = req.body;
+
+    if (!type || !brand) {
+        return res.status(400).json({ error: "Type and brand are required." });
+    }
+
+    try {
+        // Call the external function
+        const result = await updateImageColumns(type, brand);
+        return res.json(result);
+    } catch (error) {
+        console.error("Error updating images:", error);
+        return res.status(500).json({ error: "Internal server error." });
+    }
+}
