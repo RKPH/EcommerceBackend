@@ -1,2 +1,3 @@
 # Ignore the Data folder
 Data/
+node_modules
