@@ -1,4 +1,5 @@
 const Product = require('../models/products');
+
 const mongoose = require('mongoose');
 const axios = require('axios');
 const crypto = require('crypto');
@@ -391,3 +392,38 @@ exports.updateProductImage = async (req, res) => {
         return res.status(500).json({ error: "Internal server error." });
     }
 }
+
+// Controller to search products
+exports.searchProducts = async (req, res) => {
+    const { query } = req.query;
+
+    if (!query) {
+        return res.status(400).json({
+            status: 'error',
+            message: 'Search query is required.',
+        });
+    }
+
+    try {
+        const products = await Product.find({
+            $or: [
+                { name: { $regex: query, $options: 'i' } },
+                { category: { $regex: query, $options: 'i' } },
+                { brand: { $regex: query, $options: 'i' } },
+                { description: { $regex: query, $options: 'i' } }
+            ]
+        }).limit(10);
+
+        res.json({
+            status: 'success',
+            message: 'Search results retrieved successfully',
+            data: products,
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: error.message,
+        });
+    }
+};
+

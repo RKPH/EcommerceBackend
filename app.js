@@ -10,10 +10,13 @@ const authRouter = require('./routes/auth');
 const cartRouter = require('./routes/cart');
 const orderRouter = require('./routes/Order');
 const userRouter = require('./routes/User');
+const reviewRouter = require('./routes/rating');
 const trackRouter = require('./routes/tracking');
 const typeRouter = require('./routes/Type');
 const categoryRouter = require('./routes/Category');
+const imageRouter = require('./routes/image');
 const subCategoryRouter = require('./routes/Subcategory');
+const momoIPNHandler = require('./routes/momo_ipn');
 const promClient = require('prom-client');
 
 const logger = require('./config/logger');  // Import custom logger
@@ -64,7 +67,7 @@ app.use('/api/v1/auth', cors(corsOptions));
 app.use('/api/v1/cart', cors(corsOptions));
 app.use('/api/v1/users', cors(corsOptions));
 app.use('/api/v1/orders', cors(corsOptions));  // Add this in your main app.js or server file
-
+app.use('/api/v1/reviews', cors(corsOptions));
 // CORS for public routes (e.g., products)
 // const openCorsOptions = {
 //     origin: 'http://103.155.161.94:5173', // Your frontend URL
@@ -80,6 +83,7 @@ app.use('/api/v1/products', cors(specialNoneedCorsOptions)); // For open routes
 app.use('/api/v1/types', cors(specialNoneedCorsOptions)); // For open routes
 app.use('/api/v1/categories', cors(specialNoneedCorsOptions)); // For open routes
 app.use('/api/v1/subcategories', cors(specialNoneedCorsOptions)); // For open routes
+app.use('/api/v1/images', cors(specialNoneedCorsOptions));
 // Middleware for logging, request parsing, etc.
 
 
@@ -97,6 +101,9 @@ app.use('/api/v1/users', userRouter);
 app.use('/api/v1/types', typeRouter);
 app.use('/api/v1/categories', categoryRouter);
 app.use('/api/v1/subcategories', subCategoryRouter);
+app.use('/api/v1/reviews', reviewRouter);
+app.use('/api/v1/images', imageRouter);
+app.use('/api/v1', momoIPNHandler);
 // Catch 404 errors
 app.use(notFoundHandler);
 

@@ -6,7 +6,8 @@ const {
     getAllTypes,
     getProductByTypes,
     getAllCategories,
-    addProduct, getRecommendations, sessionBasedRecommendation, getTopTrendingProducts, updateProductImage
+    addProduct, getRecommendations, sessionBasedRecommendation, getTopTrendingProducts, updateProductImage,
+    searchProducts
 } = require('../controllers/productController');
 
 /**
@@ -70,6 +71,7 @@ const {
  *         - productImage
  */
 
+router.get("/search", searchProducts);
 
 /**
  * @swagger
@@ -83,8 +85,8 @@ const {
  *         description: A list of product types retrieved successfully
  *         content:
  *           application/json:
- *             schema:
- *               type: array
+ *
+ *               schema:type: array
  *               items:
  *                 type: string
  *       500:
@@ -315,5 +317,8 @@ router.post('/recommendations', sessionBasedRecommendation)
 
 
 router.post('/update_image', updateProductImage)
+
+
+
 
 module.exports = router;

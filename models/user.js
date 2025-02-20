@@ -11,6 +11,10 @@
             unique: true, // Ensure email is unique
             match: [/^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/, 'Please fill a valid email address'], // Regex for email validation
         },
+        avatar: {
+            type: String,
+            required: false,
+        },
         password: {
             type: String,
             required: true,
@@ -35,6 +39,14 @@
             postalCode: { type: String, required: false },
             country: { type: String, required: false },
         },
+        isVerified: {
+            type: Boolean,
+            default: false,
+        },
+        verificationCode: { type: String }, // Store the 12-digit code
+        resetToken: { type: String },
+        restTokenExpiry: { type: Date },
+
     }, {
         timestamps: true, // Adds createdAt and updatedAt fields
         versionKey: false, // Disables the versioning (_v field)

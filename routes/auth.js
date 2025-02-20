@@ -3,7 +3,9 @@ const router = express.Router();
 const verifyAccessToken = require('../middlewares/verifyToken');
 
 
-const { registerUser, loginUser, getUserProfile,refreshAccessToken ,logoutUser } = require('../controllers/authController'); // Update the path if necessary
+const { registerUser, loginUser, getUserProfile,refreshAccessToken ,logoutUser, verifyUser, forgotPassword,
+    resetPassword
+} = require('../controllers/authController'); // Update the path if necessary
 
 
 /**
@@ -177,4 +179,11 @@ router.post('/refresh-token', refreshAccessToken);
  */
 router.post('/logout', logoutUser); // Add logout endpoint
 
+
+router.post('/verify', verifyAccessToken, verifyUser);
+
+router.post("/forgot-password",forgotPassword); // Send reset email
+
+
+router.post('/reset-password', resetPassword);
 module.exports = router;

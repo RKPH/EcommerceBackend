@@ -2,7 +2,7 @@ const User = require('../models/user'); // Assuming your model is in the `models
 
 // Update user profile
 const updateUserProfile = async (req, res) => {
-    const { name, email, address, password } = req.body;
+    const { name, email, address, avatar } = req.body;
     const userId = req.user. userId; // Assuming the user ID is attached to the request (e.g., from JWT token)
 
     try {
@@ -27,7 +27,7 @@ const updateUserProfile = async (req, res) => {
         user.name = name || user.name;
         user.email = email || user.email;
         user.address = address || user.address;
-
+        user.avatar = avatar || user.avatar;
         // Save the updated user
         await user.save();
 
@@ -36,6 +36,7 @@ const updateUserProfile = async (req, res) => {
             name: user.name,
             email: user.email,
             address: user.address,
+            avatar: user.avatar,
             role: user.role,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt

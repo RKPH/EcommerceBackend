@@ -2,7 +2,6 @@
 const Product = require('../models/products');
 const Cart = require('../models/cart');
 
-
 exports.addProductToCart = async (req, res) => {
     const { productId, quantity, color, size } = req.body; // Extract product details from request body
     const { userId } = req.user; // Extract userId from authenticated user's information
@@ -10,16 +9,15 @@ exports.addProductToCart = async (req, res) => {
     console.log(req.body);
     try {
         // Validate input
-        if (!productId || !quantity || !color) {
+        if (!productId || !quantity ) {
             return res.status(400).json({
                 status: 'error',
-                message: 'Product ID, quantity, color, and size are required',
+                message: 'Product ID, quantity are required',
             });
         }
 
         // Check if the product exists by productId
         const product = await Product.findOne({ productID: productId });
-
         if (!product) {
             return res.status(404).json({
                 status: 'error',
@@ -31,8 +29,7 @@ exports.addProductToCart = async (req, res) => {
         let cartItem = await Cart.findOne({
             productID: productId,
             user: userId,
-            color,
-            size // Match exact color and size
+
         });
 
         if (cartItem) {
@@ -40,10 +37,14 @@ exports.addProductToCart = async (req, res) => {
             cartItem.quantity += quantity;
             await cartItem.save();
 
+            // Count cart items belonging to the user
+            const cartCount = await Cart.countDocuments({ user: userId });
+
             return res.status(200).json({
                 status: 'success',
                 message: 'Product quantity updated in cart successfully',
                 data: cartItem,
+                cartCount,
             });
         } else {
             // If cart item does not exist, create a new cart item
@@ -51,16 +52,19 @@ exports.addProductToCart = async (req, res) => {
                 productID: productId,
                 product: product._id,
                 quantity,
-                color,
-                size,
+
                 user: userId,
             });
             await newCartItem.save();
+
+            // Count cart items belonging to the user
+            const cartCount = await Cart.countDocuments({ user: userId });
 
             return res.status(201).json({
                 status: 'success',
                 message: 'Product added to cart successfully',
                 data: newCartItem,
+                Length: cartCount,
             });
         }
     } catch (error) {
@@ -71,6 +75,7 @@ exports.addProductToCart = async (req, res) => {
         });
     }
 };
+
 
 // @desc    Get all cart items for a user
 // @route   GET /api/v1/cart

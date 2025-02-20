@@ -26,10 +26,6 @@ const OrderSchema = new mongoose.Schema({
         type: Number,
         required: false
     },
-    isPaid: {
-        type: Boolean,
-        required: true
-    },
     createdAt: {
         type: String,
         required: true
@@ -48,8 +44,13 @@ const OrderSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['Pending', 'Processing', 'Delivered', 'Cancelled'],
-        default: 'Pending'
+        enum: ['Draft', 'Pending' , 'Confirmed' ,'Delivered', 'Cancelled'],
+        default: 'Draft'
+    },
+    payingStatus: {
+        type: String,
+        enum: ['Paid', 'Unpaid' , 'Failed'],
+        default: 'Unpaid'
     },
     history: {
         type: [
