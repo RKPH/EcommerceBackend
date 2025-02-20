@@ -10,4 +10,5 @@ services:
       - .env  # Automatically loads environment variables
     volumes:
       - .:/usr/src/app
+      - /usr/src/app/node_modules
     restart: always  # Restarts if it crashes

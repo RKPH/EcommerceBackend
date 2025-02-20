@@ -1,23 +1,20 @@
-# Use the official Node.js image as the base image
-FROM node:16-slim
+# Use the official Node.js 18 LTS image as the base image
+FROM node:18
 
-# Set the working directory
+# Set the working directory inside the container
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json first to leverage Docker cache
+# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the application files
+# Copy the rest of the application source code to the working directory
 COPY . .
 
-# Expose the application's port
+# Expose the port your application will run on
 EXPOSE 3000
 
-# Load environment variables (if using Docker Compose, this will be handled there)
-ENV NODE_ENV=production
-
-# Start the application
+# Define the command to run your application
 CMD ["npm", "start"]
