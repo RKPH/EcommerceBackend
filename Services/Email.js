@@ -15,7 +15,7 @@ async function sendVerificationEmail(to, code) {
         console.error("Error: No recipient email provided!");
         return;
     }
-
+    console.log("mail", to);
     // Use an externally hosted image (replace with the actual URL of your hosted image)
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";  // Replace with your image URL
 
@@ -72,6 +72,7 @@ async function sendResetPasswordEmail(to, resetLink) {
         console.error("Error: No recipient email provided!");
         return;
     }
+
 
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";  // Replace with your image URL
 

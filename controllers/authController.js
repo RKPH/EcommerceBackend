@@ -50,7 +50,7 @@
 
             // Save the user to the database
             await user.save();
-            await sendVerificationEmail(user_id, verificationCode);
+            await sendVerificationEmail(email, verificationCode);
             // Generate a JWT token
             const sessionID = uuidv4(); // Generate a unique session ID
             const token = generateJwt(user._id, sessionID);
