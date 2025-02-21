@@ -17,8 +17,11 @@ exports.momoIPNHandler = async (req, res) => {
         if (resultCode === 0) {
             // ✅ Payment success -> Keep order "Pending" but mark payment as "Paid"
             order.status = 'Pending';
-            order.payingStatus = 'Paid';
-
+            order.payingStatus = 'Unpaid';
+            order.history.push({
+                date: formatDate(new Date()),
+                action: 'Order is paid via momo and pending processing.',
+            });
             // ✅ Clear the cart now since payment is confirmed
             await clearUserCart(order.user, order.products);
             console.log("🛒 Cart cleared for user:", order.user.toString());
@@ -27,7 +30,6 @@ exports.momoIPNHandler = async (req, res) => {
             order.status = 'Draft';
             order.payingStatus = 'Failed';
         }
-
         await order.save();
 
         return res.status(200).json({ status: 'success', message: 'Order updated' });

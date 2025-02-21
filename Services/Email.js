@@ -1,7 +1,7 @@
 ﻿const nodemailer = require("nodemailer");
 const fs = require("fs");
 const path = require("path");
-
+const validateEmail = require('deep-email-validator');
 const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -10,12 +10,23 @@ const transporter = nodemailer.createTransport({
     },
 });
 
+async function isEmailValid(email) {
+    return validateEmail(email);
+}
+
 async function sendVerificationEmail(to, code) {
     if (!to) {
         console.error("Error: No recipient email provided!");
         return;
     }
     console.log("mail", to);
+    const { valid, reason } = await isEmailValid(to);
+
+    if (!valid) {
+        console.error(`Invalid email address: ${to}. Reason: ${reason}`);
+        return;
+    }
+
     // Use an externally hosted image (replace with the actual URL of your hosted image)
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";  // Replace with your image URL
 

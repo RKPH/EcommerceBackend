@@ -23,6 +23,7 @@
     "csv-parser": "^3.1.0",
     "csv-writer": "^1.6.0",
     "debug": "~2.6.9",
+    "deep-email-validator": "^0.1.21",
     "dotenv": "^16.4.7",
     "express": "~4.16.1",
     "http-errors": "~1.6.3",
