@@ -48,12 +48,12 @@
             });
 
             // Attempt to send the verification email
-            try {
-                await sendVerificationEmail(user.email, user.verificationCode);
-            } catch (emailError) {
-                console.error('Error sending verification email:', emailError.message);
-                return res.status(500).json({ message: 'Failed to send verification email' });
+            const emailSent = await sendVerificationEmail(user.email, user.verificationCode);
+            console.log("emailSent", emailSent);
+            if (!emailSent) {
+                return res.status(400).json({ message: "Invalid email address or failed to send verification email" });
             }
+
 
             // Save the user to the database only if the email was sent successfully
             await user.save();
@@ -90,7 +90,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-                    address: user.address,
+
                 },
             });
         } catch (error) {
@@ -160,7 +160,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-                    address: user.address,
+
                 },
 
             });
@@ -202,7 +202,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-                    address: user.address,
+
                 },
             });
         } catch (error) {
@@ -299,7 +299,7 @@
                     user_id: user.user_id,
                     email: user.email,
                     Cart: cart,
-                    address: user.address,
+
                 },
             });
         } catch (error) {

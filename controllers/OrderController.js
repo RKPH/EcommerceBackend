@@ -171,8 +171,8 @@ exports.getOrdersDetail = async (req, res) => {
 
 exports.purchaseOrder = async (req, res) => {
     const { userId } = req.user;
-    const { orderId, deliverAt, paymentMethod, totalPrice, sessionID } = req.body;
-
+    const { orderId, shippingAddress ,deliverAt, paymentMethod, totalPrice, sessionID } = req.body;
+    console.log("address", shippingAddress);
     try {
         // Fetch order and populate products
         const order = await Order.findById(orderId).populate('products.product').exec();
@@ -191,6 +191,7 @@ exports.purchaseOrder = async (req, res) => {
         }
 
         // Update order details
+        order.shippingAddress = shippingAddress;
         order.PaymentMethod = paymentMethod;
         order.DeliveredAt = deliverAt;
         order.totalPrice = totalPrice;

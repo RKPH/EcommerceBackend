@@ -1,7 +1,7 @@
 ﻿const nodemailer = require("nodemailer");
 const fs = require("fs");
 const path = require("path");
-const validateEmail = require('deep-email-validator');
+const { validate } = require('deep-email-validator');
 const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
@@ -11,7 +11,7 @@ const transporter = nodemailer.createTransport({
 });
 
 async function isEmailValid(email) {
-    return validateEmail(email);
+    return validate(email);
 }
 
 async function sendVerificationEmail(to, code) {
@@ -24,7 +24,7 @@ async function sendVerificationEmail(to, code) {
 
     if (!valid) {
         console.error(`Invalid email address: ${to}. Reason: ${reason}`);
-        return;
+        return false;  // Return false to indicate failure
     }
 
     // Use an externally hosted image (replace with the actual URL of your hosted image)
@@ -72,8 +72,10 @@ async function sendVerificationEmail(to, code) {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log("Verification email sent to:", to, "Response:", info.response);
+        return true;  // ✅ Add this line to return true on success
     } catch (error) {
         console.error("Error sending email:", error);
+        return false;
     }
 }
 
