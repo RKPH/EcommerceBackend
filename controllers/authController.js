@@ -32,25 +32,32 @@
                     isUnique = true; // Break loop if the ID is unique
                 }
             }
-            const verificationCode = crypto.randomInt(100000000000, 999999999999);
+
             // Hash the password and generate the salt
             const { salt, hashedPassword } = await hash(password);
 
-            // Create the new user
+            // Create the new user object but do not save it yet
             user = new User({
                 name,
                 email,
                 user_id,
                 password: hashedPassword, // Store the hashed password
                 salt, // Store the salt
-                isVerified:false,
-                verificationCode,
-
+                isVerified: false,
+                verificationCode: crypto.randomInt(100000000000, 999999999999),
             });
 
-            // Save the user to the database
+            // Attempt to send the verification email
+            const emailSent = await sendVerificationEmail(user.email, user.verificationCode);
+            console.log("emailSent", emailSent);
+            if (!emailSent) {
+                return res.status(400).json({ message: "Invalid email address or failed to send verification email" });
+            }
+
+
+            // Save the user to the database only if the email was sent successfully
             await user.save();
-            await sendVerificationEmail(email, verificationCode);
+
             // Generate a JWT token
             const sessionID = uuidv4(); // Generate a unique session ID
             const token = generateJwt(user._id, sessionID);
@@ -74,7 +81,6 @@
             // Respond with success
             res.status(201).json({
                 message: 'User registered successfully',
-
                 token,
                 refreshToken,
                 user: {
@@ -84,11 +90,11 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-                    address: user.address,
+
                 },
             });
         } catch (error) {
-            console.error(error.message);
+            console.error('Registration error:', error.message);
             res.status(500).json({ message: 'Server error' });
         }
     };
@@ -154,7 +160,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-                    address: user.address,
+
                 },
 
             });
@@ -196,7 +202,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-                    address: user.address,
+
                 },
             });
         } catch (error) {
@@ -293,7 +299,7 @@
                     user_id: user.user_id,
                     email: user.email,
                     Cart: cart,
-                    address: user.address,
+
                 },
             });
         } catch (error) {

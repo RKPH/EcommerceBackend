@@ -171,8 +171,8 @@ exports.getOrdersDetail = async (req, res) => {
 
 exports.purchaseOrder = async (req, res) => {
     const { userId } = req.user;
-    const { orderId, deliverAt, paymentMethod, totalPrice, sessionID } = req.body;
-
+    const { orderId, shippingAddress ,deliverAt, paymentMethod, totalPrice, sessionID } = req.body;
+    console.log("address", shippingAddress);
     try {
         // Fetch order and populate products
         const order = await Order.findById(orderId).populate('products.product').exec();
@@ -191,13 +191,16 @@ exports.purchaseOrder = async (req, res) => {
         }
 
         // Update order details
+        order.shippingAddress = shippingAddress;
         order.PaymentMethod = paymentMethod;
         order.DeliveredAt = deliverAt;
         order.totalPrice = totalPrice;
-        order.history.push({
-            date: formatDate(new Date()),
-            action: paymentMethod === 'momo' ? 'Order placed, waiting for MoMo payment confirmation.' : 'Order placed and pending processing.',
-        });
+        if(order.PaymentMethod === 'cod') {
+            order.history.push({
+                date: formatDate(new Date()),
+                action: 'Order placed and pending processing.',
+            });
+        }
 
         await order.save();
 
@@ -208,11 +211,10 @@ exports.purchaseOrder = async (req, res) => {
             const partnerCode = 'MOMO';
             const amount = 10000
             const redirectUrl = `http://localhost:5173/checkout/success/${orderId}`;
-            const ipnUrl = ' http://103.155.161.94:3000/api/v1/webhook/momo-ipn';  // ✅ Ensure this matches your actual IPN URL
+            const ipnUrl = 'http://103.155.161.94:3000/api/v1/webhook/momo-ipn';  // ✅ Ensure this matches your actual IPN URL
             const orderInfo = 'pay with MoMo';
             const requestId = orderId;
             const extraData = '';
-
             const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=payWithMethod`;
             const signature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');
 

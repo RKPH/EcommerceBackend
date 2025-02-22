@@ -15,6 +15,10 @@ const productSchema = new mongoose.Schema({
         type: Number,
         required: false,
     },
+    price: {
+        type: Number,
+        required: true,
+    },
     category: {
         type: String,
         required: true,
@@ -27,38 +31,13 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    color: {
-        type: [String],
-        required: false,
-    },
-    size: {
-        type: [String],
-        required: false,
-    },
-    storage: {
-        type: [String],
-        required: false,
-
-    },
-    ram: {
-        type: [String],
-        required: false,
-    },
-    price: {
-        type: Number,
-        required: true,
-    },
-    image: {
-        type: [String],
+    MainImage: {
+        type: String,
         required: true,
     },
     description: {
         type: String,
         required: false,
-    },
-    productImage: {
-        type: [String],
-        required: true,
     },
 }, {
     versionKey: false,  // Disable the __v field

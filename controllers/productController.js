@@ -62,11 +62,8 @@ exports.addProduct = async (req, res) => {
         category,
         type,
         brand,
-        color,
-        size,
         description,
-        image,
-        productImage,
+        MainImage,
     } = req.body;
 
     // Validate the product data
@@ -74,10 +71,6 @@ exports.addProduct = async (req, res) => {
         !name ||
         !category ||
         !type ||
-        !Array.isArray(image) ||
-        !productImage ||
-        !Array.isArray(productImage) ||
-        productImage.length === 0 ||
         typeof price !== 'number' ||
         price <= 0
     ) {
@@ -93,12 +86,10 @@ exports.addProduct = async (req, res) => {
             category,
             type,
             brand,
-            color: color || [],
-            size: size || [],
+
             price,
             description,
-            image: image || [],
-            productImage,
+            MainImage:MainImage
         });
 
         await newProduct.save();
@@ -244,8 +235,7 @@ exports.getRecommendations = async (req, res) => {
                         category: product.category,
                         rating: product.rating,
                         price: product.price,
-                        image: product.image,
-                        productImage: product.productImage,
+                        MainImage: product.MainImage,
                         description: product.description,
                     } : null  // Add the product details if found
                 };
@@ -324,8 +314,7 @@ exports.sessionBasedRecommendation = async (req, res) => {
                     category: product.category,
                     price: product.price,
                     rating: product.rating,
-                    image: product.image,
-                    productImage: product.productImage,
+                    MainImage: product.MainImage,
                     description: product.description,
                 } : null,
             };
