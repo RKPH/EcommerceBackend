@@ -17,7 +17,7 @@ exports.momoIPNHandler = async (req, res) => {
         if (resultCode === 0) {
             // ✅ Payment success -> Keep order "Pending" but mark payment as "Paid"
             order.status = 'Pending';
-            order.payingStatus = 'Unpaid';
+            order.payingStatus = 'Paid';
             order.history.push({
                 date: formatDate(new Date()),
                 action: 'Order is paid via momo and pending processing.',
