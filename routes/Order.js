@@ -1,6 +1,9 @@
 const express = require('express');
-const { createOrder, getOrdersDetail, purchaseOrder,updateOrderStatus , getOrderDetailByID  } = require('../controllers/OrderController'); // Adjust path as needed
-const verifyToken = require('../middlewares/verifyToken'); // Adjust path as needed
+const { createOrder, getOrdersDetail, purchaseOrder,updateOrderStatus , getOrderDetailByID, cancelOrder,
+    submitRefundBankDetails
+} = require('../controllers/OrderController'); // Adjust path as needed
+const verifyToken = require('../middlewares/verifyToken');
+const {getUserReviewForProductOrder} = require("../controllers/ReviewAndRatingController"); // Adjust path as needed
 
 const router = express.Router();
 
@@ -248,6 +251,12 @@ router.put('/updateOrderStatus/:orderId', updateOrderStatus);
  *         description: Internal server error
  */
 router.get('/getUserDetailById/:orderId', verifyToken, getOrderDetailByID);
+
+router.post('/cancle/:id', verifyToken, cancelOrder);
+
+router.post('/:id/refund-details',verifyToken, submitRefundBankDetails);
+
+router.get('/:orderID/products/:id/review', verifyToken, getUserReviewForProductOrder);
 
 module.exports = router;
 

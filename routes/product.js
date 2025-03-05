@@ -7,7 +7,8 @@ const {
     getProductByTypes,
     getAllCategories,
     addProduct, getRecommendations, sessionBasedRecommendation, getTopTrendingProducts, updateProductImage,
-    searchProducts
+    searchProducts, deleteProduct, getProductsByCategories, anonymousRecommendation, searchProductsPaginated,
+    getTypesByCategory
 } = require('../controllers/productController');
 
 /**
@@ -73,6 +74,10 @@ const {
 
 router.get("/search", searchProducts);
 
+
+
+router.get("/searchFullPage", searchProductsPaginated);
+
 /**
  * @swagger
  * /api/v1/products/types:
@@ -126,6 +131,10 @@ router.get('/types', getAllTypes);
  */
 router.get('/type/:type', getProductByTypes);
 
+
+
+router.get("/types/category/:category", getTypesByCategory);
+
 /**
  * @swagger
  * /api/v1/products/categories:
@@ -147,6 +156,8 @@ router.get('/type/:type', getProductByTypes);
  */
 router.get('/categories', getAllCategories);
 
+
+router.get("/category/:category", getProductsByCategories);
 
 /**
  * @swagger
@@ -316,9 +327,10 @@ router.post('/predict/:product_id', getRecommendations)
 router.post('/recommendations', sessionBasedRecommendation)
 
 
+router.post('/anomynus_recommendations', anonymousRecommendation)
+
 router.post('/update_image', updateProductImage)
 
-
-
+router.delete('/:id', deleteProduct)
 
 module.exports = router;

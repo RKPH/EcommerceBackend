@@ -90,7 +90,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-
+                    role: user.role,
                 },
             });
         } catch (error) {
@@ -160,7 +160,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-
+                    role:user.role,
                 },
 
             });
@@ -202,7 +202,7 @@
                     avatar: user.avatar,
                     name: user.name,
                     email: user.email,
-
+                    role: user.role,
                 },
             });
         } catch (error) {
@@ -230,7 +230,7 @@
             await user.save();
 
             // Create reset link
-            const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
+            const resetLink = `http://103.155.161.94:5173/reset-password/${resetToken}`;
 
             // Send reset email
             await sendResetPasswordEmail(user.email,resetLink);
@@ -299,7 +299,7 @@
                     user_id: user.user_id,
                     email: user.email,
                     Cart: cart,
-
+                    role:user.role,
                 },
             });
         } catch (error) {

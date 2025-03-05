@@ -10,49 +10,66 @@ const kafka = new Kafka({
 const producer = kafka.producer();
 const admin = kafka.admin();
 
+const topic = 'user-behavior-topic';
+
 // ✅ Create Kafka Topic
-async function createTopicWithReplicationFactor() {
+async function createTopic() {
     try {
         await admin.connect();
         console.log('✅ Connected to Kafka admin');
 
         const topics = await admin.listTopics();
-        if (!topics.includes('user-behavior-topic')) {
+        if (!topics.includes(topic)) {
             await admin.createTopics({
-                topics: [
-                    {
-                        topic: 'user-behavior-topic',
-                        numPartitions: 1,
-                        replicationFactor: 1,
-                    },
-                ],
+                topics: [{ topic, numPartitions: 1, replicationFactor: 1 }],
             });
-            console.log('✅ Topic "user-behavior-topic" created successfully.');
+            console.log(`✅ Topic "${topic}" created.`);
         } else {
-            console.log('✅ Topic "user-behavior-topic" already exists.');
+            console.log(`✅ Topic "${topic}" already exists.`);
         }
     } catch (error) {
-        console.error('❌ Error creating or verifying topic:', error);
+        console.error('❌ Error creating topic:', error);
     } finally {
         await admin.disconnect();
     }
 }
 
 // ✅ Send Data to Kafka
-async function sendToKafka(trackingData) {
+async function sendMessages() {
     try {
         await producer.connect();
-        await producer.send({
-            topic: 'user-behavior-topic',
-            messages: [{ value: JSON.stringify(trackingData) }],
-        });
-        console.log('📩 Message sent:', JSON.stringify(trackingData));
+        console.log('✅ Kafka producer connected');
+
+        for (let i = 1; i <= 10; i++) {
+            const message = {
+                sessionId: `session-${i}`,
+                SessionActionId: `action-${i}`,
+                user: `user-${i}`,
+                product: `product-${i}`,
+                product_name: `Product ${i}`,
+                behavior: 'view',
+            };
+
+            await producer.send({
+                topic,
+                messages: [{ value: JSON.stringify(message) }],
+            });
+
+            console.log(`📩 Sent message ${i}:`, message);
+        }
+
+        console.log('✅ All 10 messages sent');
     } catch (error) {
-        console.error('❌ Error sending to Kafka:', error);
+        console.error('❌ Error sending messages:', error);
+    } finally {
+        await producer.disconnect();
     }
 }
 
-// Ensure the topic exists before sending messages
-createTopicWithReplicationFactor();
+// Run the producer
+async function runProducer() {
+    await createTopic();
+    await sendMessages();
+}
 
-module.exports = { sendToKafka, createTopicWithReplicationFactor };
+runProducer();

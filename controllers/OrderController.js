@@ -1,9 +1,12 @@
 const Order = require('../models/Order');
-const Product = require("../models/products"); // Adjust the path to your Order model
+const Product = require('../models/products'); // Make sure to import your Product model
 const Cart = require("../models/cart");
-const userBehviors = require('../models/UserBehaviors');
+const User = require("../models/user");
+const {trackUserBehavior} = require("../controllers/trackingController");
 const crypto = require("crypto");
 const https = require('https');
+const {sendCancellationEmail} = require('../Services/Email')
+
 
 exports.createOrder = async (req, res) => {
     const { userId } = req.user; // Extract userId from authenticated user
@@ -61,25 +64,7 @@ exports.createOrder = async (req, res) => {
                 data: existingOrder,
             });
         }
-        const formatDate = (date) => {
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
-            const year = String(date.getFullYear()).slice(-2); // Last two digits of the year
 
-            return `${hours}:${minutes}:${seconds},${month}/${day}/${year}`;
-        };
-
-        // Function for formatting date without time for createdAt and DeliveredAt
-        const formatDateWithoutTime = (date) => {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-indexed
-            const year = String(date.getFullYear()); // Full year
-
-            return `${month}/${day}/${year}`;
-        };
         // If no pending order exists, create a new one
         const newOrder = new Order({
             user: userId,
@@ -90,7 +75,7 @@ exports.createOrder = async (req, res) => {
             })),
             shippingAddress,
             PaymentMethod,
-            createdAt: formatDateWithoutTime(new Date()), // Set initial creation date
+            createdAt: new Date(), // Set initial creation date
             DeliveredAt: null, // Set initial delivery status
             status: 'Draft', // Set initial status
             history: [
@@ -144,8 +129,10 @@ exports.getOrdersDetail = async (req, res) => {
     console.log("users", req.user)
     const { userId } = req.user; // Extract userId from authenticated user
     try {
-        // Retrieve orders for the specific user and populate the product details
-        const orders = await Order.find({ user: req.user.userId }).populate('products.product'); // Assuming 'products' is an array in the order with a reference to 'product'
+        // Retrieve orders for the specific user, populate products, and sort by createdAt in descending order (newest first)
+        const orders = await Order.find({ user: req.user.userId })
+            .populate('products.product')
+            .sort({ createdAt: -1 }); // -1 means descending, 1 means ascending
 
         // Check if no orders were found for the user
         if (orders.length === 0) {
@@ -169,10 +156,12 @@ exports.getOrdersDetail = async (req, res) => {
     }
 };
 
+
 exports.purchaseOrder = async (req, res) => {
     const { userId } = req.user;
-    const { orderId, shippingAddress ,deliverAt, paymentMethod, totalPrice, sessionID } = req.body;
+    const {userID, orderId, shippingAddress ,deliverAt, paymentMethod, totalPrice, sessionID} = req.body;
     console.log("address", shippingAddress);
+
     try {
         // Fetch order and populate products
         const order = await Order.findById(orderId).populate('products.product').exec();
@@ -190,9 +179,11 @@ exports.purchaseOrder = async (req, res) => {
             order.payingStatus = 'Unpaid';
         }
 
+
         // Update order details
         order.shippingAddress = shippingAddress;
         order.PaymentMethod = paymentMethod;
+        order.CreatedAt = new Date();
         order.DeliveredAt = deliverAt;
         order.totalPrice = totalPrice;
         if(order.PaymentMethod === 'cod') {
@@ -202,7 +193,10 @@ exports.purchaseOrder = async (req, res) => {
             });
         }
 
+
         await order.save();
+
+
 
         if (paymentMethod === 'momo') {
             // ✅ MoMo Payment Flow
@@ -211,9 +205,9 @@ exports.purchaseOrder = async (req, res) => {
             const partnerCode = 'MOMO';
             const amount = 10000
             const redirectUrl = `http://localhost:5173/checkout/success/${orderId}`;
-            const ipnUrl = 'http://103.155.161.94:3000/api/v1/webhook/momo-ipn';  // ✅ Ensure this matches your actual IPN URL
+            const ipnUrl = 'https://eight-chicken-train.loca.lt/api/v1/webhook/momo-ipn';  // ✅ Ensure this matches your actual IPN URL
             const orderInfo = 'pay with MoMo';
-            const requestId = orderId;
+            const requestId = `${orderId}-${Date.now()}`;
             const extraData = '';
             const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=payWithMethod`;
             const signature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');
@@ -299,8 +293,12 @@ exports.purchaseOrder = async (req, res) => {
     }
 };
 
-// Helper function to format date
 function formatDate(date) {
+    const offset = 7; // Adjust this to your desired timezone offset (Vietnam Time is GMT+7)
+
+    // Convert UTC to local timezone by adding offset hours
+    date.setHours(date.getHours() + offset);
+
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
@@ -339,55 +337,6 @@ const clearUserCart = async (userId, productsInOrder) => {
 };
 
 
-exports.updateOrderStatus = async (req, res) => {
-    const { orderId } = req.params;
-    const { action } = req.body;
-
-    try {
-        console.log(`Incoming request to update order status: ${orderId}, action: ${action}`);
-
-        // Find the order by ID
-        const order = await Order.findById(orderId).exec();
-        if (!order) {
-            console.error(`Order with ID ${orderId} not found`);
-            return res.status(404).json({
-                status: 'error',
-                message: 'Order not found',
-            });
-        }
-
-        const formatDate = (date) => {
-            const hours = String(date.getHours()).padStart(2, '0');
-            const minutes = String(date.getMinutes()).padStart(2, '0');
-            const seconds = String(date.getSeconds()).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = String(date.getFullYear()).slice(-2);
-
-            return `${hours}:${minutes}:${seconds},${month}/${day}/${year}`;
-        };
-
-        // Update order history
-        order.history.push({ action, date: formatDate(new Date()) });
-        // Save updated order
-
-        await order.save();
-
-        console.log(`Order updated successfully: ${orderId}`);
-        return res.status(200).json({
-            status: 'success',
-            message: 'Order status updated successfully',
-            data: order,
-        });
-    } catch (error) {
-        console.error('Error updating order status:', error.message);
-        return res.status(500).json({
-            status: 'error',
-            message: 'Internal server error',
-        });
-    }
-};
-
 //get orderdetetail by id
 exports.getOrderDetailByID = async (req, res) => {
     const { orderId } = req.params;
@@ -413,5 +362,195 @@ exports.getOrderDetailByID = async (req, res) => {
             status: 'error',
             message: 'Internal server error',
         });
+    }
+};
+
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { newStatus } = req.body;
+
+        const order = await Order.findById(orderId).populate('products.product');
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        const allowedTransitions = {
+            Draft: ["Pending"],
+            Pending: ["Confirmed", "Cancelled"],
+            Confirmed: ["Delivered"],
+            Delivered: [],
+            Cancelled: []
+        };
+
+        if (!allowedTransitions[order.status].includes(newStatus)) {
+            return res.status(400).json({
+                message: `Invalid status transition from ${order.status} to ${newStatus}`
+            });
+        }
+
+        if (newStatus === "Confirmed") {
+            // 🔔 Validate stock before confirming
+            const insufficientStockProducts = [];
+
+            for (const item of order.products) {
+                const product = await Product.findById(item.product._id);
+                if (!product) {
+                    return res.status(404).json({ message: `Product ${item.product.name} not found` });
+                }
+
+                if (product.stock < item.quantity) {
+                    insufficientStockProducts.push({
+                        productId: product._id,
+                        productName: product.name,
+                        availableStock: product.stock,
+                        requiredQuantity: item.quantity,
+                    });
+                }
+            }
+
+            if (insufficientStockProducts.length > 0) {
+                return res.status(400).json({
+                    message: "Cannot confirm order. Some products have insufficient stock.",
+                    insufficientStockProducts
+                });
+            }
+
+            // ✅ Reduce stock since all products have enough stock
+            for (const item of order.products) {
+                await Product.findByIdAndUpdate(item.product._id, {
+                    $inc: { stock: -item.quantity }
+                });
+            }
+        }
+
+        // ✅ Update order status and history
+        order.status = newStatus;
+
+        if (newStatus === "Delivered") {
+            order.DeliveredAt = new Date();
+        }
+
+        order.history.push({ action: `Order is ${newStatus}`, date: formatDate(new Date()) });
+
+        await order.save();
+
+        // 📢 Emit event via Socket.IO so frontend gets real-time update
+        const io = req.app.locals.io;  // Get io instance
+        io.emit("orderStatusUpdated", {
+            orderId: order._id,
+            newStatus,
+            updatedAt: new Date(),
+        });
+
+        res.status(200).json({ message: `Order status updated to ${newStatus}`, order });
+
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+exports.cancelOrder = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const userId = req.user.userId;  // Assuming userId is set by auth middleware
+        const { reason } = req.body;     // Get reason from frontend
+
+        console.log("Order ID:", id);
+        console.log("User ID:", userId);
+        console.log("Cancellation Reason:", reason);
+
+        // Find the order belonging to the user
+        const order = await Order.findOne({ _id: id, user: userId }).populate('user');
+
+
+        console.log(order);
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Only allow cancellation if status is Draft or Pending
+        if (!['Draft', 'Pending'].includes(order.status)) {
+            return res.status(400).json({ message: "Order cannot be canceled at this stage" });
+        }
+
+        // Update order status and reason
+        order.status = "Cancelled";
+        order.cancellationReason = reason;
+        order.history.push({
+            action: `Order cancelled - Reason: ${reason}`,
+            date:  formatDate(new Date())
+        });
+
+        // If payment was Momo or Bank Transfer, mark refund as "Pending"
+        if (['momo', 'BankTransfer'].includes(order.PaymentMethod)) {
+            order.refundStatus = "Pending";  // Start refund process
+        }
+
+        await order.save();
+        if (order.PaymentMethod === 'cod') {
+            await sendCancellationEmail(order.user.email, order._id);
+        }
+
+        res.status(200).json({
+            message: "Order cancelled successfully",
+            refundRequired: ['momo', 'BankTransfer'].includes(order.PaymentMethod),  // Tell frontend to redirect to refund page
+            order
+        });
+
+    } catch (error) {
+        console.error("Error cancelling order:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+exports.submitRefundBankDetails = async (req, res) => {
+    try {
+        const { id } = req.params;  // Order ID
+        const userId = req.user.userId;  // Assuming user is authenticated
+
+
+        console.log("Order ID:", id);
+        console.log("User ID:", userId);
+        const { bankName, accountNumber, accountHolderName } = req.body;
+
+        console.log("req", req.body)
+
+
+        // Validate input (basic)
+        if (!bankName || !accountNumber || !accountHolderName) {
+            return res.status(400).json({ message: "All bank details are required" });
+        }
+
+        // Find order
+        const order = await Order.findOne({ _id: id, user: userId });
+
+        if (!order) {
+            return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Check if the order is cancelled and refund is pending
+        if (order.status !== 'Cancelled' || order.refundStatus !== 'Pending') {
+            return res.status(400).json({ message: "Refund details can only be submitted for cancelled orders with pending refund" });
+        }
+
+        // Save bank details
+        order.refundInfo = {
+            bankName,
+            accountNumber,
+            accountName:accountHolderName
+        };
+
+        // Optionally update refundStatus if needed (optional, you can remove this if you have other logic to process refunds)
+
+        await order.save();
+
+        res.status(200).json({ message: "Refund bank details submitted successfully", order });
+
+    } catch (error) {
+        console.error("Error submitting refund bank details:", error);
+        res.status(500).json({ message: "Server error", error: error.message });
     }
 };

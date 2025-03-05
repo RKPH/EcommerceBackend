@@ -5,15 +5,11 @@ const userBehaviorSchema = new mongoose.Schema({
         type: String, // sessionId as key
         required: true,
     },
-    SessionActionId: {
-        type: String,
+    user_id: {
+       type:String,
+       required: true,
     },
-    user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-    },
-    product: {
+    product_id: {
         type: String,
         required: true,
     },

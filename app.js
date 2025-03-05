@@ -12,12 +12,13 @@ const orderRouter = require('./routes/Order');
 const userRouter = require('./routes/User');
 const reviewRouter = require('./routes/rating');
 const trackRouter = require('./routes/tracking');
-const typeRouter = require('./routes/Type');
-const categoryRouter = require('./routes/Category');
+const http = require('http');               // Needed for socket.io
+const socketIo = require('socket.io');
 const imageRouter = require('./routes/image');
-const subCategoryRouter = require('./routes/Subcategory');
+
 const addressRouter = require('./routes/ShipAddress');
 const momoIPNHandler = require('./routes/momo_ipn');
+const AdminRouter = require('./routes/admin');
 const promClient = require('prom-client');
 
 const logger = require('./config/logger');  // Import custom logger
@@ -30,6 +31,18 @@ startKafkaConsumer()
         console.error('Error starting Kafka consumer:', error);
     });
 const app = express();
+
+const server = http.createServer(app);      // Create HTTP server
+const io = socketIo(server, {
+    cors: {
+        origin: "http://localhost:5173",  // Allow only your frontend during development
+        methods: ["GET", "POST", "PUT", "DELETE"],
+        credentials: true  // If you're using cookies for auth, include this
+    }
+});
+
+app.locals.io = io;
+
 app.use(logger);  // Use custom logger
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -56,10 +69,17 @@ app.get('/health', (req, res) => {
 // Connect to the database
 connectDB();
 
+io.on('connection', (socket) => {
+    console.log(`New client connected: ${socket.id}`);
+
+    socket.on('disconnect', () => {
+        console.log(`Client disconnected: ${socket.id}`);
+    });
+})
 
 // Middleware setup
 const corsOptions = {
-    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173'],  // ✅ Add both frontend URLs
+    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173', 'http://localhost:5174'],  // ✅ Add both frontend URLs
     credentials: true,  // ✅ Required to allow cookies
 };
 // Apply CORS for authenticated routes (e.g., tracking, auth)
@@ -70,6 +90,7 @@ app.use('/api/v1/users', cors(corsOptions));
 app.use('/api/v1/orders', cors(corsOptions));  // Add this in your main app.js or server file
 app.use('/api/v1/address', cors(corsOptions));
 app.use('/api/v1/reviews', cors(corsOptions));
+app.use('/api/v1/admin', cors(corsOptions));
 // CORS for public routes (e.g., products)
 // const openCorsOptions = {
 //     origin: 'http://103.155.161.94:5173', // Your frontend URL
@@ -82,10 +103,9 @@ const specialNoneedCorsOptions = {
 }
 
 app.use('/api/v1/products', cors(specialNoneedCorsOptions)); // For open routes
-app.use('/api/v1/types', cors(specialNoneedCorsOptions)); // For open routes
-app.use('/api/v1/categories', cors(specialNoneedCorsOptions)); // For open routes
-app.use('/api/v1/subcategories', cors(specialNoneedCorsOptions)); // For open routes
+
 app.use('/api/v1/images', cors(specialNoneedCorsOptions));
+
 
 // Middleware for logging, request parsing, etc.
 
@@ -101,13 +121,12 @@ app.use('/api/v1/tracking', trackRouter);
 app.use('/api/v1/cart', cartRouter);
 app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/users', userRouter);
-app.use('/api/v1/types', typeRouter);
-app.use('/api/v1/categories', categoryRouter);
-app.use('/api/v1/subcategories', subCategoryRouter);
+
 app.use('/api/v1/reviews', reviewRouter);
 app.use('/api/v1/images', imageRouter);
 app.use('/api/v1/address', addressRouter);
 app.use('/api/v1', momoIPNHandler);
+app.use('/api/v1/admin', AdminRouter);
 // Catch 404 errors
 app.use(notFoundHandler);
 

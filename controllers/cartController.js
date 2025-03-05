@@ -3,7 +3,7 @@ const Product = require('../models/products');
 const Cart = require('../models/cart');
 
 exports.addProductToCart = async (req, res) => {
-    const { productId, quantity, color, size } = req.body; // Extract product details from request body
+    const { productId, quantity} = req.body; // Extract product details from request body
     const { userId } = req.user; // Extract userId from authenticated user's information
 
     console.log(req.body);
@@ -23,6 +23,12 @@ exports.addProductToCart = async (req, res) => {
                 status: 'error',
                 message: 'Product not found',
             });
+        }
+        if(product.stock<quantity) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'This product is out of stock',
+            })
         }
 
         // Check if the cart item already exists for this user with the same productId, color, and size
@@ -117,6 +123,7 @@ exports.updateCartItem = async (req, res) => {
     const { cartItemID, quantity } = req.body; // Match the exact case from the request body
     console.log(req.body); // Check the body to ensure you are receiving the correct data
     console.log(cartItemID, typeof(cartItemID)); // Log the extracted values to the console
+
     try {
         // Validate input
         if (!quantity) {
@@ -127,11 +134,19 @@ exports.updateCartItem = async (req, res) => {
         }
 
         // Check if the cart item exists
-        let cartItem = await Cart.findById(cartItemID);
+        let cartItem = await Cart.findById(cartItemID).populate('product');  // Ensure product details are available
         if (!cartItem) {
             return res.status(404).json({
                 status: 'error',
                 message: 'Cart item not found',
+            });
+        }
+
+        // Check if the product is out of stock
+        if (quantity > cartItem.product.stock) {
+            return res.status(400).json({
+                status: 'error',
+                message: `Only ${cartItem.product.stock} item(s) available in stock`,
             });
         }
 
@@ -153,6 +168,7 @@ exports.updateCartItem = async (req, res) => {
         });
     }
 };
+
 
 // @desc    Remove a product from the cart
 // @route   DELETE /api/v1/cart/remove

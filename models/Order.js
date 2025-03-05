@@ -6,70 +6,50 @@ const OrderSchema = new mongoose.Schema({
         ref: 'User',
         required: true
     },
-    products:{
-        type: [
-            {
-                product: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: 'Product',
-                    required: true
-                },
-                quantity: {
-                    type: Number,
-                    required: true
-                }
-            }
-        ],
-        required: true
-    },
-    totalPrice: {
-        type: Number,
-        required: false
-    },
-    createdAt: {
-        type: String,
-        required: true
-    },
-    DeliveredAt: {
-        type: String,
-        required: false
-    },
-    shippingAddress: {
-        type: String,
-        required: true
-    },
-    PaymentMethod: {
-        type: String,
-        required: true
-    },
+    products: [{
+        product: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Product',
+            required: true
+        },
+        quantity: { type: Number, required: true }
+    }],
+    totalPrice: { type: Number },
+    createdAt: { type: Date, required: true },
+    DeliveredAt: { type: Date },
+    shippingAddress: { type: String, required: true },
+    PaymentMethod: { type: String, required: true },
     status: {
         type: String,
-        enum: ['Draft', 'Pending' , 'Confirmed' ,'Delivered', 'Cancelled'],
+        enum: ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled'],
         default: 'Draft'
     },
     payingStatus: {
         type: String,
-        enum: ['Paid', 'Unpaid' , 'Failed'],
+        enum: ['Paid', 'Unpaid', 'Failed'],
         default: 'Unpaid'
     },
-    history: {
-        type: [
-            {
-                action: {
-                    type: String,
-                    required: true
-                },
-                date: {
-                    type: String,
-                    required: true
-                }
-            }
-        ],
-        required: true
+    cancellationReason: {
+        type: String,
+        default: null
     },
+    history: [{
+        action: { type: String, required: true },
+        date: { type: String, required: true }
+    }],
 
+    // New fields for refund tracking
+    refundStatus: {    // Tracks refund process
+        type: String,
+        enum: ['NotInitiated', 'Pending', 'Processing', 'Completed', 'Failed'],
+        default: 'NotInitiated'
+    },
+    refundInfo: {   // Optional - stores bank details if needed
+        accountName: { type: String },
+        bankName: { type: String },
+        accountNumber: { type: String }
+    }
 });
 
 const Order = mongoose.model('Order', OrderSchema);
-
 module.exports = Order;

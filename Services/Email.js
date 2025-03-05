@@ -136,4 +136,60 @@ async function sendResetPasswordEmail(to, resetLink) {
     }
 }
 
-module.exports = {sendResetPasswordEmail,sendVerificationEmail};
+async function sendCancellationEmail(to, orderId) {
+    if (!to) {
+        console.error("Error: No recipient email provided!");
+        return;
+    }
+
+    const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
+
+    const mailOptions = {
+        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        to: to,
+        subject: "Order Cancellation - Sport Ecommerce",
+        html: `
+        <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
+            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <h2 style="color: #333;">Order Cancellation</h2>
+            <p style="font-size: 16px; color: #555;">Your order is canceled successfully</p>
+            
+            <div style="background: #ff4d4d; color: white; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
+                Order ID: ${orderId}
+            </div>
+
+            <p style="font-size: 14px; color: #777;">If you have any questions or need further assistance, please contact our support team.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+        </div>
+
+        <style>
+            @media screen and (max-width: 600px) {
+                div {
+                    padding: 10px;
+                }
+                h2 {
+                    font-size: 20px;
+                }
+                p {
+                    font-size: 14px;
+                }
+                .order-id {
+                    font-size: 18px;
+                    padding: 12px;
+                }
+            }
+        </style>
+        `,
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Cancellation email sent to:", to, "Response:", info.response);
+    } catch (error) {
+        console.error("Error sending cancellation email:", error);
+    }
+}
+
+
+module.exports = {sendResetPasswordEmail,sendVerificationEmail, sendCancellationEmail};

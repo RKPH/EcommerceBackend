@@ -11,19 +11,23 @@ const productSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    stock: {
+        type: Number,
+        required: true,
+    },
     rating: {
         type: Number,
         required: false,
+    },
+    brand:{
+        type: String,
+        required: true,
     },
     price: {
         type: Number,
         required: true,
     },
     category: {
-        type: String,
-        required: true,
-    },
-    brand: {
         type: String,
         required: true,
     },
