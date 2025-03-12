@@ -1,75 +1,109 @@
-﻿const { Kafka, logLevel } = require('kafkajs');
+﻿const { Kafka, logLevel } = require("kafkajs");
 
-// Kafka setup
 const kafka = new Kafka({
-    clientId: 'user-behavior-producer',
-    brokers: ['103.155.161.94:9092'],
-    logLevel: logLevel.WARN,
+    clientId: "ecommerce-app",
+    brokers: ["kafka.d2f.io.vn:9092"], // Update with your actual broker
+    logLevel: logLevel.INFO,
 });
 
-const producer = kafka.producer();
 const admin = kafka.admin();
+const producer = kafka.producer();
 
-const topic = 'user-behavior-topic';
+// Retention period: 4 weeks = 28 days = 28 * 24 * 60 * 60 * 1000 milliseconds
+const RETENTION_MS = 28 * 24 * 60 * 60 * 1000; // 2,419,200,000 ms
 
-// ✅ Create Kafka Topic
-async function createTopic() {
+const createTopicIfNotExists = async (topic) => {
     try {
         await admin.connect();
-        console.log('✅ Connected to Kafka admin');
-
         const topics = await admin.listTopics();
+
         if (!topics.includes(topic)) {
+            console.log(`📌 Creating Kafka topic: ${topic}`);
             await admin.createTopics({
-                topics: [{ topic, numPartitions: 1, replicationFactor: 1 }],
+                topics: [
+                    {
+                        topic,
+                        numPartitions: 3,
+                        replicationFactor: 1,
+                        configEntries: [
+                            { name: "retention.ms", value: RETENTION_MS.toString() }, // Set retention to 4 weeks
+                        ],
+                    },
+                ],
             });
-            console.log(`✅ Topic "${topic}" created.`);
+            console.log(`✅ Kafka topic [${topic}] created with retention of 4 weeks.`);
         } else {
-            console.log(`✅ Topic "${topic}" already exists.`);
+            console.log(`✅ Kafka topic [${topic}] already exists. Checking retention settings...`);
+            // Optionally update retention for existing topic
+            await updateTopicRetention(topic);
         }
     } catch (error) {
-        console.error('❌ Error creating topic:', error);
+        console.error("❌ Kafka Admin Error:", error);
     } finally {
         await admin.disconnect();
     }
-}
+};
 
-// ✅ Send Data to Kafka
-async function sendMessages() {
+// Function to update retention for an existing topic
+const updateTopicRetention = async (topic) => {
+    try {
+        await admin.connect();
+        const topicConfig = await admin.describeConfigs({
+            resources: [{ resourceType: 2, resourceName: topic }], // 2 = TOPIC
+        });
+
+        const currentRetention = topicConfig.resources[0].configEntries.find(
+            (entry) => entry.name === "retention.ms"
+        );
+
+        if (currentRetention && currentRetention.value !== RETENTION_MS.toString()) {
+            console.log(`📝 Updating retention for topic [${topic}] to 4 weeks...`);
+            await admin.alterConfigs({
+                resources: [
+                    {
+                        resourceType: 2, // 2 = TOPIC
+                        resourceName: topic,
+                        configEntries: [{ name: "retention.ms", value: RETENTION_MS.toString() }],
+                    },
+                ],
+            });
+            console.log(`✅ Retention for topic [${topic}] updated to 4 weeks.`);
+        } else {
+            console.log(`✅ Topic [${topic}] already has retention set to 4 weeks.`);
+        }
+    } catch (error) {
+        console.error(`❌ Error updating retention for topic [${topic}]:`, error);
+    } finally {
+        await admin.disconnect();
+    }
+};
+
+const connectProducer = async () => {
     try {
         await producer.connect();
-        console.log('✅ Kafka producer connected');
-
-        for (let i = 1; i <= 10; i++) {
-            const message = {
-                sessionId: `session-${i}`,
-                SessionActionId: `action-${i}`,
-                user: `user-${i}`,
-                product: `product-${i}`,
-                product_name: `Product ${i}`,
-                behavior: 'view',
-            };
-
-            await producer.send({
-                topic,
-                messages: [{ value: JSON.stringify(message) }],
-            });
-
-            console.log(`📩 Sent message ${i}:`, message);
-        }
-
-        console.log('✅ All 10 messages sent');
+        console.log("✅ Kafka Producer connected.");
     } catch (error) {
-        console.error('❌ Error sending messages:', error);
-    } finally {
-        await producer.disconnect();
+        console.error("❌ Kafka Producer Connection Error:", error);
     }
-}
+};
 
-// Run the producer
-async function runProducer() {
-    await createTopic();
-    await sendMessages();
-}
+const sendMessage = async (topic, message) => {
+    try {
+        await createTopicIfNotExists(topic);
+        await producer.send({
+            topic,
+            messages: [{ value: JSON.stringify(message) }],
+        });
+        console.log(`📤 Sent message to Kafka topic [${topic}]:`, message);
+    } catch (error) {
+        console.error("❌ Error sending message to Kafka:", error);
+    }
+};
 
-runProducer();
+process.on("SIGINT", async () => {
+    console.log("🔴 Disconnecting Kafka Producer...");
+    await producer.disconnect();
+    process.exit(0);
+});
+
+module.exports = { connectProducer, sendMessage };

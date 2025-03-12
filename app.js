@@ -2,7 +2,8 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require("cors");
-const { startKafkaConsumer } = require('./kafka/kafka-consumer')
+const {connectProducer } = require('./kafka/kafka-producer');
+const runConsumer = require('./kafka/kafka-consumer');
 const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
 const productRouter = require('./routes/product');
@@ -14,6 +15,8 @@ const reviewRouter = require('./routes/rating');
 const trackRouter = require('./routes/tracking');
 const http = require('http');               // Needed for socket.io
 const socketIo = require('socket.io');
+
+
 const imageRouter = require('./routes/image');
 
 const addressRouter = require('./routes/ShipAddress');
@@ -23,13 +26,7 @@ const promClient = require('prom-client');
 
 const logger = require('./config/logger');  // Import custom logger
 const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
-startKafkaConsumer()
-    .then(() => {
-        console.log('Kafka consumer is now running.');
-    })
-    .catch((error) => {
-        console.error('Error starting Kafka consumer:', error);
-    });
+
 const app = express();
 
 const server = http.createServer(app);      // Create HTTP server
@@ -48,8 +45,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());  // Enable cookie parsing
 app.use(express.static(path.join(__dirname, 'public')));
-const collectDefaultMetrics = promClient.collectDefaultMetrics;
-collectDefaultMetrics();
+
 
 app.get('/metrics', async (req, res) => {
     try {
@@ -68,7 +64,8 @@ app.get('/health', (req, res) => {
 
 // Connect to the database
 connectDB();
-
+connectProducer();
+runConsumer()
 io.on('connection', (socket) => {
     console.log(`New client connected: ${socket.id}`);
 

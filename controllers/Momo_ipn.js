@@ -20,8 +20,9 @@ exports.momoIPNHandler = async (req, res) => {
             order.payingStatus = 'Paid';
             order.history.push({
                 date: formatDate(new Date()),
-                action: 'Order is paid via momo and pending processing.',
+                action: 'Order is paid via momo.',
             });
+            order.PaidAt = new Date();
             // ✅ Clear the cart now since payment is confirmed
             await clearUserCart(order.user, order.products);
             console.log("🛒 Cart cleared for user:", order.user.toString());
@@ -64,6 +65,11 @@ const clearUserCart = async (userId, productsInOrder) => {
 };
 
 function formatDate(date) {
+    const offset = 7; // Adjust this to your desired timezone offset (Vietnam Time is GMT+7)
+
+    // Convert UTC to local timezone by adding offset hours
+    date.setHours(date.getHours() + offset);
+
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
@@ -73,4 +79,3 @@ function formatDate(date) {
 
     return `${hours}:${minutes}:${seconds},${month}/${day}/${year}`;
 }
-

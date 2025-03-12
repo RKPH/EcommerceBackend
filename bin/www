@@ -27,6 +27,7 @@ var io = new Server(server, {
 });
 
 app.locals.io = io;
+
 /**
  * Example Socket.IO connection handler
  */

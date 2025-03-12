@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const userBehaviorSchema = new mongoose.Schema({
-    sessionId: {
+    user_session: {
         type: String, // sessionId as key
         required: true,
     },
@@ -13,17 +13,21 @@ const userBehaviorSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
-    product_name : {
+    name : {
         type: String,
         required: true,
     },
-    behavior: {
+    event_type: {
         type: String,
         enum: ['view', 'like', 'dislike','checkout' ,'cart', 'purchase'],
         required: true,
     },
+    event_time:{
+        type: Date,
+        required: true,
+    }
 }, {
-    timestamps: true,
+    timestamps: false,
     versionKey: false,
 });
 

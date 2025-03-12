@@ -1,14 +1,14 @@
 ﻿const Review = require('../models/reviewSchema');
 const Product = require("../models/products");
 
-
-
 // Add a review to a product
 exports.addReview = async (req, res) => {
     try {
         const { rating, comment, name, orderID } = req.body;
-        const productId = req.params.id;
+        const productId = req.params.id; // This should align with product_id
         const user = req.user; // Assume user is retrieved from auth middleware
+
+        console.log("product_id", productId); // Updated log message
 
         if (!user) {
             return res.status(401).json({ message: "You must be logged in to submit a review." });
@@ -30,18 +30,15 @@ exports.addReview = async (req, res) => {
             return res.status(400).json({ message: "Order ID is required to review a product." });
         }
 
-        const product = await Product.findOne({ productID: productId });
+        const product = await Product.findOne({ product_id: productId });
         if (!product) {
             return res.status(404).json({ message: "Product not found." });
         }
 
         // Check if user already reviewed this product in this specific order
-
-
-
         const existingReview = await Review.findOne({
             user: user.userId,
-            productID: productId,
+            product_id: productId, // Updated from productID
             orderID: orderID
         });
 
@@ -54,7 +51,7 @@ exports.addReview = async (req, res) => {
             user: user.userId,
             orderID,
             name,
-            productID: productId,
+            product_id: productId, // Updated from productID
             rating,
             comment,
             date: new Date(),
@@ -63,12 +60,11 @@ exports.addReview = async (req, res) => {
         await newReview.save();
 
         // Recalculate the average rating
-        const reviews = await Review.find({ productID: productId });
+        const reviews = await Review.find({ product_id: productId }); // Updated from productID
 
         console.log("reviews", reviews);
 
-
-        const averageRating = reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length;
+        const averageRating = reviews.length > 0 ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length : 0; // Handle empty reviews
 
         // Update the product's average rating
         product.rating = averageRating;
@@ -77,17 +73,17 @@ exports.addReview = async (req, res) => {
         res.status(201).json({ message: "Review added successfully.", review: newReview });
     } catch (error) {
         console.error("Error adding review:", error);
-        res.status(500).json({ message: "Internal server error." });
+        res.status(500).json({ message: error.message || "Internal server error." });
     }
 };
 
-
+// Get all reviews for a product
 exports.getReviews = async (req, res) => {
     try {
         const productId = req.params.id;
 
         // Find all reviews for the given product and populate user details
-        const reviews = await Review.find({ productID: productId })
+        const reviews = await Review.find({ product_id: productId }) // Updated from productID
             .sort({ date: -1 })
             .populate('user', 'name avatar'); // Populate the user's name and avatar
 
@@ -97,7 +93,7 @@ exports.getReviews = async (req, res) => {
 
         res.status(200).json({
             reviews,
-            averageRating: reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length
+            averageRating: reviews.length > 0 ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length : 0
         });
     } catch (error) {
         console.error("Error fetching reviews:", error);
@@ -105,6 +101,7 @@ exports.getReviews = async (req, res) => {
     }
 };
 
+// Get a user's review for a specific product and order
 exports.getUserReviewForProductOrder = async (req, res) => {
     try {
         const { orderID } = req.params; // Order ID from URL params
@@ -122,7 +119,7 @@ exports.getUserReviewForProductOrder = async (req, res) => {
         // Find the review made by the logged-in user for this product in this specific order
         const review = await Review.findOne({
             user: user.userId,
-            productID: productId,
+            product_id: productId, // Updated from productID
             orderID: orderID
         });
 
@@ -138,4 +135,3 @@ exports.getUserReviewForProductOrder = async (req, res) => {
         res.status(500).json({ message: "Internal server error." });
     }
 };
-

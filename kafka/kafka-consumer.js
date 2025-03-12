@@ -1,159 +1,86 @@
-﻿const { Kafka, logLevel } = require('kafkajs');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const Minio = require('minio');
-const fs = require('fs');
-const { createTopicWithReplicationFactor } = require('./kafka-producer');
+﻿const { Kafka, logLevel } = require("kafkajs");
 
 const kafka = new Kafka({
-    clientId: 'user-behavior-consumer',
-    brokers: ['103.155.161.94:9092'],
-    logLevel: logLevel.WARN,
+    clientId: "user-behavior-consumer",
+    brokers: ["kafka.d2f.io.vn:9092"],
+    logLevel: logLevel.DEBUG, // Set to DEBUG for detailed logs
+    retry: {
+        initialRetryTime: 300,
+        retries: 10,
+    },
 });
 
-const consumer = kafka.consumer({ groupId: 'user-behavior-group' });
-
-const csvFilePath = 'user_behavior_data.csv';
-
-// ✅ CSV Writer Setup
-const csvWriter = createCsvWriter({
-    path: csvFilePath,
-    header: [
-        { id: 'sessionId', title: 'SessionId' },
-        { id: 'SessionActionId', title: 'SessionActionId' },
-        { id: 'user', title: 'User' },
-        { id: 'product', title: 'Product' },
-        { id: 'product_name', title: 'Product Name' },
-        { id: 'behavior', title: 'Behavior' },
-    ],
-    append: fs.existsSync(csvFilePath),
+const consumer = kafka.consumer({
+    groupId: "behavior-group",
+    sessionTimeout: 45000,
+    heartbeatInterval: 3000,
+    maxPollInterval: 600000,
+    rebalanceTimeout: 60000,
+    retry: { retries: 10 },
 });
 
-// ✅ MinIO Configuration
-const minioClient = new Minio.Client({
-    endPoint: '103.155.161.94',
-    port: 9000,
-    useSSL: false,
-    accessKey: 'minioadmin',
-    secretKey: 'minioadmin',
-});
-
-const bucketName = 'user-behavior-bucket';
-
-// ✅ Ensure MinIO Bucket Exists
-async function ensureMinioBucket() {
-    const exists = await minioClient.bucketExists(bucketName);
-    if (!exists) {
-        await minioClient.makeBucket(bucketName);
-        console.log(`✅ MinIO Bucket "${bucketName}" created`);
-    } else {
-        console.log(`✅ MinIO Bucket "${bucketName}" already exists`);
-    }
-}
-
-// ✅ Upload CSV to MinIO
-async function uploadToMinio() {
+const runConsumer = async () => {
     try {
-        await ensureMinioBucket();
-        await minioClient.fPutObject(bucketName, csvFilePath, csvFilePath);
-        console.log(`📤 CSV file uploaded to MinIO: ${csvFilePath}`);
-    } catch (err) {
-        console.error('❌ MinIO Upload Error:', err);
-    }
-}
-
-// ✅ Ensure CSV Has a Header
-async function ensureCsvHeader() {
-    if (!fs.existsSync(csvFilePath) || fs.statSync(csvFilePath).size === 0) {
-        console.log('📝 CSV file is missing or empty. Writing header row...');
-        const headers = 'SessionId,SessionActionId,User,Product,Product Name,Behavior\n';
-        fs.writeFileSync(csvFilePath, headers, 'utf8');
-        console.log('✅ CSV header row written');
-    }
-}
-
-// ✅ Ensure Kafka Topic Exists
-async function ensureTopicReady(topic) {
-    const admin = kafka.admin();
-    await admin.connect();
-    let retries = 5;
-    while (retries > 0) {
-        const topics = await admin.listTopics();
-        if (topics.includes(topic)) {
-            console.log(`✅ Topic "${topic}" exists`);
-            break;
-        }
-        console.log(`⏳ Waiting for topic "${topic}" to be ready...`);
-        await new Promise((res) => setTimeout(res, 2000));
-        retries--;
-    }
-    if (retries === 0) {
-        console.error(`❌ Topic "${topic}" not found after retries`);
-    }
-    await admin.disconnect();
-}
-
-// ✅ Start Kafka Consumer
-async function startKafkaConsumer() {
-    try {
-        await createTopicWithReplicationFactor();
-        await ensureTopicReady('user-behavior-topic');
-
         await consumer.connect();
-        console.log('✅ Kafka consumer connected');
+        console.log("✅ Kafka Consumer connected.");
 
-        await consumer.subscribe({ topic: 'user-behavior-topic', fromBeginning: true });
-        console.log('✅ Subscribed to Kafka topic: user-behavior-topic');
-
-        await ensureCsvHeader();
-
-        const messageQueue = [];
-        let processingQueue = false;
-
-        async function processQueue() {
-            if (processingQueue) return;
-            processingQueue = true;
-
-            while (messageQueue.length > 0) {
-                const behaviorData = messageQueue.shift();
-                try {
-                    await csvWriter.writeRecords([behaviorData]);
-                    console.log('✅ Data written to CSV:', behaviorData);
-                    await uploadToMinio();
-                } catch (err) {
-                    console.error('❌ Error writing to CSV:', err);
-                }
-            }
-
-            processingQueue = false;
-        }
+        // Subscribe to topic before running the consumer
+        await consumer.subscribe({ topic: "user-behavior-events", fromBeginning: false });
+        console.log("✅ Subscribed to topic: user-behavior-events");
 
         await consumer.run({
             eachMessage: async ({ topic, partition, message }) => {
                 try {
-                    if (!message.value) throw new Error('Empty message value');
-                    const behaviorData = JSON.parse(message.value.toString());
-                    messageQueue.push(behaviorData);
-                    processQueue();
-                    console.log('📩 Received message:', behaviorData);
-                } catch (err) {
-                    console.error('❌ Error processing message:', err.message);
+                    const messageValue = message.value.toString();
+                    console.log(`📥 [${topic}] (Partition: ${partition}) Received:`, messageValue);
+
+                    // Simulate message processing
+                    await new Promise((resolve) => setTimeout(resolve, 100));
+                } catch (error) {
+                    console.error(`❌ Error processing message on [${topic}] (Partition: ${partition}):`, error);
                 }
             },
         });
 
-        consumer.on(consumer.events.GROUP_JOIN, () => {
-            console.log('🔄 Consumer rebalancing...');
+        // Register valid event listeners
+        consumer.on(consumer.events.REBALANCING, (event) => {
+            console.log("🔄 Consumer rebalancing event:", JSON.stringify(event, null, 2));
         });
 
-        consumer.on('consumer.crash', (event) => {
-            console.error('❌ Kafka consumer crashed:', event.payload);
+        consumer.on(consumer.events.HEARTBEAT, () => {
+            console.log("💓 Consumer heartbeat sent.");
         });
 
-    } catch (err) {
-        console.error('❌ Error starting Kafka consumer:', err);
+        consumer.on(consumer.events.DISCONNECT, () => {
+            console.log("⚠️ Consumer disconnected unexpectedly.");
+        });
+
+        consumer.on(consumer.events.REQUEST_TIMEOUT, (event) => {
+            console.log("⏳ Network request timeout:", JSON.stringify(event, null, 2));
+        });
+
+    } catch (error) {
+        console.error("❌ Kafka Consumer Error:", error);
+        console.log("🔄 Restarting consumer in 5 seconds...");
+        await consumer.disconnect(); // Cleanly disconnect before restarting
+        setTimeout(runConsumer, 5000);
     }
-}
+};
 
-startKafkaConsumer().catch((err) => console.error('❌ Error starting Kafka consumer:', err));
+// Graceful Shutdown
+const shutdown = async () => {
+    console.log("🔴 Stopping Kafka Consumer...");
+    try {
+        await consumer.stop();
+        await consumer.disconnect();
+        console.log("✅ Kafka Consumer disconnected.");
+    } catch (err) {
+        console.error("❌ Error during shutdown:", err);
+    }
+    process.exit(0);
+};
 
-module.exports = { startKafkaConsumer };
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
+module.exports = runConsumer;

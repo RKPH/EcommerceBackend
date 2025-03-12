@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 
-// Define the product schema
 const productSchema = new mongoose.Schema({
-    productID: {
+    product_id: {  // Changed from productID to product_id
         type: String,
         unique: true,
         required: true,
@@ -19,7 +18,7 @@ const productSchema = new mongoose.Schema({
         type: Number,
         required: false,
     },
-    brand:{
+    brand: {
         type: String,
         required: true,
     },
@@ -47,7 +46,5 @@ const productSchema = new mongoose.Schema({
     versionKey: false,  // Disable the __v field
 });
 
-// Create and export the Product model
 const Product = mongoose.model('Product', productSchema);
-
 module.exports = Product;

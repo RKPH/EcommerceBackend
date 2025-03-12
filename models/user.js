@@ -28,7 +28,7 @@
             type: String
         },
         user_id: {
-            type: Number,
+            type: String,
             unique: true,
             autoIncrement: true,
         },

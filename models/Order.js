@@ -21,7 +21,7 @@ const OrderSchema = new mongoose.Schema({
     PaymentMethod: { type: String, required: true },
     status: {
         type: String,
-        enum: ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled'],
+        enum: ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'], // Added CancelledByAdmin
         default: 'Draft'
     },
     payingStatus: {
@@ -37,7 +37,7 @@ const OrderSchema = new mongoose.Schema({
         action: { type: String, required: true },
         date: { type: String, required: true }
     }],
-
+    PaidAt: { type: Date, required: false, default: null },
     // New fields for refund tracking
     refundStatus: {    // Tracks refund process
         type: String,

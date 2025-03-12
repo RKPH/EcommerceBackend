@@ -3,7 +3,8 @@ const { createOrder, getOrdersDetail, purchaseOrder,updateOrderStatus , getOrder
     submitRefundBankDetails
 } = require('../controllers/OrderController'); // Adjust path as needed
 const verifyToken = require('../middlewares/verifyToken');
-const {getUserReviewForProductOrder} = require("../controllers/ReviewAndRatingController"); // Adjust path as needed
+const {getUserReviewForProductOrder} = require("../controllers/ReviewAndRatingController");
+const {getAllOrders} = require("../controllers/AdminController"); // Adjust path as needed
 
 const router = express.Router();
 
@@ -63,6 +64,9 @@ const router = express.Router();
  *           format: date-time
  *           description: The time when the order was last updated
  */
+
+//
+router.get("/all", getAllOrders);
 
 /**
  * @swagger

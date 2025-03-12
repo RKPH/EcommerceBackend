@@ -190,6 +190,155 @@ async function sendCancellationEmail(to, orderId) {
         console.error("Error sending cancellation email:", error);
     }
 }
+async function sendRefundSuccessEmail(to, orderId) {
+    if (!to) {
+        console.error("Error: No recipient email provided!");
+        return;
+    }
+
+    const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
+
+    const mailOptions = {
+        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        to: to,
+        subject: "Refund Processed Successfully - Sport Ecommerce",
+        html: `
+        <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
+            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <h2 style="color: #333;">Refund Processed Successfully</h2>
+            <p style="font-size: 16px; color: #555;">Your refund for the following order has been processed successfully:</p>
+            <div style="background: #28a745; color: white; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
+                Order ID: ${orderId}
+            </div>
+            <p style="font-size: 14px; color: #777;">If you have any questions, please contact our support team.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+        </div>
+        <style>
+            @media screen and (max-width: 600px) {
+                div { padding: 10px; }
+                h2 { font-size: 20px; }
+                p { font-size: 14px; }
+                .order-id { font-size: 18px; padding: 12px; }
+            }
+        </style>
+        `,
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Refund success email sent to:", to, "Response:", info.response);
+        return true
+    } catch (error) {
+        console.error("Error sending refund success email:", error);
+        return false
+    }
+}
+
+async function sendRefundFailedEmail(to, orderId) {
+    if (!to) {
+        console.error("Error: No recipient email provided!");
+        return;
+    }
+
+    const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
+
+    const mailOptions = {
+        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        to: to,
+        subject: "Refund Failed - Additional Information Required - Sport Ecommerce",
+        html: `
+        <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
+            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <h2 style="color: #333;">Refund Failed</h2>
+            <p style="font-size: 16px; color: #555;">We encountered an issue processing your refund for the following order:</p>
+            <div style="background: #dc3545; color: white; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
+                Order ID: ${orderId}
+            </div>
+            <p style="font-size: 16px; color: #555;">Please provide additional refund information by contacting our support team or replying to this email with:</p>
+            <ul style="text-align: left; font-size: 14px; color: #777; margin: 20px 0;">
+                <li>Bank Account Name</li>
+                <li>Bank Name</li>
+                <li>Account Number</li>
+            </ul>
+            <p style="font-size: 14px; color: #777;">If you have any questions, please reach out to our support team.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+        </div>
+        <style>
+            @media screen and (max-width: 600px) {
+                div { padding: 10px; }
+                h2 { font-size: 20px; }
+                p { font-size: 14px; }
+                .order-id { font-size: 18px; padding: 12px; }
+                ul { font-size: 12px; }
+            }
+        </style>
+        `,
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Refund failed email sent to:", to, "Response:", info.response);
+        return true
+    } catch (error) {
+        console.error("Error sending refund failed email:", error);
+        return false;
+    }
+}
+
+async function sendRefundRequestEmail(to, orderId, cancellationReason) {
+    if (!to) {
+        console.error("Error: No recipient email provided!");
+        return;
+    }
+
+    const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
+
+    const mailOptions = {
+        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        to: to,
+        subject: "Refund Request - Sport Ecommerce",
+        html: `
+        <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
+            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <h2 style="color: #333;">Refund Request</h2>
+            <p style="font-size: 16px; color: #555;">Your order has been cancelled by an admin with the following reason:</p>
+            <div style="background: #ff9800; color: white; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
+                Order ID: ${orderId}
+            </div>
+            <p style="font-size: 16px; color: #555; font-style: italic;">Reason: ${cancellationReason || "Not specified"}</p>
+            <p style="font-size: 16px; color: #555;">To process your refund, please provide the following details by replying to this email or contacting our support team:</p>
+            <ul style="text-align: left; font-size: 14px; color: #777; margin: 20px 0;">
+                <li>Bank Account Name</li>
+                <li>Bank Name</li>
+                <li>Account Number</li>
+            </ul>
+            <p style="font-size: 14px; color: #777;">If you have any questions, please reach out to our support team.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+        </div>
+        <style>
+            @media screen and (max-width: 600px) {
+                div { padding: 10px; }
+                h2 { font-size: 20px; }
+                p { font-size: 14px; }
+                .order-id { font-size: 18px; padding: 12px; }
+                ul { font-size: 12px; }
+            }
+        </style>
+        `,
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log("Refund request email sent to:", to, "Response:", info.response);
+        return true;
+    } catch (error) {
+        console.error("Error sending refund request email:", error);
+        return false;
+    }
+}
 
 
-module.exports = {sendResetPasswordEmail,sendVerificationEmail, sendCancellationEmail};
+module.exports = {sendResetPasswordEmail,sendVerificationEmail, sendCancellationEmail, sendRefundSuccessEmail, sendRefundFailedEmail , sendRefundRequestEmail};
