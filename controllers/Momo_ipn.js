@@ -1,16 +1,19 @@
 ﻿const Order = require('../models/Order');
 const Cart = require("../models/cart");
 
-
 exports.momoIPNHandler = async (req, res) => {
     try {
         const { orderId, resultCode } = req.body;
 
         console.log("🔔 Received IPN from MoMo:", req.body);
 
-        // Find the order
-        const order = await Order.findById(orderId).populate('products.product').exec();
+        // Extract the original orderId (before the timestamp) from MoMo's orderId
+        const originalOrderId = orderId.split('-')[0]; // Assumes format is "orderId-timestamp"
+
+        // Find the order using the original orderId
+        const order = await Order.findById(originalOrderId).populate('products.product').exec();
         if (!order) {
+            console.error(`Order not found for originalOrderId: ${originalOrderId}`);
             return res.status(404).json({ status: 'error', message: 'Order not found' });
         }
 
@@ -20,9 +23,10 @@ exports.momoIPNHandler = async (req, res) => {
             order.payingStatus = 'Paid';
             order.history.push({
                 date: formatDate(new Date()),
-                action: 'Order is paid via momo.',
+                action: 'Order is paid via MoMo.',
             });
             order.PaidAt = new Date();
+
             // ✅ Clear the cart now since payment is confirmed
             await clearUserCart(order.user, order.products);
             console.log("🛒 Cart cleared for user:", order.user.toString());
@@ -66,16 +70,12 @@ const clearUserCart = async (userId, productsInOrder) => {
 
 function formatDate(date) {
     const offset = 7; // Adjust this to your desired timezone offset (Vietnam Time is GMT+7)
-
-    // Convert UTC to local timezone by adding offset hours
     date.setHours(date.getHours() + offset);
-
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const seconds = String(date.getSeconds()).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = String(date.getFullYear()).slice(-2);
-
     return `${hours}:${minutes}:${seconds},${month}/${day}/${year}`;
 }

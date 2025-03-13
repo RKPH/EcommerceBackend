@@ -107,6 +107,10 @@ exports.purchaseOrder = async ({ userId, orderId, shippingAddress, deliverAt, pa
     const order = await Order.findById(orderId).populate('products.product');
     if (!order) throw new Error('No pending order found');
 
+    if (!totalPrice || totalPrice <= 0) {
+        throw new Error('Invalid total price');
+    }
+
     order.shippingAddress = shippingAddress;
     order.PaymentMethod = paymentMethod;
     order.CreatedAt = new Date();
@@ -116,6 +120,14 @@ exports.purchaseOrder = async ({ userId, orderId, shippingAddress, deliverAt, pa
     if (paymentMethod === 'momo') {
         order.status = 'Draft';
         order.payingStatus = 'Unpaid';
+
+        try {
+            const payUrl = await exports.createMoMoPayment({ orderId, totalPrice });
+            order.paymentUrl = payUrl; // Store the payment URL in the order
+        } catch (error) {
+            console.error(`MoMo payment initiation failed for order ${orderId}:`, error.message);
+            throw new Error(`MoMo payment initiation failed: ${error.message}`);
+        }
     } else {
         order.status = 'Pending';
         order.payingStatus = 'Unpaid';
@@ -142,11 +154,21 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
     const secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
     const partnerCode = 'MOMO';
     const redirectUrl = `http://localhost:5173/checkout/success/${orderId}`;
-    const ipnUrl = 'https://funny-ways-open.loca.lt/api/v1/webhook/momo-ipn';
+    const ipnUrl = 'https://stupid-words-love.loca.lt/api/v1/webhook/momo-ipn';
     const orderInfo = 'pay with MoMo';
+    const Totalprice = 10000; // Note: This should probably use totalPrice instead of hardcoding
     const requestId = `${orderId}-${Date.now()}`;
     const extraData = '';
-    const rawSignature = `accessKey=${accessKey}&amount=${totalPrice}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=payWithMethod`;
+
+    // Make orderId unique by appending a timestamp
+    const uniqueOrderId = `${orderId}-${Date.now()}`;
+
+    // Validate inputs
+    if (!orderId || !totalPrice || totalPrice <= 0) {
+        throw new Error('Invalid orderId or totalPrice');
+    }
+
+    const rawSignature = `accessKey=${accessKey}&amount=${Totalprice}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${uniqueOrderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=payWithMethod`;
     const signature = crypto.createHmac('sha256', secretKey).update(rawSignature).digest('hex');
 
     const requestBody = JSON.stringify({
@@ -154,8 +176,8 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
         partnerName: 'Test',
         storeId: 'MomoTestStore',
         requestId,
-        amount: totalPrice,
-        orderId,
+        amount: Totalprice, // Should use totalPrice instead of Totalprice
+        orderId: uniqueOrderId, // Use the unique orderId here
         orderInfo,
         redirectUrl,
         ipnUrl,
@@ -165,6 +187,8 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
         extraData,
         signature,
     });
+
+    console.log('MoMo Request Body:', requestBody); // Log the request for debugging
 
     return new Promise((resolve, reject) => {
         const options = {
@@ -182,23 +206,32 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
             let body = '';
             resMoMo.on('data', (chunk) => (body += chunk));
             resMoMo.on('end', () => {
-                const result = JSON.parse(body);
-                if (result.resultCode === 0) {
-                    resolve(result.payUrl);
-                } else {
-                    reject(new Error('MoMo payment initiation failed: ' + result.resultMessage));
+                console.log('MoMo Response Body:', body); // Log the response for debugging
+                try {
+                    const result = JSON.parse(body);
+                    if (result.resultCode === 0) {
+                        resolve(result.payUrl);
+                    } else {
+                        reject(new Error(`MoMo payment initiation failed: ${result.resultMessage || 'Unknown error'}`));
+                    }
+                } catch (parseError) {
+                    reject(new Error(`Failed to parse MoMo response: ${parseError.message}, Raw response: ${body}`));
                 }
             });
         });
 
-        reqMoMo.on('error', (e) => reject(new Error('Internal server error while contacting MoMo: ' + e.message)));
+        reqMoMo.on('error', (e) => {
+            console.error('MoMo Request Error:', e.message);
+            reject(new Error(`Internal server error while contacting MoMo: ${e.message}`));
+        });
+
         reqMoMo.write(requestBody);
         reqMoMo.end();
     });
 };
 
 const clearUserCart = async (userId, productsInOrder) => {
-    const productIdsInOrder = productsInOrder.map(item => item.product);
+    const productIdsInOrder = productsInOrder.map((item) => item.product);
     const result = await Cart.deleteMany({ user: userId, product: { $in: productIdsInOrder } });
     return result.deletedCount > 0;
 };

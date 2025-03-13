@@ -1,5 +1,5 @@
 const productService = require('../Services/productService');
-const updateImageColumns = require('../Data/Update');
+
 
 // Controller to get all products
 exports.getAllProducts = async (req, res) => {
@@ -202,19 +202,7 @@ exports.getTopTrendingProducts = async (req, res) => {
     }
 };
 
-// Controller to update product image
-exports.updateProductImage = async (req, res) => {
-    const { type, brand } = req.body;
-    if (!type || !brand) {
-        return res.status(400).json({ error: "Type and brand are required." });
-    }
-    try {
-        const result = await updateImageColumns(type, brand);
-        return res.json(result);
-    } catch (error) {
-        res.status(500).json({ error: "Internal server error." });
-    }
-};
+
 
 // Controller to search products
 exports.searchProducts = async (req, res) => {

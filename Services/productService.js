@@ -244,16 +244,26 @@ exports.getTopTrendingProducts = async () => {
 
 // Updated searchProducts with Qdrant and Filtering
 
-exports.searchProducts = async (query, { category, rating } = {}) => {
+exports.searchProducts = async (query, { category, priceMin, priceMax } = {}) => {
     if (!query) throw new Error("Search query is required.");
 
     try {
-        // Build Qdrant filter based on category and rating
+        // Build Qdrant filter based on query, category, and price
         const filter = {
             must: [],
         };
 
-        // Add filter for category if provided
+        // Add full-text filter for the query on name and category_code
+        if (query) {
+            filter.must.push({
+                should: [
+                    { key: 'name', match: { text: query } },
+                    { key: 'category_code', match: { text: query } },
+                    { key: 'brand', match: { text: query } }
+                ],
+            });
+        }
+
         if (category) {
             filter.must.push({
                 key: 'category_code',
@@ -263,25 +273,25 @@ exports.searchProducts = async (query, { category, rating } = {}) => {
             });
         }
 
-        // Add filter for rating if provided (assuming rating is stored as a number in the payload)
-        if (rating) {
-            filter.must.push({
-                key: 'price', // Replace with 'rating' if that's the correct field in your payload
-                match: {
-                    value: Number(rating),
-                },
-            });
+        if (priceMin || priceMax) {
+            const priceFilter = {
+                key: 'price',
+                range: {}
+            };
+            if (priceMin) priceFilter.range.gte = Number(priceMin);
+            if (priceMax) priceFilter.range.lte = Number(priceMax);
+            filter.must.push(priceFilter);
         }
 
         // Prepare the scroll request payload
         const scrollParams = {
             filter: filter.must.length > 0 ? filter : undefined,
-            limit: 100, // Fetch more points to allow for post-filtering
+            limit: 100,
             with_payload: true,
             with_vector: false,
         };
 
-        // Directly call the Qdrant scroll API endpoint
+        // Call the Qdrant scroll API endpoint
         const qdrantUrl = 'http://103.155.161.100:6333/collections/recommendation_system/points/scroll';
         const response = await axios.post(qdrantUrl, scrollParams, {
             headers: {
@@ -290,19 +300,25 @@ exports.searchProducts = async (query, { category, rating } = {}) => {
             },
         });
 
-        // Check if the response is successful
         if (response.status !== 200 || response.data.status !== 'ok') {
             throw new Error('Qdrant scroll failed: ' + JSON.stringify(response.data));
         }
 
         const scrollResults = response.data.result.points;
 
-        // Post-filter results to match the query in the 'name' field (case-insensitive substring match)
+        // Prioritize exact match on name
         const queryLower = query.toLowerCase();
-        const filteredResults = scrollResults.filter((result) => {
-            const name = result.payload?.name || '';
-            return name.toLowerCase().includes(queryLower);
+        const exactMatch = scrollResults.find((result) => {
+            const name = (result.payload?.name || '').toLowerCase();
+            return name === queryLower;
         });
+
+        let filteredResults;
+        if (exactMatch) {
+            filteredResults = [exactMatch]; // Prioritize exact match
+        } else {
+            filteredResults = scrollResults; // Use the full-text filtered results
+        }
 
         console.log('Filtered Scroll Results:', filteredResults);
 
@@ -323,7 +339,9 @@ exports.searchProducts = async (query, { category, rating } = {}) => {
 
         // Map Qdrant results to MongoDB product data
         return products.map((product) => {
-            const qdrantData = filteredResults.find((result) => result.payload.product_id.toString() === product.product_id);
+            const qdrantData = filteredResults.find(
+                (result) => result.payload.product_id.toString() === product.product_id
+            );
             return {
                 ...product,
                 qdrantData: qdrantData
@@ -332,6 +350,7 @@ exports.searchProducts = async (query, { category, rating } = {}) => {
                         event_time: qdrantData.payload.event_time,
                         user_id: qdrantData.payload.user_id,
                         user_session: qdrantData.payload.user_session,
+                        price: qdrantData.payload.price,
                     }
                     : null,
             };

@@ -196,7 +196,7 @@
 
     const getAllOrders = async (req, res) => {
         try {
-            const { page = 1, limit = 10, search, status } = req.query;
+            const { page = 1, limit = 10, search, status, PaymentMethod, payingStatus } = req.query;
 
             // Build the initial pipeline to filter and count unique orders
             let matchStage = { status: { $ne: 'Draft' } };
@@ -220,6 +220,16 @@
             // Add status filter
             if (status && status !== 'All' && status !== 'Draft') {
                 matchStage.status = status;
+            }
+
+            // Add PaymentMethod filter
+            if (PaymentMethod) {
+                matchStage.PaymentMethod = PaymentMethod;
+            }
+
+            // Add payingStatus filter
+            if (payingStatus) {
+                matchStage.payingStatus = payingStatus;
             }
 
             // Pipeline to get total unique orders
@@ -556,7 +566,7 @@
                 },
                 // Step 3: Limit to top 10 products
                 {
-                    $limit: 10
+                    $limit: 5
                 },
                 // Step 4: Join with the products collection, converting Review.product_id (Number) to String
                 {
@@ -666,7 +676,7 @@
                     $sort: { totalOrdered: -1 }
                 },
                 {
-                    $limit: 10
+                    $limit: 5
                 }
             ];
 

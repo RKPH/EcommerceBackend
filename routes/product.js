@@ -329,7 +329,7 @@ router.post('/recommendations', sessionBasedRecommendation)
 
 router.post('/anomynus_recommendations', anonymousRecommendation)
 
-router.post('/update_image', updateProductImage)
+
 
 router.delete('/:id', deleteProduct)
 
