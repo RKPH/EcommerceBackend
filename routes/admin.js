@@ -1,9 +1,11 @@
 const express = require("express");
 const { getMonthlyRevenue, getProductTypeSales, getMostProductBuyEachType, getRevenueComparison, getOrderComparison,
     getTopRatedProducts, getWeeklyRevenue, getTopOrderedProductsController, getOrderDetails, updatePaymentStatus,
-    updateRefundStatus, updateOrderStatus, getAllUsers, getUserDetails, updateUser
+    updateRefundStatus, updateOrderStatus, getAllUsers, getUserDetails, updateUser, createUser, createProduct, deleteProduct
 } = require("../controllers/AdminController");
 const {getAllOrders, updateProduct, loginAdmin} = require("../controllers/AdminController");
+const verifyToken = require('../middlewares/verifyToken');
+const verifyAdmin = require('../middlewares/verifyAdmin');
 
 
 
@@ -29,7 +31,10 @@ router.get("/most-bought-product-type", getMostProductBuyEachType);
 
 router.get("/allOrders", getAllOrders);
 
-router.put("/products/update/:id" , updateProduct );
+//products
+router.post("/products/add",verifyToken, verifyAdmin ,createProduct);
+router.put("/products/update/:id" , verifyToken, verifyAdmin ,updateProduct );
+router.delete("/products/:product_id" , verifyToken, verifyAdmin,deleteProduct);
 
 router.post("/login", loginAdmin)
 
@@ -47,7 +52,7 @@ router.put('/orders/updateOrderStatus/:orderId', updateOrderStatus);
 //users
 router.get("/users", getAllUsers)
 router.get("/users/:id", getUserDetails)
-router.put("/users/update/:id", updateUser)
-
+router.put("/users/update/:id",verifyToken,verifyAdmin ,updateUser)
+router.post("/users/create", verifyToken,verifyAdmin,createUser)
 
 module.exports = router;

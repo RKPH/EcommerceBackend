@@ -1,25 +1,162 @@
 ﻿const Product = require('../models/products');
 const UserBehavior = require('../models/UserBehaviors');
-const {embed} = require('../Services/EmbedingServices');
-const qdrantConfig = require('../config/qdrantConfig'); // Adjusted path
+const Order = require('../models/Order');
+const Review = require('../models/reviewSchema');
 const axios = require('axios');
 
-// Utility to generate a unique product_id
-const generateUniqueProductId = async () => {
-    let product_id;
-    let isUnique = false;
-
-    while (!isUnique) {
-        product_id = Math.floor(10000000 + Math.random() * 90000000).toString(); // 8-digit random number
-        const existingProduct = await Product.findOne({ product_id });
-        if (!existingProduct) {
-            isUnique = true;
-        }
-    }
-    return product_id;
-};
 
 // Service functions
+exports.createProduct = async ({
+                                 name,
+                                 price,
+                                 category,
+                                 type,
+                                 brand,
+                                 stock,
+                                 mainImage,
+                                 description
+                             }) => {
+    try {
+        // Validate required fields
+        if (!name || !price || !category || !type || !brand || !stock || !mainImage) {
+            throw new Error('Name, price, category, type, brand, stock, and MainImage are required.');
+        }
+
+        // Validate numeric fields
+        const parsedPrice = parseFloat(price);
+        const parsedStock = parseInt(stock, 10);
+        if (isNaN(parsedPrice) || parsedPrice <= 0) {
+            throw new Error('Price must be a positive number.');
+        }
+        if (isNaN(parsedStock) || parsedStock < 0) {
+            throw new Error('Stock must be a non-negative integer.');
+        }
+
+        // Generate a unique product_id
+        let product_id;
+        let isUnique = false;
+        do {
+            product_id = Math.floor(1000000 + Math.random() * 9000000).toString(); // 7-digit number
+            const existingProduct = await Product.findOne({ product_id });
+            if (!existingProduct) {
+                isUnique = true;
+            }
+        } while (!isUnique);
+
+        // Prepare the new product data
+        const newProductData = {
+            product_id,
+            name,
+            price: parsedPrice,
+            category,
+            type,
+            brand,
+            stock: parsedStock,
+            MainImage: mainImage,
+            description: description || '',
+        };
+
+        // Create and save the new product
+        const newProduct = new Product(newProductData);
+        const savedProduct = await newProduct.save();
+
+        if (!savedProduct) {
+            throw new Error('Failed to create product.');
+        }
+
+        return {
+            product_id: savedProduct.product_id,
+            name: savedProduct.name,
+            price: savedProduct.price,
+            category: savedProduct.category,
+            type: savedProduct.type,
+            brand: savedProduct.brand,
+            stock: savedProduct.stock,
+            MainImage: savedProduct.MainImage,
+            description: savedProduct.description,
+            _id: savedProduct._id,
+            createdAt: savedProduct.createdAt,
+        };
+    } catch (error) {
+        if (error.name === 'ValidationError') {
+            throw new Error('Validation error: ' + Object.values(error.errors).map(err => err.message).join(', '));
+        }
+        if (error.code === 11000 && error.keyPattern?.product_id) {
+            throw new Error('Product ID already exists.');
+        }
+        throw error; // Re-throw for unexpected errors
+    }
+};
+
+// Update
+exports.updateProduct = async (product_id, updateData) => {
+    try {
+        if (!product_id || isNaN(parseInt(product_id))) {
+            throw new Error('Invalid product ID.');
+        }
+
+        const updatedProduct = await Product.findOneAndUpdate(
+            { product_id: parseInt(product_id) },
+            updateData,
+            { new: true }
+        );
+
+        if (!updatedProduct) {
+            throw new Error(`Product with product_id ${product_id} not found`);
+        }
+
+        return updatedProduct;
+    } catch (error) {
+        throw error;
+    }
+};
+
+// delete
+exports.deleteProduct = async (product_id) => {
+    try {
+        const parsedProductId = parseInt(product_id, 10);
+        if (isNaN(parsedProductId)) {
+            throw new Error('Invalid product_id format. Must be an integer.');
+        }
+
+        // Check if the product exists
+        const product = await Product.findOne({ product_id: parsedProductId });
+        if (!product) {
+            throw new Error(`Product with product_id ${parsedProductId} not found.`);
+        }
+
+        // Check if product is referenced in active orders
+        const activeOrders = await Order.find({
+            'products.product': product._id,
+            status: { $in: ['Pending', 'Confirmed'] },
+        });
+        if (activeOrders.length > 0) {
+            throw new Error('Cannot delete product. It is referenced in active orders.');
+        }
+
+        // Delete the product
+        const deletedProduct = await Product.findOneAndDelete({ product_id: parsedProductId });
+        if (!deletedProduct) {
+            throw new Error('Failed to delete product.');
+        }
+
+        // Delete related reviews
+        await Review.deleteMany({ product_id: parsedProductId });
+
+        return {
+            product_id: deletedProduct.product_id,
+            name: deletedProduct.name,
+            _id: deletedProduct._id,
+        };
+    } catch (error) {
+        throw error;
+    }
+};
+
+
+
+
+
 exports.getAllProducts = async ({ page = 1, limit = 10, category, type, search }) => {
     let query = Product.find();
     if (category) query = query.where("category").equals(category);
@@ -43,31 +180,6 @@ exports.getProductById = async (id) => {
     return { product, productId };
 };
 
-exports.addProduct = async ({ name, price, category, type, stock, shortDescription, mainImage, brand }) => {
-    const parsedPrice = Number(price);
-    const parsedStock = Number(stock);
-
-    if (!name || !category || !type || isNaN(parsedPrice) || parsedPrice <= 0 || isNaN(parsedStock) || parsedStock < 0 || !brand || !mainImage) {
-        throw new Error("Invalid product data. Please ensure all required fields are provided and valid.");
-    }
-
-    const product_id = await generateUniqueProductId();
-    const newProduct = new Product({
-        product_id,
-        name,
-        category,
-        type,
-        price: parsedPrice,
-        description: shortDescription,
-        stock: parsedStock,
-        brand,
-        MainImage: mainImage,
-        rating: 0,
-    });
-
-    await newProduct.save();
-    return newProduct;
-};
 
 exports.getAllTypes = async () => {
     return await Product.distinct('type');
@@ -244,16 +356,12 @@ exports.getTopTrendingProducts = async () => {
 
 // Updated searchProducts with Qdrant and Filtering
 
-exports.searchProducts = async (query, { category, priceMin, priceMax } = {}) => {
+exports.searchProducts = async (query, { category, priceMin, priceMax, offset = 0, limit = 20 } = {}) => {
     if (!query) throw new Error("Search query is required.");
 
     try {
-        // Build Qdrant filter based on query, category, and price
-        const filter = {
-            must: [],
-        };
-
-        // Add full-text filter for the query on name and category_code
+        // Build Qdrant filter
+        const filter = { must: [] };
         if (query) {
             filter.must.push({
                 should: [
@@ -263,103 +371,119 @@ exports.searchProducts = async (query, { category, priceMin, priceMax } = {}) =>
                 ],
             });
         }
-
         if (category) {
             filter.must.push({
                 key: 'category_code',
-                match: {
-                    value: category,
-                },
+                match: { value: category },
             });
         }
-
         if (priceMin || priceMax) {
-            const priceFilter = {
-                key: 'price',
-                range: {}
-            };
+            const priceFilter = { key: 'price', range: {} };
             if (priceMin) priceFilter.range.gte = Number(priceMin);
             if (priceMax) priceFilter.range.lte = Number(priceMax);
             filter.must.push(priceFilter);
         }
 
-        // Prepare the scroll request payload
+        // Prepare Qdrant scroll request
         const scrollParams = {
             filter: filter.must.length > 0 ? filter : undefined,
-            limit: 100,
+            limit: parseInt(limit), // Reduced limit for faster response
+            offset: parseInt(offset), // Add offset for pagination
             with_payload: true,
             with_vector: false,
         };
 
-        // Call the Qdrant scroll API endpoint
+        // Call Qdrant API
         const qdrantUrl = 'http://103.155.161.100:6333/collections/recommendation_system/points/scroll';
+        const startTime = Date.now();
         const response = await axios.post(qdrantUrl, scrollParams, {
             headers: {
                 'Content-Type': 'application/json',
                 'api-key': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.SWMCjlnWh7pD_BlK885iwtg30KtPXcngjNkTd8BuFAU',
             },
         });
+        console.log(`Qdrant API call took: ${(Date.now() - startTime) / 1000} seconds`);
 
         if (response.status !== 200 || response.data.status !== 'ok') {
             throw new Error('Qdrant scroll failed: ' + JSON.stringify(response.data));
         }
 
         const scrollResults = response.data.result.points;
-
-        // Prioritize exact match on name
-        const queryLower = query.toLowerCase();
-        const exactMatch = scrollResults.find((result) => {
-            const name = (result.payload?.name || '').toLowerCase();
-            return name === queryLower;
-        });
-
-        let filteredResults;
-        if (exactMatch) {
-            filteredResults = [exactMatch]; // Prioritize exact match
-        } else {
-            filteredResults = scrollResults; // Use the full-text filtered results
+        if (!scrollResults || scrollResults.length === 0) {
+            return { results: [], total: 0 };
         }
 
-        console.log('Filtered Scroll Results:', filteredResults);
+        // Build a dictionary for faster lookups
+        const qdrantDataMap = new Map();
+        const queryLower = query.toLowerCase();
+        let exactMatch = null;
 
-        // Extract product_ids from filtered Qdrant results
-        const productIds = filteredResults
-            .filter((result) => result.payload && result.payload.product_id)
-            .map((result) => result.payload.product_id.toString());
+        // Single pass to build map and find exact match
+        for (const result of scrollResults) {
+            if (!result.payload || !result.payload.product_id) continue;
+            const productId = result.payload.product_id.toString();
+            qdrantDataMap.set(productId, result.payload);
 
+            const name = (result.payload.name || '').toLowerCase();
+            if (name === queryLower && !exactMatch) {
+                exactMatch = result;
+            }
+        }
+
+        // Prepare filtered results
+        let filteredResults;
+        if (exactMatch) {
+            filteredResults = [exactMatch];
+        } else {
+            filteredResults = scrollResults.filter(result => result.payload && result.payload.product_id);
+        }
+
+        console.log('Filtered Scroll Results:', filteredResults.length);
+
+        // Extract product IDs
+        const productIds = [...new Set(filteredResults.map(result => result.payload.product_id.toString()))];
         if (productIds.length === 0) {
-            return []; // No matching products found
+            return { results: [], total: 0 };
         }
 
         // Build MongoDB filter
         const mongoFilter = { product_id: { $in: productIds } };
 
-        // Fetch detailed product data from MongoDB
-        const products = await Product.find(mongoFilter).lean();
+        // Fetch from MongoDB with selected fields
+        const startMongo = Date.now();
+        const products = await Product.find(mongoFilter)
+            .select('product_id name category_code brand price')
+            .lean();
+        console.log(`MongoDB query took: ${(Date.now() - startMongo) / 1000} seconds`);
 
-        // Map Qdrant results to MongoDB product data
-        return products.map((product) => {
-            const qdrantData = filteredResults.find(
-                (result) => result.payload.product_id.toString() === product.product_id
-            );
+        // Map Qdrant data to MongoDB products
+        const startMapping = Date.now();
+        const results = products.map(product => {
+            const qdrantData = qdrantDataMap.get(product.product_id);
             return {
                 ...product,
                 qdrantData: qdrantData
                     ? {
-                        event_type: qdrantData.payload.event_type,
-                        event_time: qdrantData.payload.event_time,
-                        user_id: qdrantData.payload.user_id,
-                        user_session: qdrantData.payload.user_session,
-                        price: qdrantData.payload.price,
+                        event_type: qdrantData.event_type,
+                        event_time: qdrantData.event_time,
+                        user_id: qdrantData.user_id,
+                        user_session: qdrantData.user_session,
+                        price: qdrantData.price,
                     }
                     : null,
             };
         });
+        console.log(`Mapping took: ${(Date.now() - startMapping) / 1000} seconds`);
+
+        return {
+            results,
+            total: filteredResults.length, // Approximate total; use Qdrant count API for exact total if needed
+        };
     } catch (error) {
         console.error("Error scrolling products in Qdrant:", error);
         throw new Error(`Failed to scroll products: ${error.message}`);
     }
-};
+};;
 
 exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, price_min, price_max, rating }) => {
     const pageSize = parseInt(limit, 10) || 20;
@@ -400,8 +524,3 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
     return { products, totalProducts, totalPages, currentPage: pageNum, pageSize };
 };
 
-exports.deleteProduct = async (id) => {
-    const productId = parseInt(id, 10);
-    const deletedProduct = await Product.findOneAndDelete({ product_id: productId });
-    return { deletedProduct, productId };
-};

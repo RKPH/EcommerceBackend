@@ -1,79 +1,26 @@
-﻿const Review = require('../models/reviewSchema');
-const Product = require("../models/products");
+﻿const reviewService = require('../Services/reviewService');
 
 // Add a review to a product
 exports.addReview = async (req, res) => {
     try {
         const { rating, comment, name, orderID } = req.body;
-        const productId = req.params.id; // This should align with product_id
-        const user = req.user; // Assume user is retrieved from auth middleware
+        const productId = req.params.id;
+        const user = req.user;
 
-        console.log("product_id", productId); // Updated log message
-
-        if (!user) {
-            return res.status(401).json({ message: "You must be logged in to submit a review." });
-        }
-
-        if (!rating || rating < 1 || rating > 5) {
-            return res.status(400).json({ message: "Invalid rating. Must be between 1 and 5." });
-        }
-
-        if (!comment) {
-            return res.status(400).json({ message: "Review comment is required." });
-        }
-
-        if (!name) {
-            return res.status(400).json({ message: "Name is required." });
-        }
-
-        if (!orderID) {
-            return res.status(400).json({ message: "Order ID is required to review a product." });
-        }
-
-        const product = await Product.findOne({ product_id: productId });
-        if (!product) {
-            return res.status(404).json({ message: "Product not found." });
-        }
-
-        // Check if user already reviewed this product in this specific order
-        const existingReview = await Review.findOne({
-            user: user.userId,
-            product_id: productId, // Updated from productID
-            orderID: orderID
-        });
-
-        if (existingReview) {
-            return res.status(400).json({ message: "You have already reviewed this product for this order." });
-        }
-
-        // Create a new review
-        const newReview = new Review({
-            user: user.userId,
-            orderID,
-            name,
-            product_id: productId, // Updated from productID
+        const { review } = await reviewService.addReview({
+            userId: user?.userId,
+            productId,
             rating,
             comment,
-            date: new Date(),
+            name,
+            orderID,
         });
 
-        await newReview.save();
-
-        // Recalculate the average rating
-        const reviews = await Review.find({ product_id: productId }); // Updated from productID
-
-        console.log("reviews", reviews);
-
-        const averageRating = reviews.length > 0 ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length : 0; // Handle empty reviews
-
-        // Update the product's average rating
-        product.rating = averageRating;
-        await product.save();
-
-        res.status(201).json({ message: "Review added successfully.", review: newReview });
+        res.status(201).json({ message: "Review added successfully.", review });
     } catch (error) {
-        console.error("Error adding review:", error);
-        res.status(500).json({ message: error.message || "Internal server error." });
+        console.error("Error adding review:", error.message);
+        res.status(error.message.includes("not found") ? 404 : error.message.includes("already reviewed") ? 400 : 500)
+            .json({ message: error.message });
     }
 };
 
@@ -82,56 +29,45 @@ exports.getReviews = async (req, res) => {
     try {
         const productId = req.params.id;
 
-        // Find all reviews for the given product and populate user details
-        const reviews = await Review.find({ product_id: productId }) // Updated from productID
-            .sort({ date: -1 })
-            .populate('user', 'name avatar'); // Populate the user's name and avatar
+        const { reviews, averageRating } = await reviewService.getReviews({ productId });
 
-        if (reviews.length === 0) {
-            return res.status(404).json({ message: "No reviews found for this product." });
-        }
-
-        res.status(200).json({
-            reviews,
-            averageRating: reviews.length > 0 ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length : 0
-        });
+        res.status(200).json({ reviews, averageRating });
     } catch (error) {
-        console.error("Error fetching reviews:", error);
-        res.status(500).json({ message: "Internal server error." });
+        console.error("Error fetching reviews:", error.message);
+        res.status(error.message.includes("No reviews") ? 404 : 500)
+            .json({ message: error.message });
     }
 };
 
 // Get a user's review for a specific product and order
 exports.getUserReviewForProductOrder = async (req, res) => {
     try {
-        const { orderID } = req.params; // Order ID from URL params
-        const productId = req.params.id; // Product ID from URL params
-        const user = req.user; // Assume user is attached by auth middleware (like req.user.userId)
+        const { orderID } = req.params;
+        const productId = req.params.id;
+        const user = req.user;
 
-        if (!user) {
-            return res.status(401).json({ message: "You must be logged in to view your review." });
-        }
-
-        if (!orderID) {
-            return res.status(400).json({ message: "Order ID is required." });
-        }
-
-        // Find the review made by the logged-in user for this product in this specific order
-        const review = await Review.findOne({
-            user: user.userId,
-            product_id: productId, // Updated from productID
-            orderID: orderID
+        const { review } = await reviewService.getUserReviewForProductOrder({
+            userId: user?.userId,
+            productId,
+            orderID,
         });
 
-        if (!review) {
-            return res.status(404).json({ message: "No review found for this product in this order." });
-        }
-
-        res.status(200).json({
-            review
-        });
+        res.status(200).json({ review });
     } catch (error) {
-        console.error("Error fetching review:", error);
-        res.status(500).json({ message: "Internal server error." });
+        console.error("Error fetching review:", error.message);
+
+        // Log the exact error message for debugging
+        console.log("Error message:", error.message);
+
+        if (error.message === "No review found for this product in this order.") {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error.message === "Order ID is required.") {
+            return res.status(400).json({ message: error.message });
+        }
+        if (error.message === "User must be logged in to view their review.") {
+            return res.status(401).json({ message: error.message });
+        }
+        return res.status(500).json({ message: error.message || "Internal server error" });
     }
 };

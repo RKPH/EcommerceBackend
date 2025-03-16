@@ -113,7 +113,7 @@ exports.purchaseOrder = async ({ userId, orderId, shippingAddress, deliverAt, pa
 
     order.shippingAddress = shippingAddress;
     order.PaymentMethod = paymentMethod;
-    order.CreatedAt = new Date();
+    order.createdAt = new Date();
     order.DeliveredAt = deliverAt;
     order.totalPrice = totalPrice;
 

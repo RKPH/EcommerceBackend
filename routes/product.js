@@ -6,8 +6,8 @@ const {
     getAllTypes,
     getProductByTypes,
     getAllCategories,
-    addProduct, getRecommendations, sessionBasedRecommendation, getTopTrendingProducts, updateProductImage,
-    searchProducts, deleteProduct, getProductsByCategories, anonymousRecommendation, searchProductsPaginated,
+    getRecommendations, sessionBasedRecommendation, getTopTrendingProducts,
+    searchProducts, getProductsByCategories, anonymousRecommendation, searchProductsPaginated,
     getTypesByCategory
 } = require('../controllers/productController');
 
@@ -231,32 +231,6 @@ router.get('/all', getAllProducts);
  */
 router.get('/:id', getProductById);
 
-/**
- * @swagger
- * /api/v1/products/add:
- *   post:
- *     summary: Add a new product
- *     security: []
- *     tags: [Products]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Product'
- *     responses:
- *       201:
- *         description: Product added successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Product'
- *       400:
- *         description: Invalid request body. Missing required fields.
- *       500:
- *         description: Internal server error. Failed to add the product.
- */
-router.post('/add', addProduct);
 
 /**
  * @swagger
@@ -330,7 +304,5 @@ router.post('/recommendations', sessionBasedRecommendation)
 router.post('/anomynus_recommendations', anonymousRecommendation)
 
 
-
-router.delete('/:id', deleteProduct)
 
 module.exports = router;

@@ -8,6 +8,7 @@
     const { v4: uuidv4 } = require('uuid');
     const {sendRefundFailedEmail,sendRefundSuccessEmail,sendRefundRequestEmail} = require('../Services/Email');
     const Review =  require('../models/reviewSchema');
+    const productService = require('../Services/productService');
     // Get Monthly Revenue
     const getMonthlyRevenue = async (req, res) => {
         try {
@@ -340,35 +341,156 @@
         }
     };
 
-    // Update a product
-    const updateProduct = async (req, res) => {
+    //products
+    const createProduct = async (req, res) => {
         try {
-            const { productID, _id, ...updateData } = req.body;
+            const {
+                name,
+                price,
+                category,
+                type,
+                brand,
+                stock,
+                mainImage,
+                description
+            } = req.body;
 
-            console.log("Request Body:", req.body);
-            console.log("Request Params:", req.params); // Ensure id is coming correctly
+            const savedProduct = await productService.createProduct({
+                name,
+                price,
+                category,
+                type,
+                brand,
+                stock,
+                mainImage,
+                description
+            });
 
-            // Find and update the product using the correct productID
-            const updatedProduct = await Product.findOneAndUpdate(
-                { product_id: req.params.id }, // Use req.params.id instead of req.params.productID
-                updateData,
-                { new: true }
-            );
-
-            if (!updatedProduct) {
-                console.log("Product not found with productID:", req.params.id);
-                return res.status(404).json({ message: "Product not found" });
-            }
-
-            console.log("Updated Product:", updatedProduct);
-            res.status(200).json({ message: "Product updated successfully", product: updatedProduct });
+            res.status(201).json({
+                success: true,
+                message: 'Product created successfully.',
+                data: savedProduct,
+            });
         } catch (error) {
-            console.error("Error updating product:", error);
-            res.status(500).json({ message: "Internal server error" });
+            console.error('Error creating product:', error);
+            if (error.message.includes('required')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            if (error.message.includes('Price') || error.message.includes('Stock')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            if (error.message.includes('Validation error')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            if (error.message.includes('Product ID already exists')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'An unexpected error occurred while creating the product.',
+                error: error.message,
+            });
         }
     };
 
+    const updateProduct = async (req, res) => {
+        try {
+            const { productID, _id, ...updateData } = req.body;
+            const product_id = req.params.id; // Lấy từ params
 
+            if (!product_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Product ID is required.",
+                });
+            }
+
+            const updatedProduct = await productService.updateProduct(product_id, updateData);
+
+            res.status(200).json({
+                success: true,
+                message: "Product updated successfully",
+                product: updatedProduct,
+            });
+        } catch (error) {
+            console.error("Error updating product:", error);
+            if (error.message.includes('Invalid product ID')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: "Internal server error",
+                error: error.message,
+            });
+        }
+    };
+
+    const deleteProduct = async (req, res) => {
+        try {
+            const { product_id } = req.params;
+
+            if (!product_id) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Product ID is required.",
+                });
+            }
+
+            const deletedProduct = await productService.deleteProduct(product_id);
+
+            res.status(200).json({
+                success: true,
+                message: `Product with product_id ${deletedProduct.product_id} deleted successfully.`,
+                data: deletedProduct,
+            });
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            if (error.message.includes('Invalid product_id')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            if (error.message.includes('active orders')) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message,
+                });
+            }
+            res.status(500).json({
+                success: false,
+                message: 'An unexpected error occurred while deleting the product.',
+                error: error.message,
+            });
+        }
+    };
 
     const loginAdmin = async (req, res) => {
         try {
@@ -1242,6 +1364,123 @@
         }
     };
 
+    const createUser = async (req, res) => {
+        try {
+            const { name, email, avatar, password, emailVerified, role } = req.body;
+
+            // Validate required fields
+            if (!name || !email || !password) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Name, email, and password are required.',
+                });
+            }
+
+            // Validate email format
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid email format.',
+                });
+            }
+
+            // Validate role
+            if (role && !['customer', 'admin'].includes(role)) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Invalid role. Role must be either "customer" or "admin".',
+                });
+            }
+
+            // Check if email already exists
+            const emailExists = await User.findOne({ email });
+            if (emailExists) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Email is already in use by another user.',
+                });
+            }
+
+            // Generate a unique user_id
+            let user_id;
+            let isUnique = false;
+            do {
+                user_id = Math.floor(100000000 + Math.random() * 900000000); // Generate a 9-digit number
+                const existingUser = await User.findOne({ user_id });
+                if (!existingUser) {
+                    isUnique = true;
+                }
+            } while (!isUnique);
+
+            // Hash the password
+            const { salt, hashedPassword } = hash(password);
+
+            // Prepare the new user data
+            const newUserData = {
+                user_id, // Assign the generated user_id
+                name,
+                email,
+                avatar: avatar || '', // Default to empty string if no avatar provided
+                password: hashedPassword,
+                salt,
+                role: role || 'customer', // Default to 'customer' if not provided
+                isVerified: emailVerified !== undefined ? emailVerified : false, // Default to false if not provided
+            };
+
+            // Create the new user
+            const newUser = new User(newUserData);
+            const savedUser = await newUser.save();
+
+            if (!savedUser) {
+                return res.status(500).json({
+                    status: 'error',
+                    message: 'Failed to create user.',
+                });
+            }
+
+            // Respond with success (exclude sensitive fields)
+            return res.status(201).json({
+                status: 'success',
+                message: 'User created successfully.',
+                data: {
+                    user_id: savedUser.user_id,
+                    name: savedUser.name,
+                    email: savedUser.email,
+                    avatar: savedUser.avatar,
+                    role: savedUser.role,
+                    isVerified: savedUser.isVerified,
+                    createdAt: savedUser.createdAt,
+                },
+            });
+        } catch (error) {
+            console.error('Error creating user:', error);
+
+            // Handle validation errors
+            if (error.name === 'ValidationError') {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Validation error.',
+                    errors: Object.values(error.errors).map(err => err.message),
+                });
+            }
+
+            // Handle duplicate email error (unique constraint violation)
+            if (error.code === 11000 && error.keyPattern?.email) {
+                return res.status(400).json({
+                    status: 'error',
+                    message: 'Email is already in use by another user.',
+                });
+            }
+
+            // Generic server error
+            return res.status(500).json({
+                status: 'error',
+                message: 'An unexpected error occurred while creating the user.',
+            });
+        }
+    };
+
 
     module.exports = {
         getTopOrderedProductsController,
@@ -1253,7 +1492,9 @@
         getProductTypeSales,
         getMostProductBuyEachType,
         getAllOrders,
+        createProduct,
         updateProduct,
+        deleteProduct,
         getOrderDetails,
         updatePaymentStatus,
         updateRefundStatus,
@@ -1262,4 +1503,5 @@
         getAllUsers,
         getUserDetails,
         updateUser,
+        createUser
     };
