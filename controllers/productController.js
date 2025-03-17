@@ -47,7 +47,7 @@ exports.getAllProducts = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error("Error in getAllProducts:", error);
+
         res.status(500).json({
             status: "error",
             message: error.message || "Failed to retrieve products due to a server error.",
@@ -81,7 +81,7 @@ exports.getProductById = async (req, res) => {
             data: product,
         });
     } catch (error) {
-        console.error("Error in getProductById:", error);
+
         res.status(500).json({
             status: "error",
             message: error.message || "Failed to retrieve product due to a server error.",
@@ -108,7 +108,7 @@ exports.getAllTypes = async (req, res) => {
             data: types,
         });
     } catch (error) {
-        console.error("Error in getAllTypes:", error);
+
         res.status(500).json({
             status: "error",
             message: error.message || "Failed to retrieve types due to a server error.",
@@ -116,35 +116,35 @@ exports.getAllTypes = async (req, res) => {
     }
 };
 
-// get types by category
 exports.getTypesByCategory = async (req, res) => {
     const { category } = req.params;
+
+    // Trim the category and check if it's empty
+    const trimmedCategory = category ? category.trim() : category;
+    if (!trimmedCategory) {
+        return res.status(400).json({
+            status: "error",
+            message: "Category is required.",
+        });
+    }
+
     try {
-        if (!category) {
-            return res.status(400).json({
-                status: "error",
-                message: "Category is required.",
-            });
-        }
-
-        const types = await productService.getTypesByCategory(category);
-
+        const types = await productService.getTypesByCategory(trimmedCategory);
         if (!types || types.length === 0) {
             return res.status(404).json({
                 status: "error",
-                message: `No types found for category ${category}.`,
+                message: `No types found for category ${trimmedCategory}.`,
                 data: [],
             });
         }
-
         res.status(200).json({
             status: "success",
             message: "Types retrieved successfully",
             data: types,
         });
     } catch (error) {
-        console.error("Error in getTypesByCategory:", error);
-        res.status(error.message.includes("Category is required") ? 400 : 500).json({
+
+        res.status(500).json({
             status: "error",
             message: error.message || "Failed to retrieve types due to a server error.",
         });
@@ -170,7 +170,7 @@ exports.getAllCategories = async (req, res) => {
             data: categories,
         });
     } catch (error) {
-        console.error("Error in getAllCategories:", error);
+
         res.status(500).json({
             status: "error",
             message: error.message || "Failed to retrieve categories due to a server error.",
@@ -182,23 +182,21 @@ exports.getAllCategories = async (req, res) => {
 exports.getProductByTypes = async (req, res) => {
     const { type } = req.params;
     const { page, brand, price_min, price_max, rating } = req.query;
-    try {
-        if (!type) {
-            return res.status(400).json({
-                status: "error",
-                message: "Type is required.",
-            });
-        }
+    if (!type) {
+        return res.status(400).json({
+            status: "error",
+            message: "Type is required.",
+        });
+    }
 
+    try {
         if (page && isNaN(parseInt(page))) {
             return res.status(400).json({
                 status: "error",
                 message: "Page must be a valid number.",
             });
         }
-
         const result = await productService.getProductByTypes({ type, page, brand, price_min, price_max, rating });
-
         if (!result.products || result.products.length === 0) {
             return res.status(404).json({
                 status: "error",
@@ -212,7 +210,6 @@ exports.getProductByTypes = async (req, res) => {
                 },
             });
         }
-
         res.status(200).json({
             status: "success",
             message: "Products retrieved successfully",
@@ -225,7 +222,7 @@ exports.getProductByTypes = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error("Error in getProductByTypes:", error);
+
         res.status(error.message.includes("No products found") ? 404 : 500).json({
             status: "error",
             message: error.message || "Failed to retrieve products due to a server error.",
@@ -237,23 +234,22 @@ exports.getProductByTypes = async (req, res) => {
 exports.getProductsByCategories = async (req, res) => {
     const { category } = req.params;
     const { type, page, brand, price_min, price_max, rating } = req.query;
-    try {
-        if (!category) {
-            return res.status(400).json({
-                status: "error",
-                message: "Category is required.",
-            });
-        }
+    console.log("category", category);
+    if (!category || category === "") {
+        return res.status(400).json({
+            status: "error",
+            message: "Category is required.",
+        });
+    }
 
+    try {
         if (page && isNaN(parseInt(page))) {
             return res.status(400).json({
                 status: "error",
                 message: "Page must be a valid number.",
             });
         }
-
         const result = await productService.getProductsByCategories({ category, type, page, brand, price_min, price_max, rating });
-
         if (!result.products || result.products.length === 0) {
             return res.status(404).json({
                 status: "error",
@@ -267,7 +263,6 @@ exports.getProductsByCategories = async (req, res) => {
                 },
             });
         }
-
         res.status(200).json({
             status: "success",
             message: "Products retrieved successfully",
@@ -280,7 +275,7 @@ exports.getProductsByCategories = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error("Error in getProductsByCategories:", error);
+
         res.status(error.message.includes("No products found") ? 404 : 500).json({
             status: "error",
             message: error.message || "Failed to retrieve products due to a server error.",
@@ -315,7 +310,7 @@ exports.getRecommendations = async (req, res) => {
             data: detailedRecommendations,
         });
     } catch (error) {
-        console.error("Error in getRecommendations:", error);
+
         res.status(error.message.includes("No recommendations found") ? 404 : 500).json({
             status: "error",
             message: error.message || "Failed to retrieve recommendations due to a server error.",
@@ -357,7 +352,7 @@ exports.sessionBasedRecommendation = async (req, res) => {
             data: detailedRecommendations,
         });
     } catch (error) {
-        console.error("Error in sessionBasedRecommendation:", error);
+
         res.status(error.message.includes("No recommendations found") ? 404 : 500).json({
             status: "error",
             message: error.message || "Failed to retrieve recommendations due to a server error.",
@@ -392,7 +387,7 @@ exports.anonymousRecommendation = async (req, res) => {
             data: detailedRecommendations,
         });
     } catch (error) {
-        console.error("Error in anonymousRecommendation:", error);
+
         res.status(error.message.includes("No recommendations found") ? 404 : 500).json({
             status: "error",
             message: error.message || "Failed to retrieve recommendations due to a server error.",
@@ -419,7 +414,7 @@ exports.getTopTrendingProducts = async (req, res) => {
             data: productsWithTrend,
         });
     } catch (error) {
-        console.error("Error in getTopTrendingProducts:", error);
+
         res.status(500).json({
             status: "error",
             message: error.message || "Failed to retrieve trending products due to a server error.",
@@ -454,7 +449,7 @@ exports.searchProducts = async (req, res) => {
             data: products,
         });
     } catch (error) {
-        console.error("Error in searchProducts:", error);
+
         res.status(error.message.includes("Search query is required") ? 400 : 500).json({
             status: "error",
             message: error.message || "Failed to retrieve search results due to a server error.",
@@ -514,7 +509,7 @@ exports.searchProductsPaginated = async (req, res) => {
             },
         });
     } catch (error) {
-        console.error("Error in searchProductsPaginated:", error);
+
         res.status(error.message.includes("Search query is required") ? 400 : 500).json({
             status: "error",
             message: error.message || "Failed to retrieve search results due to a server error.",

@@ -23,7 +23,7 @@ class CustomReporter {
     async onTestResult(testSuite, testResult) {
         for (const test of testResult.testResults) {
             const status = test.status === 'passed' ? '✅ passed' : '❌ failed';
-            const { route, description, category } = this.extractRouteAndDescription(test.fullName);
+            const { route, description, category } = this.extractRouteAndDescription(test);
 
             // Initialize the category if it doesn't exist
             if (!this.testCategories[category]) {
@@ -52,7 +52,6 @@ class CustomReporter {
             console.log("----------------------------------------");
 
             for (const test of this.testCategories[category].tests) {
-                // Simplified terminal output: only route, description, and status
                 console.log(`Route: ${test.route}`);
                 console.log(`Description: ${test.description}`);
                 console.log(`Status: ${test.status}\n`);
@@ -89,7 +88,8 @@ class CustomReporter {
                 this.output += "____\n";
             }
         }
-        // Write detailed test results to the file
+
+        // Write summary to the file
         this.output += "\n========================================\n";
         this.output += "📊 Summary:\n";
         this.output += "----------------------------------------\n";
@@ -110,17 +110,37 @@ class CustomReporter {
         return '';
     }
 
-    extractRouteAndDescription(testName) {
-        const parts = testName.split(' ');
-        const shouldIndex = parts.indexOf('should');
-        if (shouldIndex === -1) return { route: '', description: '', category: 'Uncategorized' };
+    extractRouteAndDescription(test) {
+        // Extract description directly from the test title
+        const description = test.title || 'Unnamed Test';
 
-        const route = parts.slice(3, shouldIndex).join(' '); // Extract route before 'should'
-        const description = parts.slice(shouldIndex + 1).join(' '); // Capture description starting from 'should'
+        // Extract category from the ancestor titles (describe blocks)
+        const category = test.ancestorTitles.length > 1
+            ? test.ancestorTitles[1] // e.g., 'getAllProducts'
+            : 'Uncategorized';
 
-        // Extract category based on the first meaningful segment of the route
-        const routeParts = route.split('/');
-        const category = routeParts[3] || 'Uncategorized';
+        // Try to get the route from metadata attached to the test
+        let route = test.route || '';
+
+        // Fallback: Infer route from the category (describe block) if metadata is missing
+        if (!route) {
+            const endpointMapping = {
+                'getAllProducts': '/products/all',
+                'getProductById': '/products/get/:id',
+                'getAllTypes': '/products/types',
+                'getTypesByCategory': '/products/types/:category',
+                'getAllCategories': '/products/categories',
+                'getProductByTypes': '/products/type/:type',
+                'getProductsByCategories': '/products/category/:category',
+                'getRecommendations': '/products/recommendations/:product_id',
+                'sessionBasedRecommendation': '/products/session-recommendations',
+                'anonymousRecommendation': '/products/anonymous-recommendations',
+                'getTopTrendingProducts': '/products/trending',
+                'searchProducts': '/products/search',
+                'searchProductsPaginated': '/products/search/paginated',
+            };
+            route = endpointMapping[category] || 'Unknown Route';
+        }
 
         return { route, description, category };
     }

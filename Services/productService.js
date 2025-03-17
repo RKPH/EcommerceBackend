@@ -186,6 +186,8 @@ exports.getAllTypes = async () => {
 };
 
 exports.getTypesByCategory = async (category) => {
+    console.log("receive: ", category);
+
     if (!category) throw new Error("Category is required");
     return await Product.distinct("type", { category });
 };
@@ -402,7 +404,7 @@ exports.searchProducts = async (query, { category, priceMin, priceMax, offset = 
                 'api-key': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.SWMCjlnWh7pD_BlK885iwtg30KtPXcngjNkTd8BuFAU',
             },
         });
-        console.log(`Qdrant API call took: ${(Date.now() - startTime) / 1000} seconds`);
+        console.log(`Qdrant API callssss took: ${(Date.now() - startTime) / 1000} seconds`);
 
         if (response.status !== 200 || response.data.status !== 'ok') {
             throw new Error('Qdrant scroll failed: ' + JSON.stringify(response.data));
