@@ -1,1 +1,11 @@
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzQwNDNiOTFjNjQwOGQ3ODNmNjhlZTYiLCJzZXNzaW9uSUQiOiIxNGVmZWU4OC0xNWJhLTQwMTEt
+========================================
+ MongoDB connected successfully
+----------------------------------------
+
+========================================
+📊 Summary:
+----------------------------------------
+✔ Test Suites: 0 Passed (1 Total)
+✔ Tests:       0 Passed (0 Total)
+✔ Time Taken:  0.615 seconds
+========================================

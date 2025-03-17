@@ -7,6 +7,7 @@
     const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');  // Import JWT generation utility
     const { v4: uuidv4 } = require('uuid');
     const {sendRefundFailedEmail,sendRefundSuccessEmail,sendRefundRequestEmail} = require('../Services/Email');
+    const userService = require('../Services/userService');
     const Review =  require('../models/reviewSchema');
     const productService = require('../Services/productService');
     // Get Monthly Revenue
@@ -1169,36 +1170,12 @@
             const search = req.query.search || "";
             const role = req.query.role || "";
 
-            const query = {
-                $or: [
-                    { name: { $regex: search, $options: "i" } },
-                    { email: { $regex: search, $options: "i" } },
-                ],
-            };
-
-            if (role) {
-                query.role = role;
-            }
-
-            const totalItems = await User.countDocuments(query);
-            const totalPages = Math.ceil(totalItems / limit);
-
-            const users = await User.find(query)
-                .select("name avatar user_id role createdAt email") // Exclude sensitive fields like password
-                .skip((page - 1) * limit)
-                .limit(limit)
-                .sort({ createdAt: -1 }) // Sort by creation date, newest first
-                .lean();
+            const result = await userService.getAllUsers(page, limit, search, role);
 
             res.status(200).json({
                 status: "success",
-                data: users,
-                pagination: {
-                    totalItems,
-                    totalPages,
-                    currentPage: page,
-                    itemsPerPage: limit,
-                },
+                data: result.users,
+                pagination: result.pagination,
             });
         } catch (error) {
             console.error("Error fetching users:", error);
@@ -1211,43 +1188,19 @@
 
     const getUserDetails = async (req, res) => {
         try {
-            let { id } = req.params; // user_id from the URL
-            console.log("id", id, typeof(id));
-            // Find the user by user_id
-            id= parseInt(id.trim(), 10);
-            const user = await User.findOne({ user_id: id }, { password: 0, salt: 0, verificationCode: 0, resetToken: 0, restTokenExpiry: 0, __v: 0 });
-            if (!user) {
-                return res.status(404).json({
-                    status: 'error',
-                    message: 'User not found.',
-                });
-            }
+            const { id } = req.params; // user_id from the URL
+            const user = await userService.getUserDetails(id);
 
-            // Prepare the response data
-            const userData = {
-                user_id: user.user_id,
-                name: user.name,
-                email: user.email,
-                avatar: user.avatar || null,
-                role: user.role,
-                isVerified: user.isVerified,
-                createdAt: user.createdAt,
-                updatedAt: user.updatedAt,
-            };
-
-            // Respond with success
             return res.status(200).json({
                 status: 'success',
                 message: 'User details retrieved successfully.',
-                data: userData,
+                data: user,
             });
         } catch (error) {
             console.error('Error fetching user details:', error);
-
-            // Generic server error
             return res.status(500).json({
                 status: 'error',
-                message: 'An unexpected error occurred while fetching user details.',
+                message: error.message || 'An unexpected error occurred while fetching user details.',
             });
         }
     };

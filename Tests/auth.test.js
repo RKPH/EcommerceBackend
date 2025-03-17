@@ -1,97 +1,425 @@
-const supertest = require('supertest');
+// authController.test.js
+const request = require('supertest');
+const express = require('express');
 const mongoose = require('mongoose');
-const {generateJwt} = require('../utils/jwt')
-const app = require('../app');
-const User = require('../models/user'); // Assuming you have a User model
+const { MongoMemoryServer } = require('mongodb-memory-server');
+const authController = require('../controllers/authController');
+const authService = require('../Services/authService');
+const { verifyRefreshToken } = require('../utils/jwt');
 
-const dbURI = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}/${process.env.DB_NAME}?retryWrites=true&w=majority`;
+// Mock authService
+jest.mock('../Services/authService', () => ({
+    registerUser: jest.fn(),
+    loginUser: jest.fn(),
+    verifyUser: jest.fn(),
+    forgotPassword: jest.fn(),
+    resetPassword: jest.fn(),
+    getUserProfile: jest.fn(),
+    refreshAccessToken: jest.fn(),
+}));
+
+// Mock verifyRefreshToken
+jest.mock('../utils/jwt', () => ({
+    verifyRefreshToken: jest.fn(),
+}));
+
+// Create an Express app for testing
+const app = express();
+app.use(express.json());
+
+// Define routes for authController
+app.post('/api/v1/auth/register', authController.registerUser);
+app.post('/api/v1/auth/login', authController.loginUser);
+
+// Middleware to mock authenticated user for private routes
+const mockAuthMiddleware = (req, res, next) => {
+    req.user = req.user || { userId: 1, sessionID: 'session123' };
+    next();
+};
+
+app.post('/api/v1/auth/verify', mockAuthMiddleware, authController.verifyUser);
+app.post('/api/v1/auth/forgot-password', authController.forgotPassword);
+app.post('/api/v1/auth/reset-password', authController.resetPassword);
+app.get('/api/v1/auth/profile', mockAuthMiddleware, authController.getUserProfile);
+app.post('/api/v1/auth/refresh-token', authController.refreshAccessToken);
+app.post('/api/v1/auth/logout', mockAuthMiddleware, authController.logoutUser);
+
+let mongoServer;
 
 beforeAll(async () => {
-    await mongoose.connect(dbURI, { useNewUrlParser: true, useUnifiedTopology: true });
+    mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
 });
 
 afterAll(async () => {
-    await mongoose.connection.close();
+    await mongoose.disconnect();
+    await mongoServer.stop();
 });
 
-describe('Auth Routes', () => {
-    let createdUser; // Variable to store the created user for register tests
-    let token;
-    describe('POST /api/v1/auth/register', () => {
-        afterEach(async () => {
-            if (createdUser) {
-                await User.deleteOne({ _id: createdUser.id });
-                createdUser = null; // Reset the variable after deletion
-            }
+beforeEach(() => {
+    jest.clearAllMocks();
+});
+
+// Helper to define tests with route metadata
+const itWithRoute = (description, route, testFn) => {
+    it(description, async () => {
+        const result = testFn();
+        // Attach route metadata to the test context
+        Object.defineProperty(result, 'route', {
+            value: route,
+            enumerable: true,
         });
+        await result;
+    });
+};
 
-        it('should register a new user successfully', async () => {
-            const user = { name: 'Test6', email: 'test8@example.com', password: 'password123' };
-            const response = await supertest(app).post('/api/v1/auth/register').send(user);
+describe('Auth Controller', () => {
+    describe('registerUser', () => {
+        itWithRoute('should return 201 with user data and tokens on successful registration', '/api/v1/auth/register', async () => {
+            const mockResult = {
+                token: 'access-token',
+                refreshToken: 'refresh-token',
+                user: { id: 1, name: 'Test User' },
+            };
+            authService.registerUser.mockResolvedValue(mockResult);
 
-            expect(response.status).toBe(201);
+            const response = await request(app)
+                .post('/api/v1/auth/register')
+                .send({ name: 'Test User', email: 'test@example.com', password: 'password123' })
+                .expect(201);
+
             expect(response.body.message).toBe('User registered successfully');
-            expect(response.body.user).toMatchObject({ name: user.name, email: user.email });
-
-            // Store the created user for cleanup
-            createdUser = await User.findOne({ email: user.email });
-            expect(createdUser).not.toBeNull();
-            token=generateJwt(createdUser.id);
-            console.log("created test user token:", token);
-
+            expect(response.body).toEqual({
+                message: 'User registered successfully',
+                token: 'access-token',
+                refreshToken: 'refresh-token',
+                user: { id: 1, name: 'Test User' },
+            });
+            expect(authService.registerUser).toHaveBeenCalledWith({
+                name: 'Test User',
+                email: 'test@example.com',
+                password: 'password123',
+            });
+            expect(response.header['set-cookie']).toBeDefined();
         });
 
-        it('should fail when email already exists', async () => {
-            const user = { name: 'Test', email: 'test@example.com', password: 'password123' };
-            const response = await supertest(app).post('/api/v1/auth/register').send(user);
-            expect(response.status).toBe(400);
+        itWithRoute('should return 400 if user already exists', '/api/v1/auth/register', async () => {
+            authService.registerUser.mockRejectedValue(new Error('User already exists'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/register')
+                .send({ name: 'Test User', email: 'test@example.com', password: 'password123' })
+                .expect(400);
+
             expect(response.body.message).toBe('User already exists');
+            expect(authService.registerUser).toHaveBeenCalled();
         });
 
-        it('should fail when required fields are missing', async () => {
-            const response = await supertest(app).post('/api/v1/auth/register').send({ email: 'test@example.com' });
-            expect(response.status).toBe(400);
+        itWithRoute('should return 500 on service error', '/api/v1/auth/register', async () => {
+            authService.registerUser.mockRejectedValue(new Error('Server error'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/register')
+                .send({ name: 'Test User', email: 'test@example.com', password: 'password123' })
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error');
+            expect(authService.registerUser).toHaveBeenCalled();
         });
     });
 
-    describe('POST /api/v1/auth/login', () => {
-        it('should login successfully with correct credentials', async () => {
-            const loginData = { email: 'test@example.com', password: 'password123' };
-            const response = await supertest(app).post('/api/v1/auth/login').send(loginData);
+    describe('loginUser', () => {
+        itWithRoute('should return 200 with user data and tokens on successful login', '/api/v1/auth/login', async () => {
+            const mockResult = {
+                token: 'access-token',
+                refreshToken: 'refresh-token',
+                user: { id: 1, name: 'Test User' },
+            };
+            authService.loginUser.mockResolvedValue(mockResult);
 
-            expect(response.status).toBe(200);
+            const response = await request(app)
+                .post('/api/v1/auth/login')
+                .send({ email: 'test@example.com', password: 'password123' })
+                .expect(200);
+
             expect(response.body.message).toBe('Login successful');
-            expect(response.body.user).toMatchObject({ email: loginData.email });
+            expect(response.body).toEqual({
+                message: 'Login successful',
+                token: 'access-token',
+                refreshToken: 'refresh-token',
+                user: { id: 1, name: 'Test User' },
+            });
+            expect(authService.loginUser).toHaveBeenCalledWith({
+                email: 'test@example.com',
+                password: 'password123',
+            });
+            expect(response.header['set-cookie']).toBeDefined();
         });
 
-        it('should fail with incorrect password', async () => {
-            const loginData = { email: 'test@example.com', password: 'wrongpassword' };
-            const response = await supertest(app).post('/api/v1/auth/login').send(loginData);
+        itWithRoute('should return 401 for invalid credentials', '/api/v1/auth/login', async () => {
+            authService.loginUser.mockRejectedValue(new Error('Invalid email or password'));
 
-            expect(response.status).toBe(401);
+            const response = await request(app)
+                .post('/api/v1/auth/login')
+                .send({ email: 'test@example.com', password: 'wrong' })
+                .expect(401);
+
             expect(response.body.message).toBe('Invalid email or password');
+            expect(authService.loginUser).toHaveBeenCalled();
         });
 
-        it('should fail with non-existent email', async () => {
-            const loginData = { email: 'notexist@example.com', password: 'password123' };
-            const response = await supertest(app).post('/api/v1/auth/login').send(loginData);
+        itWithRoute('should return 500 on service error', '/api/v1/auth/login', async () => {
+            authService.loginUser.mockRejectedValue(new Error('Server error'));
 
-            expect(response.status).toBe(401);
-            expect(response.body.message).toBe('Invalid email or password');
-        });
+            const response = await request(app)
+                .post('/api/v1/auth/login')
+                .send({ email: 'test@example.com', password: 'password123' })
+                .expect(500);
 
-        it('should fail when required fields are missing', async () => {
-            const response = await supertest(app).post('/api/v1/auth/login').send({ email: 'test@example.com' });
-            expect(response.status).toBe(400);
+            expect(response.body.message).toBe('Server error');
+            expect(authService.loginUser).toHaveBeenCalled();
         });
     });
 
-    describe('GET /api/v1/auth/profile', ()=> {
-        const token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2NzQwNDNiOTFjNjQwOGQ3ODNmNjhlZTYiLCJpYXQiOjE3MzI1NTc1MzcsImV4cCI6MTczMjU2MTEzN30.kGscjzsDtyoYVerWunz2SpqFDqqeUi4edr1Qmjc5w3Q";
-        it('should return user information when authenticated', async () => {
-            const response = await supertest(app).get('/api/v1/auth/profile').set('Authorization', `Bearer ${token}`);
-            expect(response.status).toBe(200);
+    describe('verifyUser', () => {
+        itWithRoute('should return 200 on successful verification', '/api/v1/auth/verify', async () => {
+            const mockResult = { user: { id: 1, name: 'Test User' } };
+            authService.verifyUser.mockResolvedValue(mockResult);
 
-        })
-    })
+            const response = await request(app)
+                .post('/api/v1/auth/verify')
+                .send({ verificationCode: '123456' })
+                .expect(200);
+
+            expect(response.body.message).toBe('User verified successfully');
+            expect(response.body.user).toEqual(mockResult.user);
+            expect(authService.verifyUser).toHaveBeenCalledWith({ userId: 1, verificationCode: '123456' });
+        });
+
+        itWithRoute('should return 400 for invalid verification code', '/api/v1/auth/verify', async () => {
+            authService.verifyUser.mockRejectedValue(new Error('Invalid verification code'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/verify')
+                .send({ verificationCode: 'wrong' })
+                .expect(400);
+
+            expect(response.body.message).toBe('Invalid verification code');
+            expect(authService.verifyUser).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on service error', '/api/v1/auth/verify', async () => {
+            authService.verifyUser.mockRejectedValue(new Error('Server error'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/verify')
+                .send({ verificationCode: '123456' })
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error');
+            expect(authService.verifyUser).toHaveBeenCalled();
+        });
+    });
+
+    describe('forgotPassword', () => {
+        itWithRoute('should return 200 on successful forgot password request', '/api/v1/auth/forgot-password', async () => {
+            const mockResult = { message: 'Email sent' };
+            authService.forgotPassword.mockResolvedValue(mockResult);
+
+            const response = await request(app)
+                .post('/api/v1/auth/forgot-password')
+                .send({ email: 'test@example.com' })
+                .expect(200);
+
+            expect(response.body.message).toBe('Email sent');
+            expect(authService.forgotPassword).toHaveBeenCalledWith({ email: 'test@example.com' });
+        });
+
+        itWithRoute('should return 404 if user not found', '/api/v1/auth/forgot-password', async () => {
+            authService.forgotPassword.mockRejectedValue(new Error('User not found'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/forgot-password')
+                .send({ email: 'nonexistent@example.com' })
+                .expect(404);
+
+            expect(response.body.message).toBe('User not found');
+            expect(authService.forgotPassword).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on service error', '/api/v1/auth/forgot-password', async () => {
+            authService.forgotPassword.mockRejectedValue(new Error('Server error'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/forgot-password')
+                .send({ email: 'test@example.com' })
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error');
+            expect(authService.forgotPassword).toHaveBeenCalled();
+        });
+    });
+
+    describe('resetPassword', () => {
+        itWithRoute('should return 200 on successful password reset', '/api/v1/auth/reset-password', async () => {
+            const mockResult = { message: 'Password reset successful' };
+            authService.resetPassword.mockResolvedValue(mockResult);
+
+            const response = await request(app)
+                .post('/api/v1/auth/reset-password')
+                .send({ token: 'reset-token', password: 'newpassword123' })
+                .expect(200);
+
+            expect(response.body.message).toBe('Password reset successful');
+            expect(authService.resetPassword).toHaveBeenCalledWith({ token: 'reset-token', password: 'newpassword123' });
+        });
+
+        itWithRoute('should return 400 for invalid token', '/api/v1/auth/reset-password', async () => {
+            authService.resetPassword.mockRejectedValue(new Error('Invalid token'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/reset-password')
+                .send({ token: 'invalid-token', password: 'newpassword123' })
+                .expect(400);
+
+            expect(response.body.message).toBe('Invalid token');
+            expect(authService.resetPassword).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on service error', '/api/v1/auth/reset-password', async () => {
+            authService.resetPassword.mockRejectedValue(new Error('Server error'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/reset-password')
+                .send({ token: 'reset-token', password: 'newpassword123' })
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error');
+            expect(authService.resetPassword).toHaveBeenCalled();
+        });
+    });
+
+    describe('getUserProfile', () => {
+        itWithRoute('should return 200 with user profile data', '/api/v1/auth/profile', async () => {
+            const mockResult = { user: { id: 1, name: 'Test User' } };
+            authService.getUserProfile.mockResolvedValue(mockResult);
+
+            const response = await request(app)
+                .get('/api/v1/auth/profile')
+                .expect(200);
+
+            expect(response.body.message).toBe('User profile fetched successfully');
+            expect(response.body.user).toEqual(mockResult.user);
+            expect(authService.getUserProfile).toHaveBeenCalledWith({ userId: 1, sessionID: 'session123' });
+        });
+
+        itWithRoute('should return 404 if user not found', '/api/v1/auth/profile', async () => {
+            authService.getUserProfile.mockRejectedValue(new Error('User not found'));
+
+            const response = await request(app)
+                .get('/api/v1/auth/profile')
+                .expect(404);
+
+            expect(response.body.message).toBe('User not found');
+            expect(authService.getUserProfile).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on service error', '/api/v1/auth/profile', async () => {
+            authService.getUserProfile.mockRejectedValue(new Error('Server error'));
+
+            const response = await request(app)
+                .get('/api/v1/auth/profile')
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error');
+            expect(authService.getUserProfile).toHaveBeenCalled();
+        });
+    });
+
+    describe('refreshAccessToken', () => {
+        itWithRoute('should return 200 with new tokens when refresh token is valid (via header)', '/api/v1/auth/refresh-token', async () => {
+            verifyRefreshToken.mockReturnValue({ userId: 1, sessionID: 'session123' });
+            const mockResult = {
+                accessToken: 'new-access-token',
+                newRefreshToken: 'new-refresh-token',
+            };
+            authService.refreshAccessToken.mockResolvedValue(mockResult);
+
+            const response = await request(app)
+                .post('/api/v1/auth/refresh-token')
+                .set('Authorization', 'Bearer refresh-token')
+                .expect(200);
+
+            expect(response.body.message).toBe('New access token generated successfully');
+            expect(response.body.token).toBe('new-access-token');
+            expect(response.body.refreshToken).toBe('new-refresh-token');
+            expect(verifyRefreshToken).toHaveBeenCalledWith('refresh-token');
+            expect(authService.refreshAccessToken).toHaveBeenCalledWith({ userId: 1, sessionID: 'session123' });
+            expect(response.header['set-cookie']).toBeDefined();
+        });
+
+        itWithRoute('should return 401 if no refresh token provided', '/api/v1/auth/refresh-token', async () => {
+            const response = await request(app)
+                .post('/api/v1/auth/refresh-token')
+                .expect(401);
+
+            expect(response.body.message).toBe('No refresh token provided');
+            expect(verifyRefreshToken).not.toHaveBeenCalled();
+            expect(authService.refreshAccessToken).not.toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 401 if refresh token is invalid', '/api/v1/auth/refresh-token', async () => {
+            verifyRefreshToken.mockReturnValue(null);
+
+            const response = await request(app)
+                .post('/api/v1/auth/refresh-token')
+                .set('Authorization', 'Bearer invalid-token')
+                .expect(401);
+
+            expect(response.body.message).toBe('Invalid or expired refresh token');
+            expect(verifyRefreshToken).toHaveBeenCalledWith('invalid-token');
+            expect(authService.refreshAccessToken).not.toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on service error', '/api/v1/auth/refresh-token', async () => {
+            verifyRefreshToken.mockReturnValue({ userId: 1, sessionID: 'session123' });
+            authService.refreshAccessToken.mockRejectedValue(new Error('Server error'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/refresh-token')
+                .set('Authorization', 'Bearer refresh-token')
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error');
+            expect(verifyRefreshToken).toHaveBeenCalled();
+            expect(authService.refreshAccessToken).toHaveBeenCalled();
+        });
+    });
+
+    describe('logoutUser', () => {
+        itWithRoute('should return 200 on successful logout', '/api/v1/auth/logout', async () => {
+            const response = await request(app)
+                .post('/api/v1/auth/logout')
+                .expect(200);
+
+            expect(response.body.message).toBe('Logout successful');
+            expect(response.header['set-cookie']).toBeDefined(); // Cookies should be cleared
+        });
+
+        itWithRoute('should return 500 on error during logout', '/api/v1/auth/logout', async () => {
+            // Simulate an error by mocking express response to throw on clearCookie
+            const originalClearCookie = app.response.clearCookie;
+            app.response.clearCookie = jest.fn(() => { throw new Error('Clear cookie error'); });
+
+            const response = await request(app)
+                .post('/api/v1/auth/logout')
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error during logout');
+
+            // Restore original clearCookie
+            app.response.clearCookie = originalClearCookie;
+        });
+    });
 });

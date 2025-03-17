@@ -1,3 +1,4 @@
+// customReporter.js
 const fs = require('fs');
 
 // Utility function to remove ANSI escape sequences (for color)
@@ -21,9 +22,10 @@ class CustomReporter {
     }
 
     async onTestResult(testSuite, testResult) {
+
         for (const test of testResult.testResults) {
             const status = test.status === 'passed' ? '✅ passed' : '❌ failed';
-            const { route, description, category } = this.extractRouteAndDescription(test);
+            const { route, description, category } = this.extractRouteAndDescription(test, testSuite);
 
             // Initialize the category if it doesn't exist
             if (!this.testCategories[category]) {
@@ -110,36 +112,41 @@ class CustomReporter {
         return '';
     }
 
-    extractRouteAndDescription(test) {
+    extractRouteAndDescription(test, testSuite) {
         // Extract description directly from the test title
         const description = test.title || 'Unnamed Test';
 
         // Extract category from the ancestor titles (describe blocks)
         const category = test.ancestorTitles.length > 1
-            ? test.ancestorTitles[1] // e.g., 'getAllProducts'
+            ? test.ancestorTitles[1] // e.g., 'registerUser'
             : 'Uncategorized';
 
-        // Try to get the route from metadata attached to the test
+        // Use the route metadata attached by itWithRoute as the primary source
         let route = test.route || '';
 
-        // Fallback: Infer route from the category (describe block) if metadata is missing
+        // Fallback: Infer route based on category if metadata is missing
         if (!route) {
-            const endpointMapping = {
-                'getAllProducts': '/products/all',
-                'getProductById': '/products/get/:id',
-                'getAllTypes': '/products/types',
-                'getTypesByCategory': '/products/types/:category',
-                'getAllCategories': '/products/categories',
-                'getProductByTypes': '/products/type/:type',
-                'getProductsByCategories': '/products/category/:category',
-                'getRecommendations': '/products/recommendations/:product_id',
-                'sessionBasedRecommendation': '/products/session-recommendations',
-                'anonymousRecommendation': '/products/anonymous-recommendations',
-                'getTopTrendingProducts': '/products/trending',
-                'searchProducts': '/products/search',
-                'searchProductsPaginated': '/products/search/paginated',
+            // Minimal mapping for inference based on context
+            const baseRoutes = {
+                'auth': '/api/v1/auth/',
+                'product': '/products/',
             };
-            route = endpointMapping[category] || 'Unknown Route';
+
+            // Safely check for testFilePath and infer the base route
+            let baseRoute = 'Unknown Route';
+            let filePath = testSuite && testSuite.testFilePath ? testSuite.testFilePath :
+                (testSuite && testSuite.context && testSuite.context.config && testSuite.context.config.testFilePath ? testSuite.context.config.testFilePath : '');
+            if (filePath && typeof filePath === 'string') {
+                if (filePath.includes('authController')) {
+                    baseRoute = baseRoutes['auth'];
+                } else if (filePath.includes('productController')) {
+                    baseRoute = baseRoutes['product'];
+                }
+            }
+
+            // Append the category as the endpoint (e.g., 'register-user' from 'registerUser')
+            const endpoint = category.replace(/([A-Z])/g, '-$1').toLowerCase(); // Removed substring(1)
+            route = baseRoute !== 'Unknown Route' ? `${baseRoute}${endpoint}` : `/${endpoint}`; // Use a default prefix if baseRoute fails
         }
 
         return { route, description, category };

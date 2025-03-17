@@ -1,3 +1,4 @@
+// authController.js
 const authService = require('../Services/authService');
 const { verifyRefreshToken } = require('../utils/jwt');
 
@@ -97,7 +98,7 @@ exports.forgotPassword = async (req, res) => {
         const { email } = req.body;
         const result = await authService.forgotPassword({ email });
 
-        res.json(result);
+        res.status(200).json(result); // Added 200 status for success
     } catch (error) {
         console.error("Forgot Password Error:", error.message);
         res.status(error.message.includes('not found') ? 404 : 500).json({ message: error.message });
@@ -112,7 +113,7 @@ exports.resetPassword = async (req, res) => {
         const { token, password } = req.body;
         const result = await authService.resetPassword({ token, password });
 
-        res.json(result);
+        res.status(200).json(result); // Added 200 status for success
     } catch (error) {
         console.error("Reset Password Error:", error.message);
         res.status(error.message.includes('Invalid') ? 400 : 500).json({ message: error.message });
@@ -133,7 +134,7 @@ exports.getUserProfile = async (req, res) => {
         });
     } catch (error) {
         console.error('Error fetching user profile:', error.message);
-        res.status(error.message.includes('not found') ? 401 : 500).json({ message: error.message });
+        res.status(error.message.includes('not found') ? 404 : 500).json({ message: error.message });
     }
 };
 
