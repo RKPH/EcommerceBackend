@@ -31,45 +31,21 @@ jest.mock('../Services/productService', () => ({
 // Create an Express app for testing
 const app = express();
 app.use(express.json());
-app.get('/products/trending', productController.getTopTrendingProducts);
-app.get('/products/search', productController.searchProducts);
-app.get('/products/all', productController.getAllProducts);
 
-app.get('/products/types', productController.getAllTypes);
-app.get('/products/types/:category?', (req, res, next) => {
-    if (!req.params.category) {
-        return res.status(400).json({
-            status: "error",
-            message: "Category is required.",
-        });
-    }
-    next();
-}, productController.getTypesByCategory);
-
-app.get('/products/categories', productController.getAllCategories);
-app.get('/products/type/:type?', (req, res, next) => {
-    if (!req.params.type) {
-        return res.status(400).json({
-            status: "error",
-            message: "Type is required.",
-        });
-    }
-    next();
-}, productController.getProductByTypes);
-app.get('/products/category/:category?', (req, res, next) => {
-    if (!req.params.category) {
-        return res.status(400).json({
-            status: "error",
-            message: "Category is required.",
-        });
-    }
-    next();
-}, productController.getProductsByCategories);
-app.get('/products/get/:id', productController.getProductById);
-app.get('/products/recommendations/:product_id', productController.getRecommendations);
-app.post('/products/session-recommendations', productController.sessionBasedRecommendation);
-app.post('/products/anonymous-recommendations', productController.anonymousRecommendation);
-app.get('/products/search/paginated', productController.searchProductsPaginated);
+// Định nghĩa các route theo router.js
+app.get('/api/v1/products/search', productController.searchProducts);
+app.get('/api/v1/products/searchFullPage', productController.searchProductsPaginated);
+app.get('/api/v1/products/types', productController.getAllTypes);
+app.get('/api/v1/products/types/category/:category', productController.getTypesByCategory);
+app.get('/api/v1/products/categories', productController.getAllCategories);
+app.get('/api/v1/products/type/:type', productController.getProductByTypes);
+app.get('/api/v1/products/category/:category', productController.getProductsByCategories);
+app.get('/api/v1/products/trending', productController.getTopTrendingProducts);
+app.get('/api/v1/products/all', productController.getAllProducts);
+app.get('/api/v1/products/:id', productController.getProductById);
+app.post('/api/v1/products/predict/:product_id', productController.getRecommendations);
+app.post('/api/v1/products/recommendations', productController.sessionBasedRecommendation);
+app.post('/api/v1/products/anomynus_recommendations', productController.anonymousRecommendation);
 
 let mongoServer;
 
@@ -92,7 +68,6 @@ beforeEach(() => {
 const itWithRoute = (description, route, testFn) => {
     it(description, async () => {
         const result = testFn();
-        // Attach route metadata to the test context
         Object.defineProperty(result, 'route', {
             value: route,
             enumerable: true,
@@ -103,7 +78,7 @@ const itWithRoute = (description, route, testFn) => {
 
 describe('Product Controller', () => {
     describe('getAllProducts', () => {
-        itWithRoute('should return 200 with products and pagination', '/products/all', async () => {
+        itWithRoute('should return 200 with products and pagination', '/api/v1/products/all', async () => {
             const mockResult = {
                 products: [{ product_id: 1, name: 'Product 1' }],
                 currentPage: 1,
@@ -114,7 +89,7 @@ describe('Product Controller', () => {
             productService.getAllProducts.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/all?page=1&limit=10')
+                .get('/api/v1/products/all?page=1&limit=10')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -135,9 +110,9 @@ describe('Product Controller', () => {
             });
         });
 
-        itWithRoute('should return 400 if page is invalid', '/products/all', async () => {
+        itWithRoute('should return 400 if page is invalid', '/api/v1/products/all', async () => {
             const response = await request(app)
-                .get('/products/all?page=invalid')
+                .get('/api/v1/products/all?page=invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -145,9 +120,9 @@ describe('Product Controller', () => {
             expect(productService.getAllProducts).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 400 if limit is invalid', '/products/all', async () => {
+        itWithRoute('should return 400 if limit is invalid', '/api/v1/products/all', async () => {
             const response = await request(app)
-                .get('/products/all?page=1&limit=invalid')
+                .get('/api/v1/products/all?page=1&limit=invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -155,7 +130,7 @@ describe('Product Controller', () => {
             expect(productService.getAllProducts).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no products found', '/products/all', async () => {
+        itWithRoute('should return 404 if no products found', '/api/v1/products/all', async () => {
             const mockResult = {
                 products: [],
                 currentPage: 1,
@@ -166,7 +141,7 @@ describe('Product Controller', () => {
             productService.getAllProducts.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/all')
+                .get('/api/v1/products/all')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -181,11 +156,11 @@ describe('Product Controller', () => {
             expect(productService.getAllProducts).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 500 on service error', '/products/all', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/all', async () => {
             productService.getAllProducts.mockRejectedValue(new Error('Failed to retrieve products due to a server error.'));
 
             const response = await request(app)
-                .get('/products/all')
+                .get('/api/v1/products/all')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -195,7 +170,7 @@ describe('Product Controller', () => {
     });
 
     describe('getProductById', () => {
-        itWithRoute('should return 200 with product data', '/products/get/:id', async () => {
+        itWithRoute('should return 200 with product data', '/api/v1/products/:id', async () => {
             const mockResult = {
                 product: { product_id: 1, name: 'Product 1' },
                 productId: '1',
@@ -203,7 +178,7 @@ describe('Product Controller', () => {
             productService.getProductById.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/get/1')
+                .get('/api/v1/products/1')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -212,9 +187,9 @@ describe('Product Controller', () => {
             expect(productService.getProductById).toHaveBeenCalledWith('1');
         });
 
-        itWithRoute('should return 400 if id is invalid', '/products/get/:id', async () => {
+        itWithRoute('should return 400 if id is invalid', '/api/v1/products/:id', async () => {
             const response = await request(app)
-                .get('/products/get/invalid')
+                .get('/api/v1/products/invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -222,11 +197,11 @@ describe('Product Controller', () => {
             expect(productService.getProductById).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if product not found', '/products/get/:id', async () => {
+        itWithRoute('should return 404 if product not found', '/api/v1/products/:id', async () => {
             productService.getProductById.mockResolvedValue({ product: null, productId: '999' });
 
             const response = await request(app)
-                .get('/products/get/999')
+                .get('/api/v1/products/999')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -235,11 +210,11 @@ describe('Product Controller', () => {
             expect(productService.getProductById).toHaveBeenCalledWith('999');
         });
 
-        itWithRoute('should return 500 on service error', '/products/get/:id', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/:id', async () => {
             productService.getProductById.mockRejectedValue(new Error('Failed to retrieve product due to a server error.'));
 
             const response = await request(app)
-                .get('/products/get/1')
+                .get('/api/v1/products/1')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -249,12 +224,12 @@ describe('Product Controller', () => {
     });
 
     describe('getAllTypes', () => {
-        itWithRoute('should return 200 with types', '/products/types', async () => {
+        itWithRoute('should return 200 with types', '/api/v1/products/types', async () => {
             const mockTypes = ['Type1', 'Type2'];
             productService.getAllTypes.mockResolvedValue(mockTypes);
 
             const response = await request(app)
-                .get('/products/types')
+                .get('/api/v1/products/types')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -263,11 +238,11 @@ describe('Product Controller', () => {
             expect(productService.getAllTypes).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no types found', '/products/types', async () => {
+        itWithRoute('should return 404 if no types found', '/api/v1/products/types', async () => {
             productService.getAllTypes.mockResolvedValue([]);
 
             const response = await request(app)
-                .get('/products/types')
+                .get('/api/v1/products/types')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -276,11 +251,11 @@ describe('Product Controller', () => {
             expect(productService.getAllTypes).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 500 on service error', '/products/types', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/types', async () => {
             productService.getAllTypes.mockRejectedValue(new Error('Failed to retrieve types due to a server error.'));
 
             const response = await request(app)
-                .get('/products/types')
+                .get('/api/v1/products/types')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -290,12 +265,12 @@ describe('Product Controller', () => {
     });
 
     describe('getTypesByCategory', () => {
-        itWithRoute('should return 200 with types for a category', '/products/types/:category', async () => {
+        itWithRoute('should return 200 with types for a category', '/api/v1/products/types/category/:category', async () => {
             const mockTypes = ['Type1', 'Type2'];
             productService.getTypesByCategory.mockResolvedValue(mockTypes);
 
             const response = await request(app)
-                .get('/products/types/Electronics')
+                .get('/api/v1/products/types/category/Electronics')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -304,9 +279,9 @@ describe('Product Controller', () => {
             expect(productService.getTypesByCategory).toHaveBeenCalledWith('Electronics');
         });
 
-        itWithRoute('should return 400 if category is missing', '/products/types/:category', async () => {
+        itWithRoute('should return 400 if category is missing', '/api/v1/products/types/category/:category', async () => {
             const response = await request(app)
-                .get('/products/types/%20')
+                .get('/api/v1/products/types/category/%20') // Để trống sau "category/"
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -314,11 +289,11 @@ describe('Product Controller', () => {
             expect(productService.getTypesByCategory).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no types found for category', '/products/types/:category', async () => {
+        itWithRoute('should return 404 if no types found for category', '/api/v1/products/types/category/:category', async () => {
             productService.getTypesByCategory.mockResolvedValue([]);
 
             const response = await request(app)
-                .get('/products/types/Electronics')
+                .get('/api/v1/products/types/category/Electronics')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -327,11 +302,11 @@ describe('Product Controller', () => {
             expect(productService.getTypesByCategory).toHaveBeenCalledWith('Electronics');
         });
 
-        itWithRoute('should return 500 on service error', '/products/types/:category', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/types/category/:category', async () => {
             productService.getTypesByCategory.mockRejectedValue(new Error('Failed to retrieve types due to a server error.'));
 
             const response = await request(app)
-                .get('/products/types/Electronics')
+                .get('/api/v1/products/types/category/Electronics')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -341,12 +316,12 @@ describe('Product Controller', () => {
     });
 
     describe('getAllCategories', () => {
-        itWithRoute('should return 200 with categories', '/products/categories', async () => {
+        itWithRoute('should return 200 with categories', '/api/v1/products/categories', async () => {
             const mockCategories = ['Electronics', 'Clothing'];
             productService.getAllCategories.mockResolvedValue(mockCategories);
 
             const response = await request(app)
-                .get('/products/categories')
+                .get('/api/v1/products/categories')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -355,11 +330,11 @@ describe('Product Controller', () => {
             expect(productService.getAllCategories).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no categories found', '/products/categories', async () => {
+        itWithRoute('should return 404 if no categories found', '/api/v1/products/categories', async () => {
             productService.getAllCategories.mockResolvedValue([]);
 
             const response = await request(app)
-                .get('/products/categories')
+                .get('/api/v1/products/categories')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -368,11 +343,11 @@ describe('Product Controller', () => {
             expect(productService.getAllCategories).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 500 on service error', '/products/categories', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/categories', async () => {
             productService.getAllCategories.mockRejectedValue(new Error('Failed to retrieve categories due to a server error.'));
 
             const response = await request(app)
-                .get('/products/categories')
+                .get('/api/v1/products/categories')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -382,7 +357,7 @@ describe('Product Controller', () => {
     });
 
     describe('getProductByTypes', () => {
-        itWithRoute('should return 200 with products by type', '/products/type/:type', async () => {
+        itWithRoute('should return 200 with products by type', '/api/v1/products/type/:type', async () => {
             const mockResult = {
                 products: [{ product_id: 1, name: 'Product 1' }],
                 totalProducts: 1,
@@ -393,7 +368,7 @@ describe('Product Controller', () => {
             productService.getProductByTypes.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/type/smartphone?page=1')
+                .get('/api/v1/products/type/smartphone?page=1')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -415,9 +390,9 @@ describe('Product Controller', () => {
             });
         });
 
-        itWithRoute('should return 400 if type is missing', '/products/type/:type', async () => {
+        itWithRoute('should return 400 if type is missing', '/api/v1/products/type/:type', async () => {
             const response = await request(app)
-                .get('/products/type') // Remove trailing slash
+                .get('/api/v1/products/type/%20') // Để trống sau "type/"
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -425,9 +400,9 @@ describe('Product Controller', () => {
             expect(productService.getProductByTypes).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 400 if page is invalid', '/products/type/:type', async () => {
+        itWithRoute('should return 400 if page is invalid', '/api/v1/products/type/:type', async () => {
             const response = await request(app)
-                .get('/products/type/Phone?page=invalid')
+                .get('/api/v1/products/type/Phone?page=invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -435,7 +410,7 @@ describe('Product Controller', () => {
             expect(productService.getProductByTypes).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no products found', '/products/type/:type', async () => {
+        itWithRoute('should return 404 if no products found', '/api/v1/products/type/:type', async () => {
             const mockResult = {
                 products: [],
                 totalProducts: 0,
@@ -446,7 +421,7 @@ describe('Product Controller', () => {
             productService.getProductByTypes.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/type/Phone')
+                .get('/api/v1/products/type/Phone')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -461,11 +436,11 @@ describe('Product Controller', () => {
             expect(productService.getProductByTypes).toHaveBeenCalledWith({ type: 'Phone' });
         });
 
-        itWithRoute('should return 500 on service error', '/products/type/:type', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/type/:type', async () => {
             productService.getProductByTypes.mockRejectedValue(new Error('Failed to retrieve products due to a server error.'));
 
             const response = await request(app)
-                .get('/products/type/Phone')
+                .get('/api/v1/products/type/Phone')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -475,7 +450,7 @@ describe('Product Controller', () => {
     });
 
     describe('getProductsByCategories', () => {
-        itWithRoute('should return 200 with products by category', '/products/category/:category', async () => {
+        itWithRoute('should return 200 with products by category', '/api/v1/products/category/:category', async () => {
             const mockResult = {
                 products: [{ product_id: 1, name: 'Product 1' }],
                 totalProducts: 1,
@@ -486,7 +461,7 @@ describe('Product Controller', () => {
             productService.getProductsByCategories.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/category/electronics?page=1')
+                .get('/api/v1/products/category/electronics?page=1')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -509,9 +484,9 @@ describe('Product Controller', () => {
             });
         });
 
-        itWithRoute('should return 400 if category is missing', '/products/category/:category', async () => {
+        itWithRoute('should return 400 if category is missing', '/api/v1/products/category/:category', async () => {
             const response = await request(app)
-                .get('/products/category/')
+                .get('/api/v1/products/category/%20') // Để trống sau "category/"
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -519,9 +494,9 @@ describe('Product Controller', () => {
             expect(productService.getProductsByCategories).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 400 if page is invalid', '/products/category/:category', async () => {
+        itWithRoute('should return 400 if page is invalid', '/api/v1/products/category/:category', async () => {
             const response = await request(app)
-                .get('/products/category/Electronics?page=invalid')
+                .get('/api/v1/products/category/Electronics?page=invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -529,7 +504,7 @@ describe('Product Controller', () => {
             expect(productService.getProductsByCategories).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no products found', '/products/category/:category', async () => {
+        itWithRoute('should return 404 if no products found', '/api/v1/products/category/:category', async () => {
             const mockResult = {
                 products: [],
                 totalProducts: 0,
@@ -540,7 +515,7 @@ describe('Product Controller', () => {
             productService.getProductsByCategories.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/category/Electronics')
+                .get('/api/v1/products/category/Electronics')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -555,11 +530,11 @@ describe('Product Controller', () => {
             expect(productService.getProductsByCategories).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 500 on service error', '/products/category/:category', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/category/:category', async () => {
             productService.getProductsByCategories.mockRejectedValue(new Error('Failed to retrieve products due to a server error.'));
 
             const response = await request(app)
-                .get('/products/category/Electronics')
+                .get('/api/v1/products/category/Electronics')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -569,12 +544,12 @@ describe('Product Controller', () => {
     });
 
     describe('getRecommendations', () => {
-        itWithRoute('should return 200 with recommendations', '/products/recommendations/:product_id', async () => {
+        itWithRoute('should return 200 with recommendations', '/api/v1/products/predict/:product_id', async () => {
             const mockRecommendations = [{ product_id: 2, name: 'Product 2' }];
             productService.getRecommendations.mockResolvedValue(mockRecommendations);
 
             const response = await request(app)
-                .get('/products/recommendations/1')
+                .post('/api/v1/products/predict/1')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -583,9 +558,9 @@ describe('Product Controller', () => {
             expect(productService.getRecommendations).toHaveBeenCalledWith('1');
         });
 
-        itWithRoute('should return 400 if product_id is invalid', '/products/recommendations/:product_id', async () => {
+        itWithRoute('should return 400 if product_id is invalid', '/api/v1/products/predict/:product_id', async () => {
             const response = await request(app)
-                .get('/products/recommendations/invalid')
+                .post('/api/v1/products/predict/invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -593,11 +568,11 @@ describe('Product Controller', () => {
             expect(productService.getRecommendations).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no recommendations found', '/products/recommendations/:product_id', async () => {
+        itWithRoute('should return 404 if no recommendations found', '/api/v1/products/predict/:product_id', async () => {
             productService.getRecommendations.mockResolvedValue([]);
 
             const response = await request(app)
-                .get('/products/recommendations/1')
+                .post('/api/v1/products/predict/1')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -606,11 +581,11 @@ describe('Product Controller', () => {
             expect(productService.getRecommendations).toHaveBeenCalledWith('1');
         });
 
-        itWithRoute('should return 500 on service error', '/products/recommendations/:product_id', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/predict/:product_id', async () => {
             productService.getRecommendations.mockRejectedValue(new Error('Failed to retrieve recommendations due to a server error.'));
 
             const response = await request(app)
-                .get('/products/recommendations/1')
+                .post('/api/v1/products/predict/1')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -620,12 +595,12 @@ describe('Product Controller', () => {
     });
 
     describe('sessionBasedRecommendation', () => {
-        itWithRoute('should return 200 with session-based recommendations', '/products/session-recommendations', async () => {
+        itWithRoute('should return 200 with session-based recommendations', '/api/v1/products/recommendations', async () => {
             const mockRecommendations = [{ product_id: 2, name: 'Product 2' }];
             productService.sessionBasedRecommendation.mockResolvedValue(mockRecommendations);
 
             const response = await request(app)
-                .post('/products/session-recommendations')
+                .post('/api/v1/products/recommendations')
                 .send({ user_id: 'user123', product_id: '1' })
                 .expect(200);
 
@@ -635,9 +610,9 @@ describe('Product Controller', () => {
             expect(productService.sessionBasedRecommendation).toHaveBeenCalledWith({ user_id: 'user123', product_id: '1' });
         });
 
-        itWithRoute('should return 400 if user_id or product_id is missing', '/products/session-recommendations', async () => {
+        itWithRoute('should return 400 if user_id or product_id is missing', '/api/v1/products/recommendations', async () => {
             const response = await request(app)
-                .post('/products/session-recommendations')
+                .post('/api/v1/products/recommendations')
                 .send({ product_id: '1' })
                 .expect(400);
 
@@ -646,9 +621,9 @@ describe('Product Controller', () => {
             expect(productService.sessionBasedRecommendation).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 400 if product_id is invalid', '/products/session-recommendations', async () => {
+        itWithRoute('should return 400 if product_id is invalid', '/api/v1/products/recommendations', async () => {
             const response = await request(app)
-                .post('/products/session-recommendations')
+                .post('/api/v1/products/recommendations')
                 .send({ user_id: 'user123', product_id: 'invalid' })
                 .expect(400);
 
@@ -657,11 +632,11 @@ describe('Product Controller', () => {
             expect(productService.sessionBasedRecommendation).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no recommendations found', '/products/session-recommendations', async () => {
+        itWithRoute('should return 404 if no recommendations found', '/api/v1/products/recommendations', async () => {
             productService.sessionBasedRecommendation.mockResolvedValue([]);
 
             const response = await request(app)
-                .post('/products/session-recommendations')
+                .post('/api/v1/products/recommendations')
                 .send({ user_id: 'user123', product_id: '1' })
                 .expect(404);
 
@@ -671,11 +646,11 @@ describe('Product Controller', () => {
             expect(productService.sessionBasedRecommendation).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 500 on service error', '/products/session-recommendations', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/recommendations', async () => {
             productService.sessionBasedRecommendation.mockRejectedValue(new Error('Failed to retrieve recommendations due to a server error.'));
 
             const response = await request(app)
-                .post('/products/session-recommendations')
+                .post('/api/v1/products/recommendations')
                 .send({ user_id: 'user123', product_id: '1' })
                 .expect(500);
 
@@ -686,12 +661,12 @@ describe('Product Controller', () => {
     });
 
     describe('anonymousRecommendation', () => {
-        itWithRoute('should return 200 with anonymous recommendations', '/products/anonymous-recommendations', async () => {
+        itWithRoute('should return 200 with anonymous recommendations', '/api/v1/products/anomynus_recommendations', async () => {
             const mockRecommendations = [{ product_id: 2, name: 'Product 2' }];
             productService.anonymousRecommendation.mockResolvedValue(mockRecommendations);
 
             const response = await request(app)
-                .post('/products/anonymous-recommendations')
+                .post('/api/v1/products/anomynus_recommendations')
                 .send({ product_id: '1' })
                 .expect(200);
 
@@ -701,9 +676,9 @@ describe('Product Controller', () => {
             expect(productService.anonymousRecommendation).toHaveBeenCalledWith('1');
         });
 
-        itWithRoute('should return 400 if product_id is missing', '/products/anonymous-recommendations', async () => {
+        itWithRoute('should return 400 if product_id is missing', '/api/v1/products/anomynus_recommendations', async () => {
             const response = await request(app)
-                .post('/products/anonymous-recommendations')
+                .post('/api/v1/products/anomynus_recommendations')
                 .send({})
                 .expect(400);
 
@@ -712,9 +687,9 @@ describe('Product Controller', () => {
             expect(productService.anonymousRecommendation).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 400 if product_id is invalid', '/products/anonymous-recommendations', async () => {
+        itWithRoute('should return 400 if product_id is invalid', '/api/v1/products/anomynus_recommendations', async () => {
             const response = await request(app)
-                .post('/products/anonymous-recommendations')
+                .post('/api/v1/products/anomynus_recommendations')
                 .send({ product_id: 'invalid' })
                 .expect(400);
 
@@ -723,11 +698,11 @@ describe('Product Controller', () => {
             expect(productService.anonymousRecommendation).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no recommendations found', '/products/anonymous-recommendations', async () => {
+        itWithRoute('should return 404 if no recommendations found', '/api/v1/products/anomynus_recommendations', async () => {
             productService.anonymousRecommendation.mockResolvedValue([]);
 
             const response = await request(app)
-                .post('/products/anonymous-recommendations')
+                .post('/api/v1/products/anomynus_recommendations')
                 .send({ product_id: '1' })
                 .expect(404);
 
@@ -737,11 +712,11 @@ describe('Product Controller', () => {
             expect(productService.anonymousRecommendation).toHaveBeenCalledWith('1');
         });
 
-        itWithRoute('should return 500 on service error', '/products/anonymous-recommendations', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/anomynus_recommendations', async () => {
             productService.anonymousRecommendation.mockRejectedValue(new Error('Failed to retrieve recommendations due to a server error.'));
 
             const response = await request(app)
-                .post('/products/anonymous-recommendations')
+                .post('/api/v1/products/anomynus_recommendations')
                 .send({ product_id: '1' })
                 .expect(500);
 
@@ -752,12 +727,12 @@ describe('Product Controller', () => {
     });
 
     describe('getTopTrendingProducts', () => {
-        itWithRoute('should return 200 with trending products', '/products/trending', async () => {
+        itWithRoute('should return 200 with trending products', '/api/v1/products/trending', async () => {
             const mockProducts = [{ product_id: 1, name: 'Product 1' }];
             productService.getTopTrendingProducts.mockResolvedValue(mockProducts);
 
             const response = await request(app)
-                .get('/products/trending')
+                .get('/api/v1/products/trending')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -766,11 +741,11 @@ describe('Product Controller', () => {
             expect(productService.getTopTrendingProducts).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no trending products found', '/products/trending', async () => {
+        itWithRoute('should return 404 if no trending products found', '/api/v1/products/trending', async () => {
             productService.getTopTrendingProducts.mockResolvedValue([]);
 
             const response = await request(app)
-                .get('/products/trending')
+                .get('/api/v1/products/trending')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -779,11 +754,11 @@ describe('Product Controller', () => {
             expect(productService.getTopTrendingProducts).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 500 on service error', '/products/trending', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/trending', async () => {
             productService.getTopTrendingProducts.mockRejectedValue(new Error('Failed to retrieve trending products due to a server error.'));
 
             const response = await request(app)
-                .get('/products/trending')
+                .get('/api/v1/products/trending')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -793,12 +768,12 @@ describe('Product Controller', () => {
     });
 
     describe('searchProducts', () => {
-        itWithRoute('should return 200 with search results', '/products/search', async () => {
+        itWithRoute('should return 200 with search results', '/api/v1/products/search', async () => {
             const mockProducts = [{ product_id: 1, name: 'Product 1' }];
             productService.searchProducts.mockResolvedValue(mockProducts);
 
             const response = await request(app)
-                .get('/products/search?query=phone')
+                .get('/api/v1/products/search?query=phone')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -807,9 +782,9 @@ describe('Product Controller', () => {
             expect(productService.searchProducts).toHaveBeenCalledWith('phone');
         });
 
-        itWithRoute('should return 400 if query is missing', '/products/search', async () => {
+        itWithRoute('should return 400 if query is missing', '/api/v1/products/search', async () => {
             const response = await request(app)
-                .get('/products/search')
+                .get('/api/v1/products/search')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -817,11 +792,11 @@ describe('Product Controller', () => {
             expect(productService.searchProducts).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no products found', '/products/search', async () => {
+        itWithRoute('should return 404 if no products found', '/api/v1/products/search', async () => {
             productService.searchProducts.mockResolvedValue([]);
 
             const response = await request(app)
-                .get('/products/search?query=phone')
+                .get('/api/v1/products/search?query=phone')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -830,11 +805,11 @@ describe('Product Controller', () => {
             expect(productService.searchProducts).toHaveBeenCalledWith('phone');
         });
 
-        itWithRoute('should return 500 on service error', '/products/search', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/search', async () => {
             productService.searchProducts.mockRejectedValue(new Error('Failed to retrieve search results due to a server error.'));
 
             const response = await request(app)
-                .get('/products/search?query=phone')
+                .get('/api/v1/products/search?query=phone')
                 .expect(500);
 
             expect(response.body.status).toBe('error');
@@ -844,7 +819,7 @@ describe('Product Controller', () => {
     });
 
     describe('searchProductsPaginated', () => {
-        itWithRoute('should return 200 with paginated search results', '/products/search/paginated', async () => {
+        itWithRoute('should return 200 with paginated search results', '/api/v1/products/searchFullPage', async () => {
             const mockResult = {
                 products: [{ product_id: 1, name: 'Product 1' }],
                 totalProducts: 1,
@@ -855,7 +830,7 @@ describe('Product Controller', () => {
             productService.searchProductsPaginated.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/search/paginated?query=phone&page=1&limit=10')
+                .get('/api/v1/products/searchFullPage?query=phone&page=1&limit=10')
                 .expect(200);
 
             expect(response.body.status).toBe('success');
@@ -878,9 +853,9 @@ describe('Product Controller', () => {
             });
         });
 
-        itWithRoute('should return 400 if query is missing', '/products/search/paginated', async () => {
+        itWithRoute('should return 400 if query is missing', '/api/v1/products/searchFullPage', async () => {
             const response = await request(app)
-                .get('/products/search/paginated')
+                .get('/api/v1/products/searchFullPage')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -888,9 +863,9 @@ describe('Product Controller', () => {
             expect(productService.searchProductsPaginated).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 400 if page is invalid', '/products/search/paginated', async () => {
+        itWithRoute('should return 400 if page is invalid', '/api/v1/products/searchFullPage', async () => {
             const response = await request(app)
-                .get('/products/search/paginated?query=phone&page=invalid')
+                .get('/api/v1/products/searchFullPage?query=phone&page=invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -898,9 +873,9 @@ describe('Product Controller', () => {
             expect(productService.searchProductsPaginated).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 400 if limit is invalid', '/products/search/paginated', async () => {
+        itWithRoute('should return 400 if limit is invalid', '/api/v1/products/searchFullPage', async () => {
             const response = await request(app)
-                .get('/products/search/paginated?query=phone&page=1&limit=invalid')
+                .get('/api/v1/products/searchFullPage?query=phone&page=1&limit=invalid')
                 .expect(400);
 
             expect(response.body.status).toBe('error');
@@ -908,7 +883,7 @@ describe('Product Controller', () => {
             expect(productService.searchProductsPaginated).not.toHaveBeenCalled();
         });
 
-        itWithRoute('should return 404 if no products found', '/products/search/paginated', async () => {
+        itWithRoute('should return 404 if no products found', '/api/v1/products/searchFullPage', async () => {
             const mockResult = {
                 products: [],
                 totalProducts: 0,
@@ -919,7 +894,7 @@ describe('Product Controller', () => {
             productService.searchProductsPaginated.mockResolvedValue(mockResult);
 
             const response = await request(app)
-                .get('/products/search/paginated?query=phone')
+                .get('/api/v1/products/searchFullPage?query=phone')
                 .expect(404);
 
             expect(response.body.status).toBe('error');
@@ -934,11 +909,11 @@ describe('Product Controller', () => {
             expect(productService.searchProductsPaginated).toHaveBeenCalled();
         });
 
-        itWithRoute('should return 500 on service error', '/products/search/paginated', async () => {
+        itWithRoute('should return 500 on service error', '/api/v1/products/searchFullPage', async () => {
             productService.searchProductsPaginated.mockRejectedValue(new Error('Failed to retrieve search results due to a server error.'));
 
             const response = await request(app)
-                .get('/products/search/paginated?query=phone')
+                .get('/api/v1/products/searchFullPage?query=phone')
                 .expect(500);
 
             expect(response.body.status).toBe('error');

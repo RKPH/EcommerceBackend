@@ -182,7 +182,7 @@ exports.getAllCategories = async (req, res) => {
 exports.getProductByTypes = async (req, res) => {
     const { type } = req.params;
     const { page, brand, price_min, price_max, rating } = req.query;
-    if (!type) {
+    if (!type || type.trim() === '') {
         return res.status(400).json({
             status: "error",
             message: "Type is required.",
@@ -235,7 +235,7 @@ exports.getProductsByCategories = async (req, res) => {
     const { category } = req.params;
     const { type, page, brand, price_min, price_max, rating } = req.query;
     console.log("category", category);
-    if (!category || category === "") {
+    if (!category || category.trim() === "") {
         return res.status(400).json({
             status: "error",
             message: "Category is required.",
