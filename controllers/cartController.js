@@ -9,7 +9,22 @@ exports.addProductToCart = async (req, res) => {
 
     console.log(req.body);
     try {
+        // Validate inputs
+        if (!productId || !quantity || quantity <= 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'productId and a positive quantity are required',
+            });
+        }
+
         const { cartItem, cartCount } = await addProductToCart(productId, quantity, userId);
+
+        if (!cartItem) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Product not found or unable to add to cart',
+            });
+        }
 
         return cartItem.quantity === quantity
             ? res.status(201).json({
@@ -25,7 +40,19 @@ exports.addProductToCart = async (req, res) => {
                 cartCount,
             });
     } catch (error) {
-        console.error('Error adding product to cart:', error.message);
+
+        if (error.message.toLowerCase().includes('product not found')) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Product not found',
+            });
+        }
+        if (error.message.includes('Unauthorized')) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Unauthorized to add product to cart',
+            });
+        }
         return res.status(500).json({
             status: 'error',
             message: error.message || 'Internal server error',
@@ -40,14 +67,40 @@ exports.getCartItems = async (req, res) => {
     const { userId } = req.user; // Extract userId from the authenticated user
 
     try {
+        if (!userId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'User ID is required',
+            });
+        }
+
         const cartItems = await getCartItems(userId);
+        if (!cartItems) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart not found for this user',
+            });
+        }
+
         return res.status(200).json({
             status: 'success',
             message: 'Cart items retrieved successfully',
             data: cartItems,
         });
     } catch (error) {
-        console.error('Error retrieving cart items:', error.message);
+
+        if (error.message.includes('Unauthorized')) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Unauthorized to access cart',
+            });
+        }
+        if (error.message.includes('Not found')) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart not found',
+            });
+        }
         return res.status(500).json({
             status: 'error',
             message: error.message || 'Internal server error',
@@ -60,11 +113,26 @@ exports.getCartItems = async (req, res) => {
 // @access  Private
 exports.updateCartItem = async (req, res) => {
     const { cartItemID, quantity } = req.body; // Match the exact case from the request body
-    console.log(req.body); // Check the body to ensure you are receiving the correct data
-    console.log(cartItemID, typeof(cartItemID)); // Log the extracted values to the console
+
+
 
     try {
+        // Validate inputs
+        if (!cartItemID || quantity === undefined || quantity < 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'cartItemID and a non-negative quantity are required',
+            });
+        }
+
         const updatedCartItem = await updateCartItem(cartItemID, quantity);
+        if (!updatedCartItem) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart item not found',
+            });
+        }
+
         return res.status(200).json({
             status: 'success',
             message: 'Cart item updated successfully',
@@ -72,6 +140,18 @@ exports.updateCartItem = async (req, res) => {
         });
     } catch (error) {
         console.error('Error updating cart item:', error.message);
+        if (error.message.includes('Unauthorized')) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Unauthorized to update cart item',
+            });
+        }
+        if (error.message.includes('Not found')) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart item not found',
+            });
+        }
         return res.status(500).json({
             status: 'error',
             message: error.message || 'Internal server error',
@@ -87,17 +167,43 @@ exports.removeCartItem = async (req, res) => {
     const { userId } = req.user; // Extract user ID from the authenticated user
 
     try {
-        await removeCartItem(cartItemID, userId);
+        // Validate inputs
+        if (!cartItemID || !userId) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'cartItemID and userId are required',
+            });
+        }
+
+        const result = await removeCartItem(cartItemID, userId);
+        if (!result) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart item not found or not authorized to remove',
+            });
+        }
+
         return res.status(200).json({
             status: 'success',
             message: 'Cart item removed successfully',
         });
     } catch (error) {
-        console.error('Error removing cart item:', error.message);
+
+        if (error.message.includes('Unauthorized')) {
+            return res.status(401).json({
+                status: 'error',
+                message: 'Unauthorized to remove cart item',
+            });
+        }
+        if (error.message.includes('Not found')) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'Cart item not found',
+            });
+        }
         return res.status(500).json({
             status: 'error',
             message: error.message || 'Internal server error',
         });
     }
 };
-
