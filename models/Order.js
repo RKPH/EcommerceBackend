@@ -18,6 +18,7 @@ const OrderSchema = new mongoose.Schema({
     createdAt: { type: Date, required: true },
     DeliveredAt: { type: Date },
     shippingAddress: { type: String, required: true },
+    phoneNumber: { type: String, required: false },
     PaymentMethod: { type: String, required: true },
     status: {
         type: String,

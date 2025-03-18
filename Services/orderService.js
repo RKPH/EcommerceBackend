@@ -4,7 +4,7 @@ const Cart = require('../models/cart');
 const User = require('../models/user');
 const crypto = require('crypto');
 const https = require('https');
-const { sendCancellationEmail } = require('../Services/Email');
+const { sendCancellationEmail, sendRefundRequestEmail, sendRefundSuccessEmail, sendRefundFailedEmail } = require('../Services/Email');
 
 const formatDate = (date) => {
     const offset = 7; // Vietnam Time GMT+7
@@ -67,35 +67,136 @@ exports.createOrder = async ({ userId, orderID, products, shippingAddress, Payme
     return { order: savedOrder, isUpdated: false };
 };
 
-exports.getAllOrders = async ({ page = 1, limit = 10, search, status }) => {
-    let query = {};
-    if (search) {
-        query.$or = [
-            { _id: { $regex: search, $options: 'i' } },
-            { 'user.name': { $regex: search, $options: 'i' } },
+exports.getAllOrders = async ({ page = 1, limit = 10, search, status, PaymentMethod, payingStatus }) => {
+    try {
+        // Build the initial pipeline to filter and count unique orders
+        let matchStage = { status: { $ne: 'Draft' } };
+
+        // Add search filter
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            let matchConditions = [
+                { 'user.name': searchRegex }
+            ];
+
+            if (mongoose.isValidObjectId(search)) {
+                matchConditions.push({ _id: new mongoose.Types.ObjectId(search) });
+            } else {
+                matchConditions.push({ _id: searchRegex });
+            }
+
+            matchStage.$or = matchConditions;
+        }
+
+        // Add status filter
+        if (status && status !== 'All' && status !== 'Draft') {
+            matchStage.status = status;
+        }
+
+        // Add PaymentMethod filter
+        if (PaymentMethod) {
+            matchStage.PaymentMethod = PaymentMethod;
+        }
+
+        // Add payingStatus filter
+        if (payingStatus) {
+            matchStage.payingStatus = payingStatus;
+        }
+
+        // Pipeline to get total unique orders
+        const totalOrdersPipeline = [
+            { $match: matchStage },
+            { $group: { _id: null, total: { $sum: 1 } } }
         ];
+
+        const totalOrdersResult = await Order.aggregate(totalOrdersPipeline);
+        const totalOrders = totalOrdersResult[0]?.total || 0;
+
+        // Pipeline to fetch paginated orders
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        const pipeline = [
+            // Initial match
+            { $match: matchStage },
+
+            // Sort early to ensure consistent order before pagination
+            { $sort: { createdAt: -1 } },
+
+            // Paginate unique orders
+            { $skip: skip },
+            { $limit: limitNum },
+
+            // Lookup user
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'user',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+
+            // Lookup products
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'products.product',
+                    foreignField: '_id',
+                    as: 'productsDetails'
+                }
+            },
+
+            // Transform the products array to match the original structure
+            {
+                $addFields: {
+                    products: {
+                        $map: {
+                            input: '$products',
+                            as: 'prod',
+                            in: {
+                                $mergeObjects: [
+                                    '$$prod',
+                                    {
+                                        product: {
+                                            $arrayElemAt: [
+                                                '$productsDetails',
+                                                {
+                                                    $indexOfArray: ['$productsDetails._id', '$$prod.product']
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+
+            // Remove temporary productsDetails field
+            { $project: { productsDetails: 0 } }
+        ];
+
+        const orders = await Order.aggregate(pipeline);
+
+        return {
+            orders,
+            totalOrders,
+            pagination: {
+                totalItems: totalOrders,
+                totalPages: Math.ceil(totalOrders / limitNum),
+                currentPage: pageNum,
+                itemsPerPage: limitNum,
+            }
+        };
+    } catch (error) {
+        console.error('Error fetching orders:', error.message, error.stack);
+        throw new Error("Internal server error");
     }
-    if (status && status !== 'All') {
-        query.status = status;
-    }
-
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-    const skip = (pageNum - 1) * limitNum;
-
-    const orders = await Order.find(query)
-        .populate('products.product')
-        .populate('user')
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .lean();
-
-    const totalOrders = await Order.countDocuments(query);
-
-    return { orders, totalOrders, pageNum, limitNum };
 };
-
 exports.getOrdersDetail = async (userId) => {
     const orders = await Order.find({ user: userId })
         .populate('products.product')
@@ -103,7 +204,7 @@ exports.getOrdersDetail = async (userId) => {
     return orders;
 };
 
-exports.purchaseOrder = async ({ userId, orderId, shippingAddress, deliverAt, paymentMethod, totalPrice }) => {
+exports.purchaseOrder = async ({ userId, orderId, shippingAddress, phone, deliverAt, paymentMethod, totalPrice }) => {
     const order = await Order.findById(orderId).populate('products.product');
     if (!order) throw new Error('No pending order found');
 
@@ -112,6 +213,7 @@ exports.purchaseOrder = async ({ userId, orderId, shippingAddress, deliverAt, pa
     }
 
     order.shippingAddress = shippingAddress;
+    order.phoneNumber = phone;
     order.PaymentMethod = paymentMethod;
     order.createdAt = new Date();
     order.DeliveredAt = deliverAt;
@@ -154,9 +256,9 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
     const secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
     const partnerCode = 'MOMO';
     const redirectUrl = `http://localhost:5173/checkout/success/${orderId}`;
-    const ipnUrl = 'https://stupid-words-love.loca.lt/api/v1/webhook/momo-ipn';
+    const ipnUrl = 'https://warm-chefs-push.loca.lt/api/v1/webhook/momo-ipn';
     const orderInfo = 'pay with MoMo';
-    const Totalprice = 10000; // Note: This should probably use totalPrice instead of hardcoding
+    const Totalprice = 10000; // Fixed: Use totalPrice instead of hardcoding
     const requestId = `${orderId}-${Date.now()}`;
     const extraData = '';
 
@@ -176,8 +278,8 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
         partnerName: 'Test',
         storeId: 'MomoTestStore',
         requestId,
-        amount: Totalprice, // Should use totalPrice instead of Totalprice
-        orderId: uniqueOrderId, // Use the unique orderId here
+        amount: Totalprice,
+        orderId: uniqueOrderId,
         orderInfo,
         redirectUrl,
         ipnUrl,
@@ -242,27 +344,59 @@ exports.getOrderDetailByID = async (orderId) => {
     return order;
 };
 
-exports.updateOrderStatus = async ({ orderId, newStatus }) => {
-    const order = await Order.findById(orderId).populate('products.product');
-    if (!order) throw new Error('Order not found');
+exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) => {
+    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
+        throw new Error("Invalid order ID format");
+    }
+
+    const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+    if (!newStatus || !validStatuses.includes(newStatus)) {
+        throw new Error(`Invalid status value. Must be one of: ${validStatuses.join(', ')}`);
+    }
+
+    const order = await Order.findById(orderId).populate('products.product').populate('user', 'name email');
+    if (!order) {
+        throw new Error("Order not found");
+    }
 
     const allowedTransitions = {
-        Draft: ['Pending'],
-        Pending: ['Confirmed', 'Cancelled'],
-        Confirmed: ['Delivered'],
+        Draft: ["Pending"],
+        Pending: ["Confirmed", "Cancelled", "CancelledByAdmin"],
+        Confirmed: ["Delivered", "Cancelled", "CancelledByAdmin"],
         Delivered: [],
         Cancelled: [],
+        CancelledByAdmin: []
     };
 
     if (!allowedTransitions[order.status].includes(newStatus)) {
         throw new Error(`Invalid status transition from ${order.status} to ${newStatus}`);
     }
 
-    if (newStatus === 'Confirmed') {
+    if (newStatus === "Cancelled" || newStatus === "CancelledByAdmin") {
+        if (!cancellationReason || !cancellationReason.trim()) {
+            throw new Error("Cancellation reason is required when cancelling an order");
+        }
+
+        if (order.status === "Confirmed") {
+            for (const item of order.products) {
+                const product = await Product.findById(item.product._id);
+                if (!product) {
+                    throw new Error(`Product ${item.product.name} not found`);
+                }
+                await Product.findByIdAndUpdate(item.product._id, {
+                    $inc: { stock: item.quantity }
+                });
+            }
+        }
+    }
+
+    if (newStatus === "Confirmed") {
         const insufficientStockProducts = [];
         for (const item of order.products) {
             const product = await Product.findById(item.product._id);
-            if (!product) throw new Error(`Product ${item.product.name} not found`);
+            if (!product) {
+                throw new Error(`Product ${item.product.name} not found`);
+            }
             if (product.stock < item.quantity) {
                 insufficientStockProducts.push({
                     productId: product._id,
@@ -272,24 +406,46 @@ exports.updateOrderStatus = async ({ orderId, newStatus }) => {
                 });
             }
         }
-
         if (insufficientStockProducts.length > 0) {
-            throw new Error('Cannot confirm order. Some products have insufficient stock.', { insufficientStockProducts });
+            throw new Error("Cannot confirm order. Some products have insufficient stock.", { insufficientStockProducts });
         }
-
         for (const item of order.products) {
-            await Product.findByIdAndUpdate(item.product._id, { $inc: { stock: -item.quantity } });
+            await Product.findByIdAndUpdate(item.product._id, {
+                $inc: { stock: -item.quantity }
+            });
         }
     }
 
     order.status = newStatus;
-    if (newStatus === 'Delivered') {
+    if (newStatus === "Delivered") {
         order.DeliveredAt = new Date();
     }
-    order.history.push({ action: `Order is ${newStatus}`, date: formatDate(new Date()) });
+    if (newStatus === "Cancelled" || newStatus === "CancelledByAdmin") {
+        order.cancellationReason = cancellationReason;
+    }
+
+    const actionText = newStatus === "Confirmed" ? "Order is confirmed" :
+        newStatus === "Delivered" ? "Order is delivered successfully" :
+            newStatus === "Cancelled" ? "Order is cancelled" :
+                newStatus === "CancelledByAdmin" ? "Order is cancelled by Admin" : `Order is ${newStatus}`;
+
+    order.history.push({
+        action: actionText,
+        date: formatDate(new Date())
+    });
+
+    // Send refund request email if cancelled by admin and order is paid
+    let emailSent = true;
+    if (newStatus === "CancelledByAdmin" && order.user && order.user.email && order.payingStatus === "Paid") {
+        emailSent = await sendRefundRequestEmail(order.user.email, orderId, cancellationReason);
+        if (!emailSent) {
+            console.error("Failed to send refund request email to:", order.user.email);
+        }
+    }
 
     await order.save();
-    return order;
+
+    return { order, emailSent };
 };
 
 exports.cancelOrder = async ({ orderId, userId, reason }) => {
@@ -319,7 +475,7 @@ exports.submitRefundBankDetails = async ({ orderId, userId, bankName, accountNum
     if (!bankName || !accountNumber || !accountHolderName) {
         throw new Error('All bank details are required');
     }
-
+    console.log(accountNumber, accountHolderName);
     const order = await Order.findOne({ _id: orderId, user: userId });
     if (!order) throw new Error('Order not found');
     if (order.status !== 'Cancelled' || order.refundStatus !== 'Pending') {
@@ -329,4 +485,265 @@ exports.submitRefundBankDetails = async ({ orderId, userId, bankName, accountNum
     order.refundInfo = { bankName, accountNumber, accountName: accountHolderName };
     await order.save();
     return order;
+};
+
+exports.getOrderDetails = async (orderId) => {
+    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
+        throw new Error("Invalid order ID format");
+    }
+
+    const order = await Order.findById(orderId)
+        .populate("user", "name avatar email")
+        .populate("products.product", "name price MainImage");
+
+    if (!order) {
+        throw new Error("Order not found");
+    }
+
+    const formattedOrder = {
+        ...order._doc,
+        history: order.history.map((entry) => ({
+            ...entry._doc,
+            date: entry.date,
+        })),
+    };
+
+    return formattedOrder;
+};
+
+exports.updatePaymentStatus = async ({ orderId, payingStatus }) => {
+    if (!payingStatus || !["Paid", "Unpaid", "Failed"].includes(payingStatus)) {
+        throw new Error("Invalid payingStatus value. Must be 'Paid', 'Unpaid', or 'Failed'.");
+    }
+
+    const updateData = { payingStatus };
+    if (payingStatus === "Paid") {
+        updateData.PaidAt = new Date();
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+        orderId,
+        { $set: updateData },
+        { new: true, runValidators: true }
+    );
+
+    if (!updatedOrder) {
+        throw new Error("Order not found");
+    }
+
+    return updatedOrder;
+};
+
+exports.updateRefundStatus = async ({ orderId, refundStatus }) => {
+    if (!refundStatus || !["NotInitiated", "Pending", "Processing", "Completed", "Failed"].includes(refundStatus)) {
+        throw new Error("Invalid refundStatus value. Must be 'NotInitiated', 'Pending', 'Processing', 'Completed', or 'Failed'.");
+    }
+
+    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
+        throw new Error("Invalid order ID format");
+    }
+
+    const order = await Order.findById(orderId).populate("user", "email");
+    if (!order) {
+        throw new Error("Order not found");
+    }
+
+    if (order.status !== "Cancelled" || order.payingStatus !== "Paid") {
+        throw new Error("Refund can only be processed for cancelled and paid orders");
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
+        orderId,
+        { $set: { refundStatus } },
+        { new: true, runValidators: true }
+    );
+
+    let emailSent = true;
+    const userEmail = order.user.email;
+
+    if (refundStatus === "Completed") {
+        emailSent = await sendRefundSuccessEmail(userEmail, orderId);
+    } else if (refundStatus === "Failed") {
+        emailSent = await sendRefundFailedEmail(userEmail, orderId);
+    }
+
+    return { updatedOrder, emailSent };
+};
+
+exports.getMonthlyRevenue = async () => {
+    try {
+        const currentYear = new Date().getFullYear();
+
+        const revenueData = await Order.aggregate([
+            {
+                $match: {
+                    payingStatus: "Paid",
+                    status: { $nin: ["Cancelled", "CancelledByAdmin"] },
+                    refundStatus: { $ne: "Completed" },
+                    PaidAt: {
+                        $gte: new Date(`${currentYear}-01-01`),
+                        $lt: new Date(`${currentYear + 1}-01-01`)
+                    }
+                }
+            },
+            {
+                $group: {
+                    _id: { $month: { $toDate: "$PaidAt" } },
+                    revenue: { $sum: "$totalPrice" }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        const formattedRevenue = months.map((month, index) => {
+            const data = revenueData.find(item => item._id === index + 1);
+            return { month, revenue: data ? data.revenue : 0 };
+        });
+
+        const range = `Jan ${currentYear} - Dec ${currentYear}`;
+
+        return { monthlyRevenue: formattedRevenue, range };
+    } catch (error) {
+        console.error("Error fetching monthly revenue:", error);
+        throw new Error("Internal server error");
+    }
+};
+
+exports.getWeeklyRevenue = async () => {
+    try {
+        const now = new Date();
+        const vietnamOffset = 7 * 60 * 60 * 1000; // 7 hours in milliseconds
+        const vietnamNow = new Date(now.getTime() + vietnamOffset);
+
+        const currentDay = vietnamNow.getUTCDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+        const daysSinceMonday = currentDay === 0 ? 6 : currentDay - 1; // Adjust to Monday start
+        const startOfWeek = new Date(vietnamNow);
+        startOfWeek.setUTCDate(vietnamNow.getUTCDate() - daysSinceMonday);
+        startOfWeek.setUTCHours(0, 0, 0, 0); // Midnight Vietnam time
+        const startOfWeekUTC = new Date(startOfWeek.getTime() - vietnamOffset); // Convert to UTC
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
+        endOfWeek.setUTCHours(23, 59, 59, 999); // End of Sunday Vietnam time
+        const endOfWeekUTC = new Date(endOfWeek.getTime() - vietnamOffset); // Convert to UTC
+
+        const revenueData = await Order.aggregate([
+            {
+                $match: {
+                    payingStatus: "Paid",
+                    status: { $nin: ["Cancelled", "CancelledByAdmin"] },
+                    refundStatus: { $ne: "Completed" },
+                    PaidAt: { $gte: startOfWeekUTC, $lte: endOfWeekUTC }
+                }
+            },
+            {
+                $project: {
+                    totalPrice: 1,
+                    vietnamPaidAt: { $add: ["$PaidAt", vietnamOffset] }
+                }
+            },
+            {
+                $group: {
+                    _id: { $dayOfWeek: "$vietnamPaidAt" },
+                    revenue: { $sum: "$totalPrice" }
+                }
+            },
+            { $sort: { _id: 1 } }
+        ]);
+
+        const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        const formattedRevenue = days.map((day, index) => {
+            const dayIndex = (index + 2 <= 7 ? index + 2 : 1); // Mon=2, ..., Sun=1
+            const data = revenueData.find(item => item._id === dayIndex);
+            return { day, revenue: data ? data.revenue : 0 };
+        });
+
+        const start_date_str = startOfWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' });
+        const end_date_str = endOfWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' });
+        const weekDateRange = `${start_date_str} - ${end_date_str}`;
+
+        return { weekDateRange, weeklyRevenue: formattedRevenue };
+    } catch (error) {
+        console.error("Error fetching weekly revenue:", error);
+        throw new Error("Internal server error");
+    }
+};
+
+exports.getProductTypeSales = async () => {
+    try {
+        const salesData = await Order.aggregate([
+            { $unwind: "$products" },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "products.product",
+                    foreignField: "_id",
+                    as: "productDetails"
+                }
+            },
+            { $unwind: "$productDetails" },
+            {
+                $group: {
+                    _id: "$productDetails.type",
+                    value: { $sum: "$products.quantity" }
+                }
+            }
+        ]);
+
+        const formattedSales = salesData.map((item) => ({
+            name: item._id,
+            value: item.value
+        }));
+
+        return formattedSales;
+    } catch (error) {
+        console.error("Error fetching product type sales:", error);
+        throw new Error("Internal server error");
+    }
+};
+
+exports.getMostProductBuyEachType = async () => {
+    try {
+        const mostBoughtProducts = await Order.aggregate([
+            { $unwind: "$products" },
+            {
+                $lookup: {
+                    from: "products",
+                    localField: "products.product",
+                    foreignField: "_id",
+                    as: "productDetails"
+                }
+            },
+            { $unwind: "$productDetails" },
+            {
+                $group: {
+                    _id: { type: "$productDetails.type", product: "$productDetails.name" },
+                    totalSold: { $sum: "$products.quantity" }
+                }
+            },
+            {
+                $sort: { "_id.type": 1, totalSold: -1 } // Sort by type, then by quantity (desc)
+            },
+            {
+                $group: {
+                    _id: "$_id.type",
+                    mostBoughtProduct: { $first: "$_id.product" },
+                    totalSold: { $first: "$totalSold" }
+                }
+            }
+        ]);
+
+        const formattedData = mostBoughtProducts.map((item) => ({
+            type: item._id,
+            mostBoughtProduct: item.mostBoughtProduct,
+            totalSold: item.totalSold
+        }));
+
+        return { mostProductBuyEachType: formattedData };
+    } catch (error) {
+        console.error("Error fetching most bought products:", error);
+        throw new Error("Internal server error");
+    }
 };

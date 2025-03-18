@@ -6,45 +6,18 @@
     const { hash, verifyPassword } = require('../utils/hash');  // Import password utility
     const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');  // Import JWT generation utility
     const { v4: uuidv4 } = require('uuid');
-    const {sendRefundFailedEmail,sendRefundSuccessEmail,sendRefundRequestEmail} = require('../Services/Email');
+
     const userService = require('../Services/userService');
+    const orderService =  require('../Services/orderService');
     const Review =  require('../models/reviewSchema');
     const productService = require('../Services/productService');
-    // Get Monthly Revenue
+
+
+    //static
     const getMonthlyRevenue = async (req, res) => {
         try {
-            const currentYear = new Date().getFullYear();
-
-            const revenueData = await Order.aggregate([
-                {
-                    $match: {
-                        payingStatus: "Paid",
-                        PaidAt: {
-                            $gte: new Date(`${currentYear}-01-01`),
-                            $lt: new Date(`${currentYear + 1}-01-01`)
-                        }
-                    }
-                },
-                {
-                    $group: {
-                        _id: { $month: { $toDate: "$PaidAt" } },
-                        revenue: { $sum: "$totalPrice" }
-                    }
-                },
-                { $sort: { _id: 1 } }
-            ]);
-
-            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-            const formattedRevenue = months.map((month, index) => {
-                const data = revenueData.find(item => item._id === index + 1);
-                return { month, revenue: data ? data.revenue : 0 };
-            });
-
-            const range = `Jan ${currentYear} - Dec ${currentYear}`;
-
-            res.status(200).json({ monthlyRevenue: formattedRevenue, range });
+            const { monthlyRevenue, range } = await orderService.getMonthlyRevenue();
+            res.status(200).json({ monthlyRevenue, range });
         } catch (error) {
             console.error("Error fetching revenue:", error);
             res.status(500).json({ message: "Internal server error" });
@@ -53,294 +26,34 @@
 
     const getWeeklyRevenue = async (req, res) => {
         try {
-            // Use current time in Vietnam (UTC+7)
-            const now = new Date();
-            const vietnamOffset = 7 * 60 * 60 * 1000; // 7 hours in milliseconds
-            const vietnamNow = new Date(now.getTime() + vietnamOffset);
-
-            // Calculate start of week (Monday) in Vietnam time
-            const currentDay = vietnamNow.getUTCDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
-            const daysSinceMonday = currentDay === 0 ? 6 : currentDay - 1; // Adjust to Monday start
-            const startOfWeek = new Date(vietnamNow);
-            startOfWeek.setUTCDate(vietnamNow.getUTCDate() - daysSinceMonday);
-            startOfWeek.setUTCHours(0, 0, 0, 0); // Midnight Vietnam time
-            const startOfWeekUTC = new Date(startOfWeek.getTime() - vietnamOffset); // Convert to UTC
-
-            // Calculate end of week (Sunday) in Vietnam time
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setUTCDate(startOfWeek.getUTCDate() + 6);
-            endOfWeek.setUTCHours(23, 59, 59, 999); // End of Sunday Vietnam time
-            const endOfWeekUTC = new Date(endOfWeek.getTime() - vietnamOffset); // Convert to UTC
-
-            const revenueData = await Order.aggregate([
-                {
-                    $match: {
-                        payingStatus: "Paid",
-                        PaidAt: { $gte: startOfWeekUTC, $lte: endOfWeekUTC } // UTC range
-                    }
-                },
-                {
-                    $project: {
-                        totalPrice: 1,
-                        // Convert PaidAt to Vietnam time for grouping
-                        vietnamPaidAt: { $add: ["$PaidAt", vietnamOffset] }
-                    }
-                },
-                {
-                    $group: {
-                        _id: { $dayOfWeek: "$vietnamPaidAt" }, // Day of week in Vietnam time
-                        revenue: { $sum: "$totalPrice" }
-                    }
-                },
-                { $sort: { _id: 1 } }
-            ]);
-
-            // Days array starting with Monday
-            const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-            const formattedRevenue = days.map((day, index) => {
-                // Map MongoDB $dayOfWeek (1=Sun, 2=Mon, ..., 7=Sat) to our array
-                const dayIndex = (index + 2 <= 7 ? index + 2 : 1); // Mon=2, ..., Sun=1
-                const data = revenueData.find(item => item._id === dayIndex);
-                return { day, revenue: data ? data.revenue : 0 };
-            });
-
-            // Format dates in Vietnam time
-            const start_date_str = startOfWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' });
-            const end_date_str = endOfWeek.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' });
-            const weekDateRange = `${start_date_str} - ${end_date_str}`;
-
-            res.status(200).json({ weekDateRange, weeklyRevenue: formattedRevenue });
+            const { weekDateRange, weeklyRevenue } = await orderService.getWeeklyRevenue();
+            res.status(200).json({ weekDateRange, weeklyRevenue });
         } catch (error) {
             console.error("Error fetching weekly revenue:", error);
             res.status(500).json({ message: "Internal server error" });
         }
     };
 
-    // Get Total Sales for Each Product Type
     const getProductTypeSales = async (req, res) => {
         try {
-            const salesData = await Order.aggregate([
-                { $unwind: "$products" },
-                {
-                    $lookup: {
-                        from: "products",
-                        localField: "products.product",
-                        foreignField: "_id",
-                        as: "productDetails"
-                    }
-                },
-                { $unwind: "$productDetails" },
-                {
-                    $group: {
-                        _id: "$productDetails.type",
-                        value: { $sum: "$products.quantity" }
-                    }
-                }
-            ]);
-
-            const formattedSales = salesData.map((item) => ({
-                name: item._id,
-                value: item.value
-            }));
-
+            const formattedSales = await orderService.getProductTypeSales();
             res.status(200).json(formattedSales);
-
         } catch (error) {
             console.error("Error fetching product type sales:", error);
             res.status(500).json({ message: "Internal server error" });
         }
     };
 
-    // Get Most Bought Product in Each Type
     const getMostProductBuyEachType = async (req, res) => {
         try {
-            const mostBoughtProducts = await Order.aggregate([
-                { $unwind: "$products" },
-                {
-                    $lookup: {
-                        from: "products",
-                        localField: "products.product",
-                        foreignField: "_id",
-                        as: "productDetails"
-                    }
-                },
-                { $unwind: "$productDetails" },
-                {
-                    $group: {
-                        _id: { type: "$productDetails.type", product: "$productDetails.name" },
-                        totalSold: { $sum: "$products.quantity" }
-                    }
-                },
-                {
-                    $sort: { "_id.type": 1, totalSold: -1 } // Sort by type, then by quantity (desc)
-                },
-                {
-                    $group: {
-                        _id: "$_id.type",
-                        mostBoughtProduct: { $first: "$_id.product" },
-                        totalSold: { $first: "$totalSold" }
-                    }
-                }
-            ]);
-
-            const formattedData = mostBoughtProducts.map((item) => ({
-                type: item._id,
-                mostBoughtProduct: item.mostBoughtProduct,
-                totalSold: item.totalSold
-            }));
-
-            res.status(200).json({ mostProductBuyEachType: formattedData });
+            const { mostProductBuyEachType } = await orderService.getMostProductBuyEachType();
+            res.status(200).json({ mostProductBuyEachType });
         } catch (error) {
             console.error("Error fetching most bought products:", error);
             res.status(500).json({ message: "Internal server error" });
         }
     };
 
-    const getAllOrders = async (req, res) => {
-        try {
-            const { page = 1, limit = 10, search, status, PaymentMethod, payingStatus } = req.query;
-
-            // Build the initial pipeline to filter and count unique orders
-            let matchStage = { status: { $ne: 'Draft' } };
-
-            // Add search filter
-            if (search) {
-                const searchRegex = new RegExp(search, 'i');
-                let matchConditions = [
-                    { 'user.name': searchRegex }
-                ];
-
-                if (mongoose.isValidObjectId(search)) {
-                    matchConditions.push({ _id: new mongoose.Types.ObjectId(search) });
-                } else {
-                    matchConditions.push({ _id: searchRegex });
-                }
-
-                matchStage.$or = matchConditions;
-            }
-
-            // Add status filter
-            if (status && status !== 'All' && status !== 'Draft') {
-                matchStage.status = status;
-            }
-
-            // Add PaymentMethod filter
-            if (PaymentMethod) {
-                matchStage.PaymentMethod = PaymentMethod;
-            }
-
-            // Add payingStatus filter
-            if (payingStatus) {
-                matchStage.payingStatus = payingStatus;
-            }
-
-            // Pipeline to get total unique orders
-            const totalOrdersPipeline = [
-                { $match: matchStage },
-                { $group: { _id: null, total: { $sum: 1 } } }
-            ];
-
-            const totalOrdersResult = await Order.aggregate(totalOrdersPipeline);
-            const totalOrders = totalOrdersResult[0]?.total || 0;
-
-            // Pipeline to fetch paginated orders
-            const pageNum = parseInt(page);
-            const limitNum = parseInt(limit);
-            const skip = (pageNum - 1) * limitNum;
-
-            const pipeline = [
-                // Initial match
-                { $match: matchStage },
-
-                // Sort early to ensure consistent order before pagination
-                { $sort: { createdAt: -1 } },
-
-                // Paginate unique orders
-                { $skip: skip },
-                { $limit: limitNum },
-
-                // Lookup user
-                {
-                    $lookup: {
-                        from: 'users',
-                        localField: 'user',
-                        foreignField: '_id',
-                        as: 'user'
-                    }
-                },
-                { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-
-                // Lookup products
-                {
-                    $lookup: {
-                        from: 'products',
-                        localField: 'products.product',
-                        foreignField: '_id',
-                        as: 'productsDetails'
-                    }
-                },
-
-                // Transform the products array to match the original structure
-                {
-                    $addFields: {
-                        products: {
-                            $map: {
-                                input: '$products',
-                                as: 'prod',
-                                in: {
-                                    $mergeObjects: [
-                                        '$$prod',
-                                        {
-                                            product: {
-                                                $arrayElemAt: [
-                                                    '$productsDetails',
-                                                    {
-                                                        $indexOfArray: ['$productsDetails._id', '$$prod.product']
-                                                    }
-                                                ]
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                },
-
-                // Remove temporary productsDetails field
-                { $project: { productsDetails: 0 } }
-            ];
-
-            // Execute aggregation
-            const orders = await Order.aggregate(pipeline);
-
-            if (!orders || orders.length === 0) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'No orders found',
-                });
-            }
-
-            return res.status(200).json({
-                success: true,
-                message: 'Orders retrieved successfully',
-                data: orders,
-                pagination: {
-                    totalItems: totalOrders,
-                    totalPages: Math.ceil(totalOrders / limitNum),
-                    currentPage: pageNum,
-                    itemsPerPage: limitNum,
-                },
-            });
-        } catch (error) {
-            console.error('Error fetching orders:', error.message, error.stack);
-            res.status(500).json({
-                success: false,
-                message: 'Internal server error',
-                error: process.env.NODE_ENV === 'development' ? error.message : undefined,
-            });
-        }
-    };
 
     //products
     const createProduct = async (req, res) => {
@@ -584,11 +297,13 @@
 
             const currentMonthOrders = await Order.find({
                 payingStatus: "Paid",
+                status: { $nin: ["Cancelled", "CancelledByAdmin"] },
                 PaidAt: { $gte: currentMonthStart, $lt: currentMonthEnd }
             });
 
             const previousMonthOrders = await Order.find({
                 payingStatus: "Paid",
+                status: { $nin: ["Cancelled", "CancelledByAdmin"] },
                 PaidAt: { $gte: previousMonthStart, $lt: previousMonthEnd }
             });
 
@@ -664,12 +379,6 @@
 
     const getTopRatedProducts = async (req, res) => {
         try {
-            // Optional: Add admin authorization check (uncomment if needed)
-            // if (!req.user || req.user.role !== 'admin') {
-            //     return res.status(403).json({
-            //         message: 'Access denied. Admin privileges required.',
-            //     });
-            // }
 
             const topProducts = await Review.aggregate([
                 // Step 1: Group reviews by product_id to calculate average rating and count
@@ -819,88 +528,64 @@
         }
     };
 
+    //admin order
+    const getAllOrders = async (req, res) => {
+        try {
+            const { page = 1, limit = 10, search, status, PaymentMethod, payingStatus } = req.query;
+            const { orders, totalOrders, pagination } = await orderService.getAllOrders({
+                page,
+                limit,
+                search,
+                status,
+                PaymentMethod,
+                payingStatus,
+            });
 
-    //orders admin
+            if (!orders || orders.length === 0) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'No orders found',
+                });
+            }
+
+            res.status(200).json({
+                success: true,
+                message: 'Orders retrieved successfully',
+                data: orders,
+                pagination,
+            });
+        } catch (error) {
+            console.error('Error fetching orders:', error.message, error.stack);
+            res.status(500).json({
+                success: false,
+                message: 'Internal server error',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+            });
+        }
+    };
+
     const getOrderDetails = async (req, res) => {
         try {
             const { orderId } = req.params;
-
-            // Validate orderId format (assuming it's a MongoDB ObjectId)
-            if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid order ID format",
-                });
-            }
-
-            // Fetch the order and populate user and product details
-            const order = await Order.findById(orderId)
-                .populate("user", "name avatar email") // Populate user details
-                .populate("products.product", "name  price MainImage"); // Populate product details
-
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Order not found",
-                });
-            }
-
-            // Format the history dates if needed (optional, depending on frontend formatting)
-            const formattedOrder = {
-                ...order._doc,
-                history: order.history.map((entry) => ({
-                    ...entry._doc,
-                    date: entry.date,
-                })),
-            };
-
+            const formattedOrder = await orderService.getOrderDetails(orderId);
             res.status(200).json({
                 success: true,
                 data: formattedOrder,
             });
         } catch (error) {
             console.error("Error fetching order details:", error);
-            res.status(500).json({
+            res.status(error.message.includes("not found") ? 404 : 400).json({
                 success: false,
-                message: "Error fetching order details",
-                error: error.message,
+                message: error.message || "Error fetching order details",
             });
         }
     };
 
     const updatePaymentStatus = async (req, res) => {
-        const { orderId } = req.params;
-        const { payingStatus } = req.body;
-
         try {
-            // Validate input
-            if (!payingStatus || !["Paid", "Unpaid", "Failed"].includes(payingStatus)) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid payingStatus value. Must be 'Paid', 'Unpaid', or 'Failed'.",
-                });
-            }
-
-            // Prepare update object
-            const updateData = { payingStatus };
-            if (payingStatus === "Paid") {
-                updateData.PaidAt = new Date(); // Set PaidAt when status changes to Paid
-            }
-
-            // Update the order
-            const updatedOrder = await Order.findByIdAndUpdate(
-                orderId,
-                { $set: updateData },
-                { new: true, runValidators: true } // Return updated document and validate
-            );
-
-            if (!updatedOrder) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Order not found",
-                });
-            }
-
+            const { orderId } = req.params;
+            const { payingStatus } = req.body;
+            const updatedOrder = await orderService.updatePaymentStatus({ orderId, payingStatus });
             res.status(200).json({
                 success: true,
                 message: "Payment status updated successfully",
@@ -908,71 +593,18 @@
             });
         } catch (error) {
             console.error("Error updating payment status:", error);
-            res.status(500).json({
+            res.status(error.message.includes("not found") ? 404 : 400).json({
                 success: false,
-                message: "Server error while updating payment status",
-                error: error.message,
+                message: error.message || "Server error while updating payment status",
             });
         }
     };
 
-
-    //refund
-    // Update Refund Status
     const updateRefundStatus = async (req, res) => {
         try {
             const { orderId } = req.params;
             const { refundStatus } = req.body;
-
-            // Validate input
-            if (!refundStatus || !["NotInitiated", "Pending", "Processing", "Completed", "Failed"].includes(refundStatus)) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid refundStatus value. Must be 'NotInitiated', 'Pending', 'Processing', 'Completed', or 'Failed'.",
-                });
-            }
-
-            // Validate orderId format (assuming it's a MongoDB ObjectId)
-            if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid order ID format",
-                });
-            }
-
-            // Find the order and populate the user to get the email
-            const order = await Order.findById(orderId).populate("user", "email");
-            if (!order) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Order not found",
-                });
-            }
-
-            // Check if the order is eligible for refund (e.g., cancelled and paid)
-            if (order.status !== "Cancelled" || order.payingStatus !== "Paid") {
-                return res.status(400).json({
-                    success: false,
-                    message: "Refund can only be processed for cancelled and paid orders",
-                });
-            }
-
-            // Update the refund status
-            const updatedOrder = await Order.findByIdAndUpdate(
-                orderId,
-                { $set: { refundStatus } },
-                { new: true, runValidators: true }
-            );
-
-            // Send corresponding email based on refund status
-            const userEmail = order.user.email;
-            let emailSent = true; // Default to true if no email is needed
-
-            if (refundStatus === "Completed") {
-                emailSent = await sendRefundSuccessEmail(userEmail, orderId);
-            } else if (refundStatus === "Failed") {
-                emailSent = await sendRefundFailedEmail(userEmail, orderId);
-            }
+            const { updatedOrder, emailSent } = await orderService.updateRefundStatus({ orderId, refundStatus });
 
             if (!emailSent) {
                 return res.status(500).json({
@@ -989,10 +621,9 @@
             });
         } catch (error) {
             console.error("Error updating refund status:", error);
-            res.status(500).json({
+            res.status(error.message.includes("not found") ? 404 : 400).json({
                 success: false,
-                message: "Server error while updating refund status",
-                error: error.message,
+                message: error.message || "Server error while updating refund status",
             });
         }
     };
@@ -1002,166 +633,34 @@
             const { orderId } = req.params;
             const { newStatus, cancellationReason } = req.body;
 
-            console.log("Received request body:", req.body); // Debug log
-
-            if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Invalid order ID format",
-                });
-            }
-
-            const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
-            if (!newStatus || !validStatuses.includes(newStatus)) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Invalid status value. Must be one of: ${validStatuses.join(', ')}`,
-                });
-            }
-
-            const order = await Order.findById(orderId).populate('products.product').populate('user', 'name email');
-            if (!order) {
-                return res.status(404).json({ success: false, message: "Order not found" });
-            }
-
-            const allowedTransitions = {
-                Draft: ["Pending"],
-                Pending: ["Confirmed", "Cancelled", "CancelledByAdmin"],
-                Confirmed: ["Delivered", "Cancelled", "CancelledByAdmin"],
-                Delivered: [],
-                Cancelled: [],
-                CancelledByAdmin: []
-            };
-
-            if (!allowedTransitions[order.status].includes(newStatus)) {
-                return res.status(400).json({
-                    success: false,
-                    message: `Invalid status transition from ${order.status} to ${newStatus}`
-                });
-            }
-
-            if (newStatus === "Cancelled" || newStatus === "CancelledByAdmin") {
-                if (!cancellationReason || !cancellationReason.trim()) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Cancellation reason is required when cancelling an order",
-                    });
-                }
-
-                if (order.status === "Confirmed") {
-                    for (const item of order.products) {
-                        const product = await Product.findById(item.product._id);
-                        if (!product) {
-                            return res.status(404).json({ success: false, message: `Product ${item.product.name} not found` });
-                        }
-                        await Product.findByIdAndUpdate(item.product._id, {
-                            $inc: { stock: item.quantity }
-                        });
-                    }
-                }
-            }
-
-            if (newStatus === "Confirmed") {
-                const insufficientStockProducts = [];
-                for (const item of order.products) {
-                    const product = await Product.findById(item.product._id);
-                    if (!product) {
-                        return res.status(404).json({ success: false, message: `Product ${item.product.name} not found` });
-                    }
-                    if (product.stock < item.quantity) {
-                        insufficientStockProducts.push({
-                            productId: product._id,
-                            productName: product.name,
-                            availableStock: product.stock,
-                            requiredQuantity: item.quantity,
-                        });
-                    }
-                }
-                if (insufficientStockProducts.length > 0) {
-                    return res.status(400).json({
-                        success: false,
-                        message: "Cannot confirm order. Some products have insufficient stock.",
-                        insufficientStockProducts
-                    });
-                }
-                for (const item of order.products) {
-                    await Product.findByIdAndUpdate(item.product._id, {
-                        $inc: { stock: -item.quantity }
-                    });
-                }
-            }
-
-            order.status = newStatus;
-            if (newStatus === "Delivered") {
-                order.DeliveredAt = new Date();
-            }
-            if (newStatus === "Cancelled" || newStatus === "CancelledByAdmin") {
-                order.cancellationReason = cancellationReason;
-                console.log("Setting cancellationReason to:", cancellationReason);
-            }
-
-            const formatDateTime = (dateString) => {
-                const date = new Date(dateString);
-                const offset = 7; // Vietnam Time GMT+7
-                date.setHours(date.getHours() + offset);
-                const hours = String(date.getHours()).padStart(2, "0");
-                const minutes = String(date.getMinutes()).padStart(2, "0");
-                const seconds = String(date.getSeconds()).padStart(2, "0");
-                const month = String(date.getMonth() + 1).padStart(2, "0");
-                const day = String(date.getDate()).padStart(2, "0");
-                const year = String(date.getFullYear()).slice(-2);
-                return `${hours}:${minutes}:${seconds},${month}/${day}/${year}`;
-            };
-
-            const actionText = newStatus === "Confirmed" ? "Order is confirmed" :
-                newStatus === "Delivered" ? "Order is delivered successfully" :
-                    newStatus === "Cancelled" ? "Order is cancelled" :
-                        newStatus === "CancelledByAdmin" ? "Order is cancelled by Admin" : `Order is ${newStatus}`;
-
-            order.history.push({
-                action: actionText,
-                date: formatDateTime(new Date())
+            const { order: updatedOrder, emailSent } = await orderService.updateOrderStatus({
+                orderId,
+                newStatus,
+                cancellationReason,
             });
-
-            // Send refund request email if cancelled by admin and order is paid
-            if (newStatus === "CancelledByAdmin" && order.user && order.user.email && order.payingStatus === "Paid") {
-                const emailSent = await sendRefundRequestEmail(order.user.email, orderId, cancellationReason);
-                if (!emailSent) {
-                    console.error("Failed to send refund request email to:", order.user.email);
-                    // Optionally, you can log this failure or notify the admin, but continue processing
-                }
-            }
-
-            await order.save();
-            console.log("Order saved with status:", order.status, "and cancellationReason:", order.cancellationReason);
 
             const io = req.app.locals.io;
             io.emit("orderStatusUpdated", {
-                orderId: order._id,
+                orderId: updatedOrder._id,
                 newStatus,
                 updatedAt: new Date(),
             });
 
-            const updatedOrder = await Order.findById(orderId)
-                .populate("user", "name avatar email")
-                .populate("products.product", "name price MainImage");
+            const populatedOrder = await orderService.getOrderDetails(orderId);
 
             res.status(200).json({
                 success: true,
                 message: `Order status updated to ${newStatus}`,
-                order: updatedOrder
+                order: populatedOrder,
             });
-
         } catch (error) {
             console.error('Error updating order status:', error);
-            res.status(500).json({
+            res.status(error.message.includes("not found") ? 404 : 400).json({
                 success: false,
-                message: "Server error",
-                error: error.message
+                message: error.message || "Server error",
             });
         }
     };
-
     //users
     const getAllUsers = async (req, res) => {
         try {

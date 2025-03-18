@@ -1,5 +1,5 @@
 const express = require('express');
-const { createOrder, getOrdersDetail, purchaseOrder,updateOrderStatus , getOrderDetailByID, cancelOrder,
+const { createOrder, getOrdersDetail, purchaseOrder , getOrderDetailByID, cancelOrder,
     submitRefundBankDetails
 } = require('../controllers/OrderController'); // Adjust path as needed
 const verifyToken = require('../middlewares/verifyToken');
@@ -65,53 +65,7 @@ const router = express.Router();
  *           description: The time when the order was last updated
  */
 
-//
-router.get("/all", getAllOrders);
 
-/**
- * @swagger
- * /api/v1/orders/addOrder:
- *   post:
- *     summary: Create a new order
- *     tags: [Orders]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               user:
- *                 type: string
- *                 description: User ID placing the order
- *               products:
- *                 type: array
- *                 items:
- *                   type: object
- *                   properties:
- *                     product:
- *                       type: string
- *                       description: Product ID
- *                     quantity:
- *                       type: number
- *                       description: Quantity of the product
- *               shippingAddress:
- *                 type: string
- *               paymentMethod:
- *                 type: string
- *     responses:
- *       201:
- *         description: Order created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Order'
- *       400:
- *         description: Bad request
- *       401:
- *         description: Unauthorized
- */
-router.post('/addOrder', verifyToken, createOrder);
 
 /**
  * @swagger
@@ -173,51 +127,6 @@ router.get('/getUserOrders', verifyToken, getOrdersDetail);
 router.post('/purchase', verifyToken, purchaseOrder);
 
 
-/**
- * @swagger
- * /api/v1/orders/updateOrderStatus/{orderId}:
- *   put:
- *     summary: Update the status of an order
- *     tags: [Orders]
- *     parameters:
- *       - in: path
- *         name: orderId
- *         required: true
- *         schema:
- *           type: string
- *         description: The ID of the order to update
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               action:
- *                 type: string
- *                 description: The action to update the order status
- *     responses:
- *       200:
- *         description: Order status updated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   description: Status of the response
- *                 message:
- *                   type: string
- *                   description: Message about the response
- *                 data:
- *                   $ref: '#/components/schemas/Order'
- *       404:
- *         description: Order not found
- *       500:
- *         description: Internal server error
- */
-router.put('/updateOrderStatus/:orderId', updateOrderStatus);
 
 /**
  * @swagger
