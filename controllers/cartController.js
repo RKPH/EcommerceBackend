@@ -139,7 +139,7 @@ exports.updateCartItem = async (req, res) => {
             data: updatedCartItem,
         });
     } catch (error) {
-        console.error('Error updating cart item:', error.message);
+
         if (error.message.includes('Unauthorized')) {
             return res.status(401).json({
                 status: 'error',

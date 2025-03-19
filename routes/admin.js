@@ -1,13 +1,34 @@
 const express = require("express");
 const { getMonthlyRevenue, getProductTypeSales, getMostProductBuyEachType, getRevenueComparison, getOrderComparison,
     getTopRatedProducts, getWeeklyRevenue, getTopOrderedProductsController, getOrderDetails, updatePaymentStatus,
-    updateRefundStatus, updateOrderStatus, getAllUsers, getUserDetails, updateUser, createUser, createProduct, deleteProduct
+    updateRefundStatus, updateOrderStatus, getAllUsers, getUserDetails, updateUser, createUser, createProduct, deleteProduct,
+    importProducts
 } = require("../controllers/AdminController");
 const {getAllOrders, updateProduct, loginAdmin} = require("../controllers/AdminController");
 const verifyToken = require('../middlewares/verifyToken');
 const verifyAdmin = require('../middlewares/verifyAdmin');
 
+const multer = require('multer');
+const fs = require('fs') // Add this line
 
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: async function (req, file, cb) {
+        const dir = 'uploads/';
+        try {
+            await fs.promises.mkdir(dir, { recursive: true }); // Create directory if it doesn't exist
+            cb(null, dir);
+        } catch (err) {
+            console.error('Error creating directory:', err);
+            cb(err);
+        }
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+
+const upload = multer({ storage: storage });
 
 const router = express.Router();
 
@@ -35,7 +56,7 @@ router.get("/allOrders", getAllOrders);
 router.post("/products/add",verifyToken, verifyAdmin ,createProduct);
 router.put("/products/update/:id" , verifyToken, verifyAdmin ,updateProduct );
 router.delete("/products/:product_id" , verifyToken, verifyAdmin,deleteProduct);
-
+router.post("/products/import" ,upload.single('file'),importProducts);
 router.post("/login", loginAdmin)
 
 

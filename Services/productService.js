@@ -3,8 +3,9 @@ const UserBehavior = require('../models/UserBehaviors');
 const Order = require('../models/Order');
 const Review = require('../models/reviewSchema');
 const axios = require('axios');
-
-
+const fs = require('fs');
+const fsp = require('fs').promises;
+const { parse } = require('csv-parse');
 // Service functions
 exports.createProduct = async ({
                                  name,
@@ -88,6 +89,132 @@ exports.createProduct = async ({
     }
 };
 
+//create multiple products
+exports.createProducts = async (filePath) => {
+    try {
+        console.log('Reading file at path:', filePath);
+        const productsData = await new Promise((resolve, reject) => {
+            const results = [];
+            fs.createReadStream(filePath)
+                .pipe(parse({
+                    delimiter: ',',
+                    columns: headers => headers.map(header => header.trim().replace(/^['"]|['"]$/g, '')), // Normalize headers
+                    skip_empty_lines: true,
+                    trim: true
+                }))
+                .on('headers', (headers) => console.log('CSV headers:', headers))
+                .on('data', (row) => {
+                    console.log('Parsed CSV row (raw):', row);
+                    console.log('Parsed CSV row keys:', Object.keys(row));
+                    results.push(row);
+                })
+                .on('end', () => {
+                    console.log('Finished parsing CSV. Total rows:', results.length);
+                    resolve(results);
+                })
+                .on('error', (error) => {
+                    console.error('CSV parsing error:', error);
+                    reject(error);
+                });
+        });
+
+        console.log('Products data after parsing:', productsData);
+
+        if (!Array.isArray(productsData) || productsData.length === 0) {
+            throw new Error('File is empty or invalid.');
+        }
+
+        const createdProducts = [];
+        for (const product of productsData) {
+            console.log('Raw product object before destructuring:', product);
+            console.log('Product object keys:', Object.keys(product));
+            const {
+                name,
+                price,
+                category,
+                type,
+                brand,
+                stock,
+                mainImage,
+                description
+            } = product;
+            console.log('Destructured values:', { name, price, category, type, brand, stock, mainImage, description });
+
+            if (!name || !price || !category || !type || !brand || !stock || !mainImage) {
+                throw new Error(`Missing required fields for product: ${name || 'Unnamed product'}`);
+            }
+
+            // Validate numeric fields
+            const parsedPrice = parseFloat(price);
+            const parsedStock = parseInt(stock, 10);
+            if (isNaN(parsedPrice) || parsedPrice <= 0) {
+                throw new Error(`Invalid price for product: ${name}. Price must be a positive number.`);
+            }
+            if (isNaN(parsedStock) || parsedStock < 0) {
+                throw new Error(`Invalid stock for product: ${name}. Stock must be a non-negative integer.`);
+            }
+
+            // Generate a unique product_id
+            let product_id;
+            let isUnique = false;
+            do {
+                product_id = Math.floor(1000000 + Math.random() * 9000000).toString(); // 7-digit number
+                const existingProduct = await Product.findOne({ product_id });
+                if (!existingProduct) {
+                    isUnique = true;
+                }
+            } while (!isUnique);
+
+            // Prepare the new product data
+            const newProductData = {
+                product_id,
+                name,
+                price: parsedPrice,
+                category,
+                type,
+                brand,
+                stock: parsedStock,
+                MainImage: mainImage,
+                description: description || '',
+            };
+
+            // Create and save the new product
+            const newProduct = new Product(newProductData);
+            const savedProduct = await newProduct.save();
+
+            if (!savedProduct) {
+                throw new Error(`Failed to create product: ${name}`);
+            }
+
+            createdProducts.push({
+                product_id: savedProduct.product_id,
+                name: savedProduct.name,
+                price: savedProduct.price,
+                category: savedProduct.category,
+                type: savedProduct.type,
+                brand: savedProduct.brand,
+                stock: savedProduct.stock,
+                MainImage: savedProduct.MainImage,
+                description: savedProduct.description,
+                _id: savedProduct._id,
+                createdAt: savedProduct.createdAt,
+            });
+        }
+
+        return createdProducts;
+    } catch (error) {
+        if (error.message.includes('CSV')) {
+            throw new Error('Error parsing CSV file: ' + error.message);
+        }
+        if (error.name === 'ValidationError') {
+            throw new Error('Validation error: ' + Object.values(error.errors).map(err => err.message).join(', '));
+        }
+        if (error.code === 11000 && error.keyPattern?.product_id) {
+            throw new Error('Duplicate product ID detected.');
+        }
+        throw new Error(`Failed to create products: ${error.message}`);
+    }
+};
 // Update
 exports.updateProduct = async (product_id, updateData) => {
     try {

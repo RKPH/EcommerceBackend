@@ -16,11 +16,16 @@ exports.addReview = async (req, res) => {
             orderID,
         });
 
-        res.status(201).json({ message: "Review added successfully.", review });
+        return res.status(201).json({ message: "Review added successfully.", review });
     } catch (error) {
-        console.error("Error adding review:", error.message);
-        res.status(error.message.includes("not found") ? 404 : error.message.includes("already reviewed") ? 400 : 500)
-            .json({ message: error.message });
+
+        if (error.message.includes("not found")) {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error.message.includes("already reviewed")) {
+            return res.status(400).json({ message: error.message });
+        }
+        return res.status(500).json({ message: error.message || "Internal server error" });
     }
 };
 
@@ -31,11 +36,14 @@ exports.getReviews = async (req, res) => {
 
         const { reviews, averageRating } = await reviewService.getReviews({ productId });
 
-        res.status(200).json({ reviews, averageRating });
+        return res.status(200).json({ reviews, averageRating });
     } catch (error) {
-        console.error("Error fetching reviews:", error.message);
-        res.status(error.message.includes("No reviews") ? 404 : 500)
-            .json({ message: error.message });
+
+
+        if (error.message.includes("No reviews")) {
+            return res.status(404).json({ message: error.message });
+        }
+        return res.status(500).json({ message: error.message || "Internal server error" });
     }
 };
 
@@ -52,12 +60,9 @@ exports.getUserReviewForProductOrder = async (req, res) => {
             orderID,
         });
 
-        res.status(200).json({ review });
+        return res.status(200).json({ review });
     } catch (error) {
-        console.error("Error fetching review:", error.message);
 
-        // Log the exact error message for debugging
-        console.log("Error message:", error.message);
 
         if (error.message === "No review found for this product in this order.") {
             return res.status(404).json({ message: error.message });

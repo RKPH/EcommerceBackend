@@ -1,16 +1,15 @@
     const Order = require("../models/Order");
     const User = require('../models/user');
-    const Product = require('../models/products');
-    const mongoose = require('mongoose');
-    const jwt = require ('jsonwebtoken');
+
     const { hash, verifyPassword } = require('../utils/hash');  // Import password utility
-    const { generateJwt, generateRefreshToken, verifyRefreshToken } = require('../utils/jwt');  // Import JWT generation utility
+    const { generateJwt, generateRefreshToken} = require('../utils/jwt');  // Import JWT generation utility
     const { v4: uuidv4 } = require('uuid');
 
     const userService = require('../Services/userService');
     const orderService =  require('../Services/orderService');
     const Review =  require('../models/reviewSchema');
     const productService = require('../Services/productService');
+
 
 
     //static
@@ -115,6 +114,35 @@
                 success: false,
                 message: 'An unexpected error occurred while creating the product.',
                 error: error.message,
+            });
+        }
+    };
+
+    const importProducts = async (req, res) => {
+        try {
+            // Check if a file was uploaded
+            if (!req.file) {
+                return res.status(400).json({ status: 'error', message: 'No file uploaded' });
+            }
+
+            const filePath = req.file.path; // Path to the uploaded file
+
+            // Call createProducts from productService
+            const createdProducts = await productService.createProducts(filePath);
+
+            // Optionally delete the file after processing (uncomment if needed)
+            // await fs.promises.unlink(filePath);
+
+            return res.status(201).json({
+                status: 'success',
+                message: `${createdProducts.length} products imported successfully`,
+                data: createdProducts,
+            });
+        } catch (error) {
+            console.error('Error importing products:', error.message);
+            return res.status(error.message.includes('Invalid JSON') || error.message.includes('Missing required fields') ? 400 : 500).json({
+                status: 'error',
+                message: error.message || 'Internal server error',
             });
         }
     };
@@ -945,6 +973,7 @@
         getMostProductBuyEachType,
         getAllOrders,
         createProduct,
+        importProducts,
         updateProduct,
         deleteProduct,
         getOrderDetails,

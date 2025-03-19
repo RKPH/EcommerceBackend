@@ -1,148 +1,87 @@
-﻿const ShippingAddress = require('../models/ShipAddress');
+﻿const shippingAddressService = require('../Services/addressService');
 
-// ✅ Add a new address to the user's address array
+// Add a new shipping address
 exports.addShippingAddress = async (req, res) => {
     try {
         const { userId } = req.user;
-        const { street, city, cityCode, district, districtCode, ward, wardCode, phoneNumber } = req.body;
+        const addressData = req.body;
 
-        console.log("req", req.body);
 
-        // Ensure all fields are present in the request
-        if (!street || !city || !cityCode || !district || !districtCode || !ward || !wardCode || !phoneNumber) {
-            return res.status(400).json({ message: "All address fields are required" });
-        }
 
-        // Find or create the shipping address document
-        let shippingAddress = await ShippingAddress.findOne({ user: userId });
+        const shippingAddress = await shippingAddressService.addShippingAddress(userId, addressData);
 
-        if (!shippingAddress) {
-            // Create a new shipping address if it doesn't exist
-            shippingAddress = new ShippingAddress({
-                user: userId,
-                addresses: [{
-                    street,
-                    city,
-                    cityCode,
-                    district,
-                    districtCode,
-                    ward,
-                    wardCode,
-                    phoneNumber
-                }]
-            });
-        } else {
-            // Add the new address if it already exists
-            shippingAddress.addresses.push({
-                street,
-                city,
-                cityCode,
-                district,
-                districtCode,
-                ward,
-                wardCode,
-                phoneNumber
-            });
-        }
-
-        // Save the updated shipping address
-        await shippingAddress.save();
-
-        res.status(201).json({ message: "Shipping address added successfully", shippingAddress });
+        return res.status(201).json({ message: "Shipping address added successfully", shippingAddress });
     } catch (error) {
-        console.error("Error adding shipping address:", error);
 
-        // Check for validation errors
+
+        if (error.message === 'All address fields are required') {
+            return res.status(400).json({ message: error.message });
+        }
         if (error.name === 'ValidationError') {
             return res.status(400).json({ message: error.message, errors: error.errors });
         }
-
-        res.status(500).json({ message: "Server error" });
+        return res.status(500).json({ message: "Server error" });
     }
 };
 
-
-// ✅ Get all shipping addresses of the logged-in user
+// Get all shipping addresses
 exports.getShippingAddresses = async (req, res) => {
     try {
         const { userId } = req.user;
-        const shippingAddress = await ShippingAddress.findOne({ user: userId });
 
-        if (!shippingAddress) {
-            return res.status(404).json({ message: "No shipping addresses found" });
-        }
+        const addresses = await shippingAddressService.getShippingAddresses(userId);
 
-        res.status(200).json({ addresses: shippingAddress.addresses });
+        return res.status(200).json({ addresses });
     } catch (error) {
-        console.error("Error fetching shipping addresses:", error);
-        res.status(500).json({ message: "Server error" });
+        console.error("Error fetching shipping addresses:", error.message);
+
+        if (error.message === 'No shipping addresses found') {
+            return res.status(404).json({ message: error.message });
+        }
+        return res.status(500).json({ message: "Server error" });
     }
 };
-// ✅ Update a specific address in the user's address array
+
+// Update a specific shipping address
 exports.updateShippingAddress = async (req, res) => {
     try {
-        const { userId } = req.user;  // Extract userId from the authenticated user
-        const { addressId, street, city, cityCode, district, districtCode, ward, wardCode, phoneNumber } = req.body;
+        const { userId } = req.user;
+        const { addressId, ...addressData } = req.body;
 
-        console.log("req", req.body);
 
-        // Find the user's shipping address by userId
-        const shippingAddress = await ShippingAddress.findOne({ user: userId });
 
-        if (!shippingAddress) {
-            return res.status(404).json({ message: "No shipping addresses found for this user." });
-        }
+        const updatedAddress = await shippingAddressService.updateShippingAddress(userId, addressId, addressData);
 
-        // Find the specific address by addressId in the addresses array
-        const addressIndex = shippingAddress.addresses.findIndex((address) => address._id.toString() === addressId);
-
-        if (addressIndex === -1) {
-            console.log("not found");
-            return res.status(404).json({ message: "Address not found." });
-        }
-
-        // Update the address fields with the data from the request
-        shippingAddress.addresses[addressIndex].street = street || shippingAddress.addresses[addressIndex].street;
-        shippingAddress.addresses[addressIndex].city = city || shippingAddress.addresses[addressIndex].city;
-        shippingAddress.addresses[addressIndex].cityCode = cityCode || shippingAddress.addresses[addressIndex].cityCode;
-        shippingAddress.addresses[addressIndex].district = district || shippingAddress.addresses[addressIndex].district;
-        shippingAddress.addresses[addressIndex].districtCode = districtCode || shippingAddress.addresses[addressIndex].districtCode;
-        shippingAddress.addresses[addressIndex].ward = ward || shippingAddress.addresses[addressIndex].ward;
-        shippingAddress.addresses[addressIndex].wardCode = wardCode || shippingAddress.addresses[addressIndex].wardCode;
-        shippingAddress.addresses[addressIndex].phoneNumber = phoneNumber || shippingAddress.addresses[addressIndex].phoneNumber;
-
-        // Save the updated shipping address
-        await shippingAddress.save();
-
-        // Return the updated address only
-        res.status(200).json({
-            message: "Shipping address updated successfully.",
-            updatedAddress: shippingAddress.addresses[addressIndex]
-        });
+        return res.status(200).json({ message: "Shipping address updated successfully", updatedAddress });
     } catch (error) {
-        console.error("Error updating shipping address:", error);
-        res.status(500).json({ message: "Server error while updating address." });
+
+
+        if (error.message === 'No shipping addresses found for this user') {
+            return res.status(404).json({ message: error.message });
+        }
+        if (error.message === 'Address not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        return res.status(500).json({ message: "Server error while updating address" });
     }
 };
 
-// ✅ Delete a specific address from the user's address array
+// Delete a specific shipping address
 exports.deleteShippingAddress = async (req, res) => {
     try {
         const { userId } = req.user;
         const { addressId } = req.params;
 
-        const shippingAddress = await ShippingAddress.findOne({ user: userId });
+        const shippingAddress = await shippingAddressService.deleteShippingAddress(userId, addressId);
 
-        if (!shippingAddress) {
-            return res.status(404).json({ message: "No shipping addresses found" });
-        }
-
-        shippingAddress.addresses = shippingAddress.addresses.filter(addr => addr._id.toString() !== addressId);
-
-        await shippingAddress.save();
-        res.status(200).json({ message: "Shipping address deleted successfully", shippingAddress });
+        return res.status(200).json({ message: "Shipping address deleted successfully", shippingAddress });
     } catch (error) {
-        console.error("Error deleting shipping address:", error);
-        res.status(500).json({ message: "Server error" });
+
+
+        if (error.message === 'No shipping addresses found' || error.message === 'Address not found') {
+            return res.status(404).json({ message: error.message });
+        }
+        return res.status(500).json({ message: "Server error" });
     }
 };
+
