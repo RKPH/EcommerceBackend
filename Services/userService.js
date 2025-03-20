@@ -1,8 +1,16 @@
 ﻿// userService.js
 const User = require('../models/user');
-const { hash, verifyPassword } = require('../utils/hash'); // Import password utility
-const { generateJwt, generateRefreshToken } = require('../utils/jwt'); // Import JWT generation utility
-const { v4: uuidv4 } = require('uuid');
+const { hash } = require('../utils/hash'); // Import password utility
+
+
+
+const getUTCMonthRange = (year, month) => {
+    const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+    return { start, end };
+};
+
+
 
 exports.getAllUsers = async (page = 1, limit = 10, search = "", role = "") => {
     try {
@@ -221,55 +229,113 @@ exports.createUser = async (userData) => {
     }
 };
 
-exports.loginAdmin = async (email, password) => {
+exports.updateUserProfile = async (userId, { name, email, avatar }) => {
     try {
-        // Validate required fields
-        if (!email || !password) {
-            throw new Error('All fields are required');
-        }
-
-        // Check if the user exists
-        const user = await User.findOne({ email });
-
+        // Find the user by their ID
+        const user = await User.findById(userId);
         if (!user) {
-            throw new Error('Invalid email or password');
+            throw new Error('User not found');
         }
 
-        // Check if the user is an admin
-        if (user.role !== 'admin') {
-            throw new Error('Access denied. Only admins can log in.');
+        // Check if the email is already in use by another user (if it's different)
+        if (email && email !== user.email) {
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                throw new Error('Email is already in use');
+            }
         }
 
-        // Check if the account is verified
-        if (!user.isVerified) {
-            throw new Error('Account not verified. Please check your email to verify your account.');
-        }
+        // Update user fields
+        user.name = name || user.name;
+        user.email = email || user.email;
 
-        // Verify the password
-        const isPasswordValid = verifyPassword(user.salt, user.password, password);
-        if (!isPasswordValid) {
-            throw new Error('Invalid email or password');
-        }
+        user.avatar = avatar || user.avatar;
 
-        // Generate a JWT token
-        const sessionID = uuidv4();
-        const token = generateJwt(user._id, sessionID);
-        const refreshToken = generateRefreshToken(user._id, sessionID);
+        // Save the updated user
+        await user.save();
+
+        // Return the updated user profile (excluding sensitive data like password)
+        const userProfile = {
+            name: user.name,
+            email: user.email,
+
+            avatar: user.avatar,
+            role: user.role,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+        };
 
         return {
-            token,
-            refreshToken,
-            user: {
-                id: user._id,
-                sessionID,
-                user_id: user.user_id,
-                avatar: user.avatar,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-            },
+            message: 'User profile updated successfully',
+            user: userProfile,
         };
     } catch (error) {
-        throw new Error(error.message || 'An unexpected error occurred during admin login.');
+        throw new Error(error.message || 'Error updating user profile');
+    }
+};
+
+exports.getUserComparison = async ({ onlyVerified = false } = {}) => {
+    try {
+        const now = new Date();
+
+        const { start: currentMonthStart, end: currentMonthEnd } = getUTCMonthRange(now.getUTCFullYear(), now.getUTCMonth());
+        const { start: previousMonthStart, end: previousMonthEnd } = getUTCMonthRange(now.getUTCFullYear(), now.getUTCMonth() - 1);
+
+        console.log("Current Month (UTC):", currentMonthStart, "to", currentMonthEnd);
+        console.log("Previous Month (UTC):", previousMonthStart, "to", previousMonthEnd);
+
+        // Add isVerified filter if specified
+        const query = onlyVerified ? { isVerified: true } : {};
+
+        const currentMonthUsers = await User.find({
+            ...query,
+            createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd }
+        });
+
+        const previousMonthUsers = await User.find({
+            ...query,
+            createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd }
+        });
+
+        const currentMonthCustomers = currentMonthUsers.filter(user => user.role === 'customer').length;
+        const currentMonthAdmins = currentMonthUsers.filter(user => user.role === 'admin').length;
+        const previousMonthCustomers = previousMonthUsers.filter(user => user.role === 'customer').length;
+        const previousMonthAdmins = previousMonthUsers.filter(user => user.role === 'admin').length;
+
+        const currentUserCount = currentMonthUsers.length;
+        const previousUserCount = previousMonthUsers.length;
+
+        const percentageChange = previousUserCount === 0
+            ? (currentUserCount > 0 ? 100 : 0)
+            : ((currentUserCount - previousUserCount) / previousUserCount) * 100;
+
+        const customerPercentageChange = previousMonthCustomers === 0
+            ? (currentMonthCustomers > 0 ? 100 : 0)
+            : ((currentMonthCustomers - previousMonthCustomers) / previousMonthCustomers) * 100;
+
+        const adminPercentageChange = previousMonthAdmins === 0
+            ? (currentMonthAdmins > 0 ? 100 : 0)
+            : ((currentMonthAdmins - previousMonthAdmins) / previousMonthAdmins) * 100;
+
+        return {
+            totalUsers: {
+                currentMonth: currentUserCount,
+                previousMonth: previousUserCount,
+                percentageChange: percentageChange.toFixed(2) + "%"
+            },
+            customers: {
+                currentMonth: currentMonthCustomers,
+                previousMonth: previousMonthCustomers,
+                percentageChange: customerPercentageChange.toFixed(2) + "%"
+            },
+            admins: {
+                currentMonth: currentMonthAdmins,
+                previousMonth: previousMonthAdmins,
+                percentageChange: adminPercentageChange.toFixed(2) + "%"
+            }
+        };
+    } catch (error) {
+        console.error("Error fetching user comparison:", error);
+        throw new Error("Failed to fetch user comparison");
     }
 };

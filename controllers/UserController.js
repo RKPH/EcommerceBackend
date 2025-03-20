@@ -1,55 +1,201 @@
-const User = require('../models/user'); // Assuming your model is in the `models` folder
+const userService = require('../Services/userService');
 
-// Update user profile
-const updateUserProfile = async (req, res) => {
-    const { name, email, address, avatar } = req.body;
-    const userId = req.user. userId; // Assuming the user ID is attached to the request (e.g., from JWT token)
-
+// Get all users
+exports.getAllUsers = async (req, res) => {
     try {
-        console.log("user in update ",req.user);
-        // Find the user by their ID
-        const user = await User.findById(userId);
-        if (!user) {
-            console.log("user not found");
-            return res.status(404).json({ message: 'User not found' });
-        }
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const search = req.query.search || "";
+        const role = req.query.role || "";
 
-        // Check if the email is already in use by another user (if it's different)
-        if (email && email !== user.email) {
-            const existingUser = await User.findOne({ email });
-            if (existingUser) {
-                return res.status(400).json({ message: 'Email is already in use' });
-            }
-        }
+        const result = await userService.getAllUsers(page, limit, search, role);
 
-
-        // Update user fields
-        user.name = name || user.name;
-        user.email = email || user.email;
-        user.address = address || user.address;
-        user.avatar = avatar || user.avatar;
-        // Save the updated user
-        await user.save();
-
-        // Return the updated user profile (excluding sensitive data like password)
-        const userProfile = {
-            name: user.name,
-            email: user.email,
-            address: user.address,
-            avatar: user.avatar,
-            role: user.role,
-            createdAt: user.createdAt,
-            updatedAt: user.updatedAt
-        };
-
-        res.status(200).json({ message: 'User profile updated successfully', user: userProfile });
-
+        return res.status(200).json({
+            status: "success",
+            data: result.users,
+            pagination: result.pagination,
+        });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Error updating user profile' });
+
+        return res.status(500).json({
+            status: "error",
+            message: error.message || "Failed to fetch users due to a server error.",
+        });
     }
 };
 
-module.exports = {
-    updateUserProfile,
+// Get user details
+exports.getUserDetails = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const user = await userService.getUserDetails(id);
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'User details retrieved successfully.',
+            data: user,
+        });
+    } catch (error) {
+
+
+        if (error.message === 'User not found.') {
+            return res.status(404).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        return res.status(500).json({
+            status: 'error',
+            message: error.message || 'An unexpected error occurred while fetching user details.',
+        });
+    }
+};
+
+// Update a user
+exports.updateUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updateData = req.body;
+
+        const updatedUser = await userService.updateUser(id, updateData);
+
+        return res.status(200).json({
+            status: 'success',
+            message: 'User updated successfully.',
+            data: updatedUser,
+        });
+    } catch (error) {
+
+
+        if (error.message === 'Name and email are required.') {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message === 'Invalid role. Role must be either "customer" or "admin".') {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message.includes('Validation error')) {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message === 'User not found.') {
+            return res.status(404).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message === 'Email is already in use by another user.') {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        return res.status(500).json({
+            status: 'error',
+            message: error.message || 'An unexpected error occurred while updating the user.',
+        });
+    }
+};
+
+// Create a user
+exports.createUser = async (req, res) => {
+    try {
+        const userData = req.body;
+
+        const newUser = await userService.createUser(userData);
+
+        return res.status(201).json({
+            status: 'success',
+            message: 'User created successfully.',
+            data: newUser,
+        });
+    } catch (error) {
+
+        if (error.message === 'Name, email, and password are required.') {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message === 'Invalid email format.') {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message === 'Invalid role. Role must be either "customer" or "admin".') {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message.includes('Validation error')) {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        if (error.message === 'Email is already in use by another user.') {
+            return res.status(400).json({
+                status: 'error',
+                message: error.message,
+            });
+        }
+        return res.status(500).json({
+            status: 'error',
+            message: error.message || 'An unexpected error occurred while creating the user.',
+        });
+    }
+};
+
+// Update user profile
+exports.updateUserProfile = async (req, res) => {
+    try {
+
+        const { name, email, avatar } = req.body;
+        const userId = req.user.userId;
+
+
+        const result = await userService.updateUserProfile(userId, { name, email, avatar });
+
+
+        return res.status(200).json(result);
+    } catch (error) {
+
+        if (error.message === 'User not found') {
+            return res.status(404).json({
+                message: error.message,
+            });
+        }
+        if (error.message === 'Email is already in use') {
+            return res.status(400).json({
+                message: error.message,
+            });
+        }
+        return res.status(500).json({
+            message: error.message || 'Error updating user profile',
+        });
+    }
+};
+
+exports.getUserComparison = async (req, res) => {
+    try {
+        const { onlyVerified = false } = req.query;
+        const userComparisonData = await userService.getUserComparison({ onlyVerified: onlyVerified === 'true' });
+        res.status(200).json(userComparisonData);
+    } catch (error) {
+
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message
+        });
+    }
 };

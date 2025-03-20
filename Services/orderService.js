@@ -1,10 +1,11 @@
 ﻿const Order = require('../models/Order');
 const Product = require('../models/products');
 const Cart = require('../models/cart');
-const User = require('../models/user');
+const mongoose = require('mongoose')
 const crypto = require('crypto');
 const https = require('https');
 const { sendCancellationEmail, sendRefundRequestEmail, sendRefundSuccessEmail, sendRefundFailedEmail } = require('../Services/Email');
+const Review = require('../models/reviewSchema');
 
 const formatDate = (date) => {
     const offset = 7; // Vietnam Time GMT+7
@@ -16,6 +17,12 @@ const formatDate = (date) => {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = String(date.getFullYear()).slice(-2);
     return `${hours}:${minutes}:${seconds},${month}/${day}/${year}`;
+};
+
+const getUTCMonthRange = (year, month) => {
+    const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
+    return { start, end };
 };
 
 exports.createOrder = async ({ userId, orderID, products, shippingAddress, PaymentMethod }) => {
@@ -69,43 +76,50 @@ exports.createOrder = async ({ userId, orderID, products, shippingAddress, Payme
 
 exports.getAllOrders = async ({ page = 1, limit = 10, search, status, PaymentMethod, payingStatus }) => {
     try {
-        // Build the initial pipeline to filter and count unique orders
-        let matchStage = { status: { $ne: 'Draft' } };
-
-        // Add search filter
-        if (search) {
-            const searchRegex = new RegExp(search, 'i');
-            let matchConditions = [
-                { 'user.name': searchRegex }
-            ];
-
-            if (mongoose.isValidObjectId(search)) {
-                matchConditions.push({ _id: new mongoose.Types.ObjectId(search) });
-            } else {
-                matchConditions.push({ _id: searchRegex });
-            }
-
-            matchStage.$or = matchConditions;
+        // Validate inputs
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        if (isNaN(pageNum) || pageNum < 1) {
+            throw new Error('Invalid page number');
         }
+        if (isNaN(limitNum) || limitNum < 1) {
+            throw new Error('Invalid limit value');
+        }
+
+        // Build the initial match stage (without user.name for now)
+        let initialMatchStage = { status: { $ne: 'Draft' } };
 
         // Add status filter
         if (status && status !== 'All' && status !== 'Draft') {
-            matchStage.status = status;
+            const validStatuses = ['Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+            if (!validStatuses.includes(status)) {
+                throw new Error(`Invalid status value. Must be one of: ${validStatuses.join(', ')}`);
+            }
+            initialMatchStage.status = status;
         }
 
         // Add PaymentMethod filter
         if (PaymentMethod) {
-            matchStage.PaymentMethod = PaymentMethod;
+            initialMatchStage.PaymentMethod = PaymentMethod;
         }
 
         // Add payingStatus filter
         if (payingStatus) {
-            matchStage.payingStatus = payingStatus;
+            const validPayingStatuses = ['Paid', 'Unpaid', 'Failed'];
+            if (!validPayingStatuses.includes(payingStatus)) {
+                throw new Error(`Invalid payingStatus value. Must be one of: ${validPayingStatuses.join(', ')}`);
+            }
+            initialMatchStage.payingStatus = payingStatus;
+        }
+
+        // Add _id filter if search is a valid ObjectId
+        if (search && mongoose.isValidObjectId(search)) {
+            initialMatchStage._id = new mongoose.Types.ObjectId(search);
         }
 
         // Pipeline to get total unique orders
         const totalOrdersPipeline = [
-            { $match: matchStage },
+            { $match: initialMatchStage },
             { $group: { _id: null, total: { $sum: 1 } } }
         ];
 
@@ -113,20 +127,11 @@ exports.getAllOrders = async ({ page = 1, limit = 10, search, status, PaymentMet
         const totalOrders = totalOrdersResult[0]?.total || 0;
 
         // Pipeline to fetch paginated orders
-        const pageNum = parseInt(page);
-        const limitNum = parseInt(limit);
         const skip = (pageNum - 1) * limitNum;
 
         const pipeline = [
-            // Initial match
-            { $match: matchStage },
-
-            // Sort early to ensure consistent order before pagination
-            { $sort: { createdAt: -1 } },
-
-            // Paginate unique orders
-            { $skip: skip },
-            { $limit: limitNum },
+            // Initial match (without user.name)
+            { $match: initialMatchStage },
 
             // Lookup user
             {
@@ -138,6 +143,24 @@ exports.getAllOrders = async ({ page = 1, limit = 10, search, status, PaymentMet
                 }
             },
             { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+
+            // Add user.name filter after lookup (if search is provided and not an ObjectId)
+            ...(search && !mongoose.isValidObjectId(search)
+                ? [
+                    {
+                        $match: {
+                            'user.name': { $regex: search, $options: 'i' }
+                        }
+                    }
+                ]
+                : []),
+
+            // Sort early to ensure consistent order before pagination
+            { $sort: { createdAt: -1 } },
+
+            // Paginate unique orders
+            { $skip: skip },
+            { $limit: limitNum },
 
             // Lookup products
             {
@@ -194,9 +217,10 @@ exports.getAllOrders = async ({ page = 1, limit = 10, search, status, PaymentMet
         };
     } catch (error) {
         console.error('Error fetching orders:', error.message, error.stack);
-        throw new Error("Internal server error");
+        throw error;
     }
 };
+
 exports.getOrdersDetail = async (userId) => {
     const orders = await Order.find({ user: userId })
         .populate('products.product')
@@ -256,7 +280,7 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
     const secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
     const partnerCode = 'MOMO';
     const redirectUrl = `http://localhost:5173/checkout/success/${orderId}`;
-    const ipnUrl = 'https://warm-chefs-push.loca.lt/api/v1/webhook/momo-ipn';
+    const ipnUrl = 'https://early-wings-refuse.loca.lt/api/v1/webhook/momo-ipn';
     const orderInfo = 'pay with MoMo';
     const Totalprice = 10000; // Fixed: Use totalPrice instead of hardcoding
     const requestId = `${orderId}-${Date.now()}`;
@@ -745,5 +769,212 @@ exports.getMostProductBuyEachType = async () => {
     } catch (error) {
         console.error("Error fetching most bought products:", error);
         throw new Error("Internal server error");
+    }
+};
+
+exports.getRevenueComparison = async () => {
+    try {
+        const now = new Date();
+
+        const { start: currentMonthStart, end: currentMonthEnd } = getUTCMonthRange(now.getUTCFullYear(), now.getUTCMonth());
+        const { start: previousMonthStart, end: previousMonthEnd } = getUTCMonthRange(now.getUTCFullYear(), now.getUTCMonth() - 1);
+
+        console.log("Current Month (UTC):", currentMonthStart, "to", currentMonthEnd);
+        console.log("Previous Month (UTC):", previousMonthStart, "to", previousMonthEnd);
+
+        const currentMonthOrders = await Order.find({
+            payingStatus: "Paid",
+            status: { $nin: ["Cancelled", "CancelledByAdmin"] },
+            PaidAt: { $gte: currentMonthStart, $lt: currentMonthEnd }
+        });
+
+        const previousMonthOrders = await Order.find({
+            payingStatus: "Paid",
+            status: { $nin: ["Cancelled", "CancelledByAdmin"] },
+            PaidAt: { $gte: previousMonthStart, $lt: previousMonthEnd }
+        });
+
+        console.log("Current Month Orders:", currentMonthOrders.length);
+        console.log("Previous Month Orders:", previousMonthOrders.length);
+
+        const currentRevenue = currentMonthOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+        const previousRevenue = previousMonthOrders.reduce((sum, order) => sum + (order.totalPrice || 0), 0);
+
+        const percentageChange = previousRevenue === 0
+            ? (currentRevenue > 0 ? 100 : 0)
+            : ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+
+        return {
+            currentMonthRevenue: currentRevenue,
+            previousMonthRevenue: previousRevenue,
+            percentageChange: percentageChange.toFixed(2) + "%"
+        };
+    } catch (error) {
+        console.error("Error fetching revenue comparison:", error);
+        throw new Error("Failed to fetch revenue comparison");
+    }
+};
+
+exports.getOrderComparison = async () => {
+    try {
+        const now = new Date();
+
+        const { start: currentMonthStart, end: currentMonthEnd } = getUTCMonthRange(now.getUTCFullYear(), now.getUTCMonth());
+        const { start: previousMonthStart, end: previousMonthEnd } = getUTCMonthRange(now.getUTCFullYear(), now.getUTCMonth() - 1);
+
+        console.log("Current Month (UTC):", currentMonthStart, "to", currentMonthEnd);
+        console.log("Previous Month (UTC):", previousMonthStart, "to", previousMonthEnd);
+
+        const currentMonthOrders = await Order.find({
+            status: { $nin: ["Draft", "Cancelled", "CancelledByAdmin"] },
+            createdAt: { $gte: currentMonthStart, $lt: currentMonthEnd }
+        });
+
+        const previousMonthOrders = await Order.find({
+            status: { $nin: ["Draft", "Cancelled", "CancelledByAdmin"] },
+            createdAt: { $gte: previousMonthStart, $lt: previousMonthEnd }
+        });
+
+        const currentOrderCount = currentMonthOrders.length;
+        const previousOrderCount = previousMonthOrders.length;
+
+        const percentageChange = previousOrderCount === 0
+            ? (currentOrderCount > 0 ? 100 : 0)
+            : ((currentOrderCount - previousOrderCount) / previousOrderCount) * 100;
+
+        return {
+            currentMonthOrders: currentOrderCount,
+            previousMonthOrders: previousOrderCount,
+            percentageChange: percentageChange.toFixed(2) + "%"
+        };
+    } catch (error) {
+        console.error("Error fetching order comparison:", error);
+        throw new Error("Failed to fetch order comparison");
+    }
+};
+
+exports.getTopRatedProducts = async () => {
+    try {
+        const topProducts = await Review.aggregate([
+            // Step 1: Group reviews by product_id to calculate average rating and count
+            {
+                $group: {
+                    _id: "$product_id", // product_id from Review (Number)
+                    averageRating: { $avg: "$rating" },
+                    numberOfReviews: { $sum: 1 }
+                }
+            },
+            // Step 2: Sort by average rating (descending) and number of reviews (descending)
+            {
+                $sort: {
+                    averageRating: -1,
+                    numberOfReviews: -1
+                }
+            },
+            // Step 3: Limit to top 5 products
+            {
+                $limit: 5
+            },
+            // Step 4: Join with the products collection, converting Review.product_id (Number) to String
+            {
+                $lookup: {
+                    from: "products", // MongoDB collection name (lowercase, case-sensitive)
+                    let: { reviewProductId: { $toString: "$_id" } }, // Convert Number to String
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$product_id", "$$reviewProductId"] } // Match Product.product_id (String)
+                            }
+                        }
+                    ],
+                    as: "product"
+                }
+            },
+            // Step 5: Unwind the product array (since $lookup returns an array)
+            {
+                $unwind: "$product"
+            },
+            // Step 6: Project the desired fields
+            {
+                $project: {
+                    _id: "$product._id",
+                    product_id: "$product.product_id",
+                    name: "$product.name",
+                    averageRating: 1,
+                    numberOfReviews: 1,
+                    brand: "$product.brand",
+                    price: "$product.price",
+                    MainImage: "$product.MainImage",
+                    stock: "$product.stock",
+                    category: "$product.category",
+                    type: "$product.type"
+                }
+            }
+        ]);
+
+        return topProducts;
+    } catch (error) {
+        console.error("Error fetching top rated products:", error);
+        throw new Error("Failed to fetch top rated products");
+    }
+};
+
+exports.getTopOrderedProducts = async ({ category = 'All' }) => {
+    try {
+        const matchStage = category !== 'All' ? { 'products.productCategory': category } : {};
+
+        const pipeline = [
+            {
+                $unwind: '$products'
+            },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'products.product',
+                    foreignField: '_id',
+                    as: 'productDetails'
+                }
+            },
+            {
+                $unwind: '$productDetails'
+            },
+            {
+                $addFields: {
+                    'products.productID': '$productDetails.productID',
+                    'products.productName': '$productDetails.name',
+                    'products.productCategory': '$productDetails.category',
+                    'products.productBrand': '$productDetails.brand',
+                    'products.productPrice': '$productDetails.price',
+                    'products.productMainImage': '$productDetails.MainImage'
+                }
+            },
+            {
+                $match: matchStage
+            },
+            {
+                $group: {
+                    _id: '$products.product',
+                    productID: { $first: '$products.productID' },
+                    productName: { $first: '$products.productName' },
+                    category: { $first: '$products.productCategory' },
+                    brand: { $first: '$products.productBrand' },
+                    price: { $first: '$products.productPrice' },
+                    MainImage: { $first: '$products.productMainImage' },
+                    totalOrdered: { $sum: '$products.quantity' }
+                }
+            },
+            {
+                $sort: { totalOrdered: -1 }
+            },
+            {
+                $limit: 5
+            }
+        ];
+
+        const topProducts = await Order.aggregate(pipeline);
+        return topProducts;
+    } catch (error) {
+        console.error('Error fetching top ordered products:', error);
+        throw new Error('Failed to fetch top ordered products');
     }
 };

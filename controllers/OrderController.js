@@ -34,42 +34,36 @@ exports.createOrder = async (req, res) => {
 };
 
 exports.getAllOrders = async (req, res) => {
-    const { page, limit, search, status } = req.query;
-
     try {
-        const { orders, totalOrders, pageNum, limitNum } = await orderService.getAllOrders({
+        const { page = 1, limit = 10, search, status, PaymentMethod, payingStatus } = req.query;
+        const { orders, totalOrders, pagination } = await orderService.getAllOrders({
             page,
             limit,
             search,
             status,
+            PaymentMethod,
+            payingStatus,
         });
 
         if (!orders || orders.length === 0) {
-            res.status(404).json({
-                status: 'error',
+            return res.status(404).json({
+                success: false,
                 message: 'No orders found',
             });
-            return;
         }
 
-        const pagination = {
-            totalItems: totalOrders,
-            totalPages: Math.ceil(totalOrders / limitNum),
-            currentPage: pageNum,
-            itemsPerPage: limitNum,
-        };
-
         res.status(200).json({
-            status: 'success',
+            success: true,
             message: 'Orders retrieved successfully',
             data: orders,
             pagination,
         });
     } catch (error) {
-        console.error('Error retrieving orders:', error.message);
+        console.error('Error fetching orders:', error.message, error.stack);
         res.status(500).json({
-            status: 'error',
+            success: false,
             message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         });
     }
 };
@@ -98,6 +92,23 @@ exports.getOrdersDetail = async (req, res) => {
         res.status(500).json({
             status: 'error',
             message: 'Internal server error',
+        });
+    }
+};
+
+exports.getOrderDetailsForAdmin = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const formattedOrder = await orderService.getOrderDetails(orderId);
+        res.status(200).json({
+            success: true,
+            data: formattedOrder,
+        });
+    } catch (error) {
+        console.error("Error fetching order details:", error);
+        res.status(error.message.includes("not found") ? 404 : 400).json({
+            success: false,
+            message: error.message || "Error fetching order details",
         });
     }
 };
@@ -226,12 +237,204 @@ exports.submitRefundBankDetails = async (req, res) => {
     }
 };
 
-module.exports = {
-    createOrder: exports.createOrder,
-    getAllOrders: exports.getAllOrders,
-    getOrdersDetail: exports.getOrdersDetail,
-    purchaseOrder: exports.purchaseOrder,
-    getOrderDetailByID: exports.getOrderDetailByID,
-    cancelOrder: exports.cancelOrder,
-    submitRefundBankDetails: exports.submitRefundBankDetails,
+
+exports.updatePaymentStatus = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { payingStatus } = req.body;
+        const updatedOrder = await orderService.updatePaymentStatus({ orderId, payingStatus });
+        res.status(200).json({
+            success: true,
+            message: "Payment status updated successfully",
+            data: updatedOrder,
+        });
+    } catch (error) {
+        console.error("Error updating payment status:", error);
+        res.status(error.message.includes("not found") ? 404 : 400).json({
+            success: false,
+            message: error.message || "Server error while updating payment status",
+        });
+    }
+};
+
+exports.updateRefundStatus = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { refundStatus } = req.body;
+        const { updatedOrder, emailSent } = await orderService.updateRefundStatus({ orderId, refundStatus });
+
+        if (!emailSent) {
+            return res.status(500).json({
+                success: false,
+                message: "Refund status updated, but failed to send email notification",
+                data: updatedOrder,
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Refund status updated successfully and email sent",
+            data: updatedOrder,
+        });
+    } catch (error) {
+        console.error("Error updating refund status:", error);
+        res.status(error.message.includes("not found") ? 404 : 400).json({
+            success: false,
+            message: error.message || "Server error while updating refund status",
+        });
+    }
+};
+
+exports.updateOrderStatus = async (req, res) => {
+    try {
+        const { orderId } = req.params;
+        const { newStatus, cancellationReason } = req.body;
+
+        // Validate newStatus
+        if (!newStatus) {
+            return res.status(400).json({
+                success: false,
+                message: 'newStatus is required',
+            });
+        }
+
+        const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+        if (!validStatuses.includes(newStatus)) {
+            return res.status(400).json({
+                success: false,
+                message: `Invalid status value. Must be one of: ${validStatuses.join(', ')}`,
+            });
+        }
+
+        const { order: updatedOrder, emailSent } = await orderService.updateOrderStatus({
+            orderId,
+            newStatus,
+            cancellationReason,
+        });
+
+        const io = req.app.locals.io;
+        io.emit("orderStatusUpdated", {
+            orderId: updatedOrder._id,
+            newStatus,
+            updatedAt: new Date(),
+        });
+
+        const populatedOrder = await orderService.getOrderDetails(orderId);
+
+        res.status(200).json({
+            success: true,
+            message: `Order status updated to ${newStatus}`,
+            order: populatedOrder,
+        });
+    } catch (error) {
+        console.error('Error updating order status:', error.message, error.stack);
+        if (error.message.includes("not found")) {
+            return res.status(404).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        if (error.message.includes("Invalid status value")) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Server error",
+        });
+    }
+};
+
+exports.getMonthlyRevenue = async (req, res) => {
+    try {
+        const { monthlyRevenue, range } = await orderService.getMonthlyRevenue();
+        res.status(200).json({ monthlyRevenue, range });
+    } catch (error) {
+        console.error("Error fetching revenue:", error);
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message // Always include the error message
+        });
+    }
+};
+
+exports.getWeeklyRevenue = async (req, res) => {
+    try {
+        const { weekDateRange, weeklyRevenue } = await orderService.getWeeklyRevenue();
+        res.status(200).json({ weekDateRange, weeklyRevenue });
+    } catch (error) {
+        console.error("Error fetching weekly revenue:", error);
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message // Always include the error message
+        });
+    }
+};
+
+exports.getRevenueComparison = async (req, res) => {
+    try {
+        const revenueData = await orderService.getRevenueComparison();
+        res.status(200).json(revenueData);
+    } catch (error) {
+        console.error("Error in getRevenueComparison controller:", error.message, error.stack);
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message // Always include the error message
+        });
+    }
+};
+
+exports.getOrderComparison = async (req, res) => {
+    try {
+        const orderData = await orderService.getOrderComparison();
+        res.status(200).json(orderData);
+    } catch (error) {
+        console.error("Error in getOrderComparison controller:", error.message, error.stack);
+        res.status(500).json({
+            message: "Internal server error",
+            error: error.message // Always include the error message
+        });
+    }
+};
+
+exports.getTopRatedProducts = async (req, res) => {
+    try {
+        const topProducts = await orderService.getTopRatedProducts();
+        if (!topProducts.length) {
+            return res.status(200).json({
+                message: "No top-rated products found.",
+                data: []
+            });
+        }
+        res.status(200).json({
+            message: "Top 5 rated products fetched successfully",
+            data: topProducts
+        });
+    } catch (error) {
+        console.error("Error in getTopRatedProducts controller:", error.message, error.stack);
+        res.status(500).json({
+            message: "Server error while fetching top rated products",
+            error: error.message // Always include the error message
+        });
+    }
+};
+
+exports.getTopOrderedProductsController = async (req, res) => {
+    try {
+        const { category = 'All' } = req.query;
+        const topProducts = await orderService.getTopOrderedProducts({ category });
+        res.status(200).json({
+            success: true,
+            data: topProducts
+        });
+    } catch (error) {
+        console.error("Error in getTopOrderedProductsController:", error.message, error.stack);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch top ordered products",
+            error: error.message // Always include the error message
+        });
+    }
 };

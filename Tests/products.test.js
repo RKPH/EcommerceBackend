@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const productController = require('../controllers/productController');
 const productService = require('../Services/productService');
-
+const multer = require('multer'); // Added for file uploads
 // Mock productService
 jest.mock('../Services/productService', () => ({
     getAllProducts: jest.fn(),
@@ -26,12 +26,16 @@ jest.mock('../Services/productService', () => ({
     getTopTrendingProducts: jest.fn(),
     searchProducts: jest.fn(),
     searchProductsPaginated: jest.fn(),
+    createProduct: jest.fn(),
+    createProducts: jest.fn(),
+    updateProduct: jest.fn(),
+    deleteProduct: jest.fn(),
 }));
 
 // Create an Express app for testing
 const app = express();
 app.use(express.json());
-
+const upload = multer({ storage: multer.memoryStorage() });
 // Định nghĩa các route theo router.js
 app.get('/api/v1/products/search', productController.searchProducts);
 app.get('/api/v1/products/searchFullPage', productController.searchProductsPaginated);
@@ -46,6 +50,10 @@ app.get('/api/v1/products/:id', productController.getProductById);
 app.post('/api/v1/products/predict/:product_id', productController.getRecommendations);
 app.post('/api/v1/products/recommendations', productController.sessionBasedRecommendation);
 app.post('/api/v1/products/anomynus_recommendations', productController.anonymousRecommendation);
+app.post('/api/v1/products/add', productController.createProduct); // Added
+app.post('/api/v1/products/import', upload.single('file'), productController.importProducts); // Added with multer
+app.put('/api/v1/products/:id', productController.updateProduct); // Added
+app.delete('/api/v1/products/:product_id', productController.deleteProduct); // Added
 
 let mongoServer;
 
@@ -919,6 +927,320 @@ describe('Product Controller', () => {
             expect(response.body.status).toBe('error');
             expect(response.body.message).toBe('Failed to retrieve search results due to a server error.');
             expect(productService.searchProductsPaginated).toHaveBeenCalled();
+        });
+    });
+    describe('createProduct', () => {
+        const productData = {
+            name: 'Test Product',
+            price: 100,
+            category: 'Electronics',
+            type: 'Smartphone',
+            brand: 'TestBrand',
+            stock: 50,
+            mainImage: 'image.jpg',
+            description: 'A test product',
+        };
+
+        itWithRoute('should return 201 on successful product creation', '/api/v1/products/add', async () => {
+            const mockProduct = { product_id: 1, ...productData };
+            productService.createProduct.mockResolvedValue(mockProduct);
+
+            const response = await request(app)
+                .post('/api/v1/products/add')
+                .send(productData)
+                .expect(201);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.message).toBe('Product created successfully.');
+            expect(response.body.data).toEqual(mockProduct);
+            expect(productService.createProduct).toHaveBeenCalledWith(productData);
+        });
+
+        itWithRoute('should return 400 if required fields are missing', '/api/v1/products/add', async () => {
+            productService.createProduct.mockRejectedValue(new Error('Name is required'));
+
+            const response = await request(app)
+                .post('/api/v1/products/add')
+                .send({ price: 100 })
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Name is required');
+            expect(productService.createProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if price is invalid', '/api/v1/products/add', async () => {
+            productService.createProduct.mockRejectedValue(new Error('Price must be a positive number'));
+
+            const response = await request(app)
+                .post('/api/v1/products/add')
+                .send({ ...productData, price: -10 })
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Price must be a positive number');
+            expect(productService.createProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if stock is invalid', '/api/v1/products/add', async () => {
+            productService.createProduct.mockRejectedValue(new Error('Stock must be a non-negative number'));
+
+            const response = await request(app)
+                .post('/api/v1/products/add')
+                .send({ ...productData, stock: -5 })
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Stock must be a non-negative number');
+            expect(productService.createProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if product ID already exists', '/api/v1/products/add', async () => {
+            productService.createProduct.mockRejectedValue(new Error('Product ID already exists'));
+
+            const response = await request(app)
+                .post('/api/v1/products/add')
+                .send(productData)
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Product ID already exists');
+            expect(productService.createProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on server error', '/api/v1/products/add', async () => {
+            productService.createProduct.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .post('/api/v1/products/add')
+                .send(productData)
+                .expect(500);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('An unexpected error occurred while creating the product.');
+            expect(response.body.error).toBe('Database error');
+            expect(productService.createProduct).toHaveBeenCalled();
+        });
+    });
+
+    describe('importProducts', () => {
+        itWithRoute('should return 201 on successful product import', '/api/v1/products/import', async () => {
+            const mockProducts = [
+                { product_id: 1, name: 'Product 1' },
+                { product_id: 2, name: 'Product 2' },
+            ];
+            productService.createProducts.mockResolvedValue(mockProducts);
+
+            const fileBuffer = Buffer.from('[{"name":"Product 1"},{"name":"Product 2"}]');
+            const response = await request(app)
+                .post('/api/v1/products/import')
+                .attach('file', fileBuffer, 'products.json')
+                .expect(201);
+
+            expect(response.body.status).toBe('success');
+            expect(response.body.message).toBe('2 products imported successfully');
+            expect(response.body.data).toEqual(mockProducts);
+            expect(productService.createProducts).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if no file is uploaded', '/api/v1/products/import', async () => {
+            const response = await request(app)
+                .post('/api/v1/products/import')
+                .expect(400);
+
+            expect(response.body.status).toBe('error');
+            expect(response.body.message).toBe('No file uploaded');
+            expect(productService.createProducts).not.toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if file has invalid JSON', '/api/v1/products/import', async () => {
+            productService.createProducts.mockRejectedValue(new Error('Invalid JSON'));
+
+            const fileBuffer = Buffer.from('invalid json');
+            const response = await request(app)
+                .post('/api/v1/products/import')
+                .attach('file', fileBuffer, 'products.json')
+                .expect(400);
+
+            expect(response.body.status).toBe('error');
+            expect(response.body.message).toBe('Invalid JSON');
+            expect(productService.createProducts).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if file has missing required fields', '/api/v1/products/import', async () => {
+            productService.createProducts.mockRejectedValue(new Error('Missing required fields'));
+
+            const fileBuffer = Buffer.from('[{"price": 100}]');
+            const response = await request(app)
+                .post('/api/v1/products/import')
+                .attach('file', fileBuffer, 'products.json')
+                .expect(400);
+
+            expect(response.body.status).toBe('error');
+            expect(response.body.message).toBe('Missing required fields');
+            expect(productService.createProducts).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on server error', '/api/v1/products/import', async () => {
+            productService.createProducts.mockRejectedValue(new Error('Database error'));
+
+            const fileBuffer = Buffer.from('[{"name":"Product 1"}]');
+            const response = await request(app)
+                .post('/api/v1/products/import')
+                .attach('file', fileBuffer, 'products.json')
+                .expect(500);
+
+            expect(response.body.status).toBe('error');
+            expect(response.body.message).toBe('Database error');
+            expect(productService.createProducts).toHaveBeenCalled();
+        });
+    });
+
+    describe('updateProduct', () => {
+        const updateData = {
+            name: 'Updated Product',
+            price: 150,
+        };
+
+        itWithRoute('should return 200 on successful product update', '/api/v1/products/:id', async () => {
+            const mockUpdatedProduct = { product_id: '1', name: 'Updated Product', price: 150 };
+            productService.updateProduct.mockResolvedValue(mockUpdatedProduct);
+
+            const response = await request(app)
+                .put('/api/v1/products/1')
+                .send(updateData)
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.message).toBe('Product updated successfully');
+            expect(response.body.product).toEqual(mockUpdatedProduct);
+            expect(productService.updateProduct).toHaveBeenCalledWith('1', updateData);
+        });
+
+        itWithRoute('should return 400 if product ID is missing', '/api/v1/products/:id', async () => {
+            const response = await request(app)
+                .put('/api/v1/products/%20') // Empty ID
+                .send(updateData)
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Product ID is required.');
+            expect(productService.updateProduct).not.toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if product ID is invalid', '/api/v1/products/:id', async () => {
+            productService.updateProduct.mockRejectedValue(new Error('Invalid product ID'));
+
+            const response = await request(app)
+                .put('/api/v1/products/invalid')
+                .send(updateData)
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Invalid product ID');
+            expect(productService.updateProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 404 if product not found', '/api/v1/products/:id', async () => {
+            productService.updateProduct.mockRejectedValue(new Error('Product not found'));
+
+            const response = await request(app)
+                .put('/api/v1/products/999')
+                .send(updateData)
+                .expect(404);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Product not found');
+            expect(productService.updateProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on server error', '/api/v1/products/:id', async () => {
+            productService.updateProduct.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .put('/api/v1/products/1')
+                .send(updateData)
+                .expect(500);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Internal server error');
+            expect(response.body.error).toBe('Database error');
+            expect(productService.updateProduct).toHaveBeenCalled();
+        });
+    });
+
+    describe('deleteProduct', () => {
+        itWithRoute('should return 200 on successful product deletion', '/api/v1/products/:product_id', async () => {
+            const mockDeletedProduct = { product_id: '1', name: 'Test Product' };
+            productService.deleteProduct.mockResolvedValue(mockDeletedProduct);
+
+            const response = await request(app)
+                .delete('/api/v1/products/1')
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.message).toBe('Product with product_id 1 deleted successfully.');
+            expect(response.body.data).toEqual(mockDeletedProduct);
+            expect(productService.deleteProduct).toHaveBeenCalledWith('1');
+        });
+
+        itWithRoute('should return 400 if product ID is missing', '/api/v1/products/:product_id', async () => {
+            const response = await request(app)
+                .delete('/api/v1/products/%20') // Empty ID
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Product ID is required.');
+            expect(productService.deleteProduct).not.toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if product ID is invalid', '/api/v1/products/:product_id', async () => {
+            productService.deleteProduct.mockRejectedValue(new Error('Invalid product_id'));
+
+            const response = await request(app)
+                .delete('/api/v1/products/invalid')
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Invalid product_id');
+            expect(productService.deleteProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 404 if product not found', '/api/v1/products/:product_id', async () => {
+            productService.deleteProduct.mockRejectedValue(new Error('Product not found'));
+
+            const response = await request(app)
+                .delete('/api/v1/products/999')
+                .expect(404);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Product not found');
+            expect(productService.deleteProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 400 if product has active orders', '/api/v1/products/:product_id', async () => {
+            productService.deleteProduct.mockRejectedValue(new Error('Cannot delete product with active orders'));
+
+            const response = await request(app)
+                .delete('/api/v1/products/1')
+                .expect(400);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('Cannot delete product with active orders');
+            expect(productService.deleteProduct).toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 500 on server error', '/api/v1/products/:product_id', async () => {
+            productService.deleteProduct.mockRejectedValue(new Error('Database error'));
+
+            const response = await request(app)
+                .delete('/api/v1/products/1')
+                .expect(500);
+
+            expect(response.body.success).toBe(false);
+            expect(response.body.message).toBe('An unexpected error occurred while deleting the product.');
+            expect(response.body.error).toBe('Database error');
+            expect(productService.deleteProduct).toHaveBeenCalled();
         });
     });
 });

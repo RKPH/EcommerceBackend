@@ -517,3 +517,183 @@ exports.searchProductsPaginated = async (req, res) => {
     }
 };
 
+
+
+exports.createProduct = async (req, res) => {
+    try {
+        const {
+            name,
+            price,
+            category,
+            type,
+            brand,
+            stock,
+            mainImage,
+            description
+        } = req.body;
+
+        const savedProduct = await productService.createProduct({
+            name,
+            price,
+            category,
+            type,
+            brand,
+            stock,
+            mainImage,
+            description
+        });
+
+        res.status(201).json({
+            success: true,
+            message: 'Product created successfully.',
+            data: savedProduct,
+        });
+    } catch (error) {
+
+        if (error.message.includes('required')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        if (error.message.includes('Price') || error.message.includes('Stock')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        if (error.message.includes('Validation error')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        if (error.message.includes('Product ID already exists')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        res.status(500).json({
+            success: false,
+            message: 'An unexpected error occurred while creating the product.',
+            error: error.message,
+        });
+    }
+};
+
+exports.importProducts = async (req, res) => {
+    try {
+        // Check if a file was uploaded
+        if (!req.file) {
+            return res.status(400).json({ status: 'error', message: 'No file uploaded' });
+        }
+
+        const filePath = req.file.path; // Path to the uploaded file
+
+        // Call createProducts from productService
+        const createdProducts = await productService.createProducts(filePath);
+
+        // Optionally delete the file after processing (uncomment if needed)
+        // await fs.promises.unlink(filePath);
+
+        return res.status(201).json({
+            status: 'success',
+            message: `${createdProducts.length} products imported successfully`,
+            data: createdProducts,
+        });
+    } catch (error) {
+
+        return res.status(error.message.includes('Invalid JSON') || error.message.includes('Missing required fields') ? 400 : 500).json({
+            status: 'error',
+            message: error.message || 'Internal server error',
+        });
+    }
+};
+
+exports.updateProduct = async (req, res) => {
+    try {
+        const { productID, _id, ...updateData } = req.body;
+        const product_id = req.params.id; // Lấy từ params
+
+        if (!product_id || product_id.trim()==="") {
+            return res.status(400).json({
+                success: false,
+                message: "Product ID is required.",
+            });
+        }
+
+        const updatedProduct = await productService.updateProduct(product_id, updateData);
+
+        res.status(200).json({
+            success: true,
+            message: "Product updated successfully",
+            product: updatedProduct,
+        });
+    } catch (error) {
+
+        if (error.message.includes('Invalid product ID')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        if (error.message.includes('not found')) {
+            return res.status(404).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message,
+        });
+    }
+};
+
+exports.deleteProduct = async (req, res) => {
+    try {
+        const { product_id } = req.params;
+
+        if (!product_id|| product_id.trim()==="") {
+            return res.status(400).json({
+                success: false,
+                message: "Product ID is required.",
+            });
+        }
+
+        const deletedProduct = await productService.deleteProduct(product_id);
+
+        res.status(200).json({
+            success: true,
+            message: `Product with product_id ${deletedProduct.product_id} deleted successfully.`,
+            data: deletedProduct,
+        });
+    } catch (error) {
+
+        if (error.message.includes('Invalid product_id')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        if (error.message.includes('not found')) {
+            return res.status(404).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        if (error.message.includes('active orders')) {
+            return res.status(400).json({
+                success: false,
+                message: error.message,
+            });
+        }
+        res.status(500).json({
+            success: false,
+            message: 'An unexpected error occurred while deleting the product.',
+            error: error.message,
+        });
+    }
+};

@@ -66,6 +66,50 @@ const router = express.Router();
  */
 
 
+/**
+ * @swagger
+ * /api/v1/orders/addOrder:
+ *   post:
+ *     summary: Create a new order
+ *     tags: [Orders]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               user:
+ *                 type: string
+ *                 description: User ID placing the order
+ *               products:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     product:
+ *                       type: string
+ *                       description: Product ID
+ *                     quantity:
+ *                       type: number
+ *                       description: Quantity of the product
+ *               shippingAddress:
+ *                 type: string
+ *               paymentMethod:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Order created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Order'
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ */
+router.post('/addOrder', verifyToken, createOrder);
 
 /**
  * @swagger
