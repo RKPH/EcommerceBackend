@@ -168,7 +168,7 @@ exports.forgotPassword = async ({ email }) => {
         user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 mins expiry
         await user.save();
 
-        const resetLink = `http://103.155.161.94:5173/reset-password/${resetToken}`;
+        const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
         await sendResetPasswordEmail(user.email, resetLink);
 
         return { message: "Password reset email sent!" };
@@ -233,5 +233,57 @@ exports.refreshAccessToken = async ({ userId, sessionID }) => {
         return { accessToken, newRefreshToken };
     } catch (error) {
         throw new Error(error.message || 'Server error');
+    }
+};
+
+//login as admin
+
+exports.loginAdminService = async (email, password) => {
+    try {
+        // Check if the user exists
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            throw new Error('Invalid email or password');
+        }
+
+        // Check if the user is an admin
+        if (user.role !== 'admin') {
+            throw new Error('Access denied. Only admins can log in.');
+        }
+
+        // Check if the account is verified
+        if (!user.isVerified) {
+            throw new Error('Account not verified. Please check your email to verify your account.');
+        }
+
+        // Verify the password
+        const isPasswordValid = verifyPassword(user.salt, user.password, password);
+        if (!isPasswordValid) {
+            throw new Error('Invalid email or password');
+        }
+
+        // Generate a JWT token
+        const sessionID = uuidv4();
+        const token = generateJwt(user._id, sessionID);
+        const refreshToken = generateRefreshToken(user._id, sessionID);
+
+        // Return the user data and tokens
+        return {
+            token,
+            refreshToken,
+            sessionID,
+            user: {
+                id: user._id,
+                sessionID: sessionID,
+                user_id: user.user_id,
+                avatar: user.avatar,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            },
+        };
+    } catch (error) {
+        throw new Error(error.message); // Re-throw the error to be handled by the controller
     }
 };

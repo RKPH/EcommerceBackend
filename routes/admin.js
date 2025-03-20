@@ -5,7 +5,7 @@ const {getAllUsers, getUserDetails, updateUser, createUser, getUserComparison}  
 const {getAllOrders,getOrderDetailsForAdmin,  updatePaymentStatus,
     updateRefundStatus, updateOrderStatus, getMonthlyRevenue, getWeeklyRevenue ,getRevenueComparison, getOrderComparison,
     getTopRatedProducts, getTopOrderedProductsController } = require("../controllers/OrderController");
-const { loginAdmin} = require("../controllers/AdminController");
+const { loginAdmin} = require("../controllers/authController");
 const verifyToken = require('../middlewares/verifyToken');
 const verifyAdmin = require('../middlewares/verifyAdmin');
 

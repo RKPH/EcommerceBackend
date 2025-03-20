@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const trackingController = require('../controllers/trackingController');
+const trackingController = require('../Services/trackingController');
 const verifyToken = require('../middlewares/verifyToken');
 
 /**

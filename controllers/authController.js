@@ -32,7 +32,7 @@ exports.registerUser = async (req, res) => {
             user,
         });
     } catch (error) {
-        console.error('Registration error:', error.message);
+
         res.status(error.message.includes('User already exists') ? 400 : 500).json({ message: error.message });
     }
 };
@@ -66,7 +66,7 @@ exports.loginUser = async (req, res) => {
             user,
         });
     } catch (error) {
-        console.error(error.message);
+
         res.status(error.message.includes('Invalid') || error.message.includes('verified') ? 401 : 500).json({ message: error.message });
     }
 };
@@ -85,7 +85,7 @@ exports.verifyUser = async (req, res) => {
             user,
         });
     } catch (error) {
-        console.error(error.message);
+
         res.status(error.message.includes('Invalid') || error.message.includes('not found') ? 400 : 500).json({ message: error.message });
     }
 };
@@ -100,7 +100,7 @@ exports.forgotPassword = async (req, res) => {
 
         res.status(200).json(result); // Added 200 status for success
     } catch (error) {
-        console.error("Forgot Password Error:", error.message);
+
         res.status(error.message.includes('not found') ? 404 : 500).json({ message: error.message });
     }
 };
@@ -115,7 +115,7 @@ exports.resetPassword = async (req, res) => {
 
         res.status(200).json(result); // Added 200 status for success
     } catch (error) {
-        console.error("Reset Password Error:", error.message);
+
         res.status(error.message.includes('Invalid') ? 400 : 500).json({ message: error.message });
     }
 };
@@ -133,7 +133,7 @@ exports.getUserProfile = async (req, res) => {
             user,
         });
     } catch (error) {
-        console.error('Error fetching user profile:', error.message);
+
         res.status(error.message.includes('not found') ? 404 : 500).json({ message: error.message });
     }
 };
@@ -189,7 +189,7 @@ exports.refreshAccessToken = async (req, res) => {
             refreshToken: newRefreshToken,
         });
     } catch (error) {
-        console.error(error.message);
+
         res.status(error.message.includes('Invalid') || error.message.includes('No refresh token') ? 401 : 500).json({ message: error.message });
     }
 };
@@ -211,10 +211,64 @@ exports.logoutUser = async (req, res) => {
             sameSite: 'Strict',
         });
 
-        console.log('User logged out and cookies cleared.');
+
         res.status(200).json({ message: 'Logout successful' });
     } catch (error) {
         console.error('Error during logout:', error.message);
         res.status(500).json({ message: 'Server error during logout' });
+    }
+};
+
+
+exports.loginAdmin = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+
+        // Validate required fields
+        if (!email || !password) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        // Call the service to handle the login logic
+        const { token, refreshToken, sessionID, user } = await authService.loginAdminService(email, password);
+
+        // Set cookies for authentication
+        res.cookie('accessToken', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production', // Set to true if using HTTPS
+            sameSite: 'Strict',
+            maxAge: 24 * 60 * 60 * 1000, // 1 day
+        });
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'Strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        });
+
+        // Send response
+        res.status(200).json({
+            message: 'Admin login successful',
+            token,
+            refreshToken,
+            user,
+        });
+    } catch (error) {
+
+
+        // Handle specific error messages with appropriate status codes
+        if (error.message === 'Invalid email or password') {
+            return res.status(401).json({ message: error.message });
+        }
+        if (error.message === 'Access denied. Only admins can log in.') {
+            return res.status(403).json({ message: error.message });
+        }
+        if (error.message === 'Account not verified. Please check your email to verify your account.') {
+            return res.status(403).json({ message: error.message });
+        }
+
+        // Default to 500 for any other errors
+        res.status(500).json({ message: 'Server error' });
     }
 };

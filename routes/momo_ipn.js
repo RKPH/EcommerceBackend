@@ -1,5 +1,5 @@
 ﻿const express = require('express');
-const { momoIPNHandler } = require('../controllers/Momo_ipn');
+const { momoIPNHandler } = require('../Services/Momo_ipn');
 const router = express.Router();
 
 // MoMo IPN Webhook Route

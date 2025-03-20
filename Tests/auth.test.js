@@ -1,4 +1,3 @@
-// authController.test.js
 const request = require('supertest');
 const express = require('express');
 const mongoose = require('mongoose');
@@ -11,6 +10,7 @@ const { verifyRefreshToken } = require('../utils/jwt');
 jest.mock('../Services/authService', () => ({
     registerUser: jest.fn(),
     loginUser: jest.fn(),
+    loginAdminService: jest.fn(), // Add loginAdminService to the mock
     verifyUser: jest.fn(),
     forgotPassword: jest.fn(),
     resetPassword: jest.fn(),
@@ -30,6 +30,7 @@ app.use(express.json());
 // Define routes for authController
 app.post('/api/v1/auth/register', authController.registerUser);
 app.post('/api/v1/auth/login', authController.loginUser);
+app.post('/api/v1/auth/admin-login', authController.loginAdmin); // Add admin login route
 
 // Middleware to mock authenticated user for private routes
 const mockAuthMiddleware = (req, res, next) => {
@@ -179,6 +180,108 @@ describe('Auth Controller', () => {
 
             expect(response.body.message).toBe('Server error');
             expect(authService.loginUser).toHaveBeenCalled();
+        });
+    });
+
+    // Add test cases for loginAdmin
+    describe('loginAdmin', () => {
+        itWithRoute('should return 200 with user data and tokens on successful admin login', '/api/v1/auth/admin-login', async () => {
+            const mockResult = {
+                token: 'admin-access-token',
+                refreshToken: 'admin-refresh-token',
+                sessionID: 'admin-session123',
+                user: {
+                    id: 'admin123',
+                    sessionID: 'admin-session123',
+                    user_id: 'user123',
+                    avatar: 'avatar.jpg',
+                    name: 'Admin User',
+                    email: 'admin@example.com',
+                    role: 'admin',
+                },
+            };
+            authService.loginAdminService.mockResolvedValue(mockResult);
+
+            const response = await request(app)
+                .post('/api/v1/auth/admin-login')
+                .send({ email: 'admin@example.com', password: 'adminpassword123' })
+                .expect(200);
+
+            expect(response.body.message).toBe('Admin login successful');
+            expect(response.body).toEqual({
+                message: 'Admin login successful',
+                token: 'admin-access-token',
+                refreshToken: 'admin-refresh-token',
+                user: {
+                    id: 'admin123',
+                    sessionID: 'admin-session123',
+                    user_id: 'user123',
+                    avatar: 'avatar.jpg',
+                    name: 'Admin User',
+                    email: 'admin@example.com',
+                    role: 'admin',
+                },
+            });
+            expect(authService.loginAdminService).toHaveBeenCalledWith('admin@example.com', 'adminpassword123');
+            expect(response.header['set-cookie']).toBeDefined();
+        });
+
+        itWithRoute('should return 400 if email or password is missing', '/api/v1/auth/admin-login', async () => {
+            const response = await request(app)
+                .post('/api/v1/auth/admin-login')
+                .send({ email: 'admin@example.com' }) // Missing password
+                .expect(400);
+
+            expect(response.body.message).toBe('All fields are required');
+            expect(authService.loginAdminService).not.toHaveBeenCalled();
+        });
+
+        itWithRoute('should return 401 for invalid email or password', '/api/v1/auth/admin-login', async () => {
+            authService.loginAdminService.mockRejectedValue(new Error('Invalid email or password'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/admin-login')
+                .send({ email: 'admin@example.com', password: 'wrongpassword' })
+                .expect(401);
+
+            expect(response.body.message).toBe('Invalid email or password');
+            expect(authService.loginAdminService).toHaveBeenCalledWith('admin@example.com', 'wrongpassword');
+        });
+
+        itWithRoute('should return 403 if user is not an admin', '/api/v1/auth/admin-login', async () => {
+            authService.loginAdminService.mockRejectedValue(new Error('Access denied. Only admins can log in.'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/admin-login')
+                .send({ email: 'user@example.com', password: 'password123' })
+                .expect(403);
+
+            expect(response.body.message).toBe('Access denied. Only admins can log in.');
+            expect(authService.loginAdminService).toHaveBeenCalledWith('user@example.com', 'password123');
+        });
+
+        itWithRoute('should return 403 if account is not verified', '/api/v1/auth/admin-login', async () => {
+            authService.loginAdminService.mockRejectedValue(new Error('Account not verified. Please check your email to verify your account.'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/admin-login')
+                .send({ email: 'admin@example.com', password: 'adminpassword123' })
+                .expect(403);
+
+            expect(response.body.message).toBe('Account not verified. Please check your email to verify your account.');
+            expect(authService.loginAdminService).toHaveBeenCalledWith('admin@example.com', 'adminpassword123');
+        });
+
+        itWithRoute('should return 500 on service error', '/api/v1/auth/admin-login', async () => {
+            authService.loginAdminService.mockRejectedValue(new Error('Server error'));
+
+            const response = await request(app)
+                .post('/api/v1/auth/admin-login')
+                .send({ email: 'admin@example.com', password: 'adminpassword123' })
+                .expect(500);
+
+            expect(response.body.message).toBe('Server error');
+            expect(authService.loginAdminService).toHaveBeenCalledWith('admin@example.com', 'adminpassword123');
         });
     });
 
