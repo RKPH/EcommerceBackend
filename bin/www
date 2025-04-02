@@ -2,7 +2,7 @@
 
 var app = require('../app');
 var debug = require('debug')('learning:server');
-var https = require('https'); // Use HTTPS instead of HTTP
+var http = require('http'); // Use HTTPS instead of HTTP
 
 /**
  * Get port from environment and store in Express.
@@ -13,7 +13,7 @@ app.set('port', port);
 /**
  * Create HTTP server.
  */
-var server = https.createServer(app);
+var server = http.createServer(app);
 
 /**
  * Start Socket.IO server.

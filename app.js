@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require("cors");
-const {connectProducer } = require('./kafka/kafka-producer');
+const { connectProducer } = require('./kafka/kafka-producer');
 const runConsumer = require('./kafka/kafka-consumer');
 const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
@@ -13,39 +13,40 @@ const orderRouter = require('./routes/Order');
 const userRouter = require('./routes/User');
 const reviewRouter = require('./routes/rating');
 const trackRouter = require('./routes/tracking');
-const http = require('http');               // Needed for socket.io
+const http = require('http');
 const socketIo = require('socket.io');
-
-
 const imageRouter = require('./routes/image');
-
 const addressRouter = require('./routes/ShipAddress');
 const momoIPNHandler = require('./routes/momo_ipn');
 const AdminRouter = require('./routes/admin');
 const promClient = require('prom-client');
-
-const logger = require('./config/logger');  // Import custom logger
-const { swaggerSetup, swaggerDocs } = require('./config/swagger');  // Import Swagger setup
+const logger = require('./config/logger');
+const { swaggerSetup, swaggerDocs } = require('./config/swagger');
 
 const app = express();
-
-const server = http.createServer(app);      // Create HTTP server
+const server = http.createServer(app);
 const io = socketIo(server, {
     cors: {
-        origin: "http://d2f.io.vn",  // Allow only your frontend during development
+        origin: "*", // Allow all origins for Socket.IO
         methods: ["GET", "POST", "PUT", "DELETE"],
-        credentials: true  // If you're using cookies for auth, include this
+        credentials: false // Set to false since we're allowing all origins
     }
 });
 
 app.locals.io = io;
 
-app.use(logger);  // Use custom logger
+// Global CORS configuration to allow all origins
+app.use(cors({
+    origin: '*', // Allow all origins
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
+    credentials: false // Set to false when using wildcard origin
+}));
+
+app.use(logger);
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());  // Enable cookie parsing
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
-
 
 app.get('/metrics', async (req, res) => {
     try {
@@ -61,69 +62,34 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'healthy' });
 });
 
-
-// Connect to the database
+// Connect to the database and Kafka
 connectDB();
 connectProducer();
-runConsumer()
+runConsumer();
+
 io.on('connection', (socket) => {
     console.log(`New client connected: ${socket.id}`);
-
     socket.on('disconnect', () => {
         console.log(`Client disconnected: ${socket.id}`);
     });
-})
-
-// Middleware setup
-const corsOptions = {
-    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173', 'http://localhost:5174', 'https://d2f.io.vn' , 'https://d2f.io.vn:5173', 'https://backend.d2f.io.vn'],  // ✅ Add both frontend URLs
-    credentials: true,  // ✅ Required to allow cookies
-};
-// Apply CORS for authenticated routes (e.g., tracking, auth)
-app.use('/api/v1/tracking', cors(corsOptions));
-app.use('/api/v1/auth', cors(corsOptions));
-app.use('/api/v1/cart', cors(corsOptions));
-app.use('/api/v1/users', cors(corsOptions));
-app.use('/api/v1/orders', cors(corsOptions));  // Add this in your main app.js or server file
-app.use('/api/v1/address', cors(corsOptions));
-app.use('/api/v1/reviews', cors(corsOptions));
-app.use('/api/v1/admin', cors(corsOptions));
-// CORS for public routes (e.g., products)
-// const openCorsOptions = {
-//     origin: 'http://103.155.161.94:5173', // Your frontend URL
-//     credentials: true  // Don't allow credentials (cookies)
-// };
-
-const specialNoneedCorsOptions = {
-    origin: '*',
-    credentials: false, // Set to false for public
-}
-
-app.use('/api/v1/products', cors(specialNoneedCorsOptions)); // For open routes
-
-app.use('/api/v1/images', cors(specialNoneedCorsOptions));
-
-
-// Middleware for logging, request parsing, etc.
-
-
-// Swagger setup
-app.use('/api-docs', swaggerSetup, swaggerDocs);  // Swagger UI endpoint
+});
 
 // Routes
-
 app.use('/api/v1/products', productRouter);
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/tracking', trackRouter);
 app.use('/api/v1/cart', cartRouter);
 app.use('/api/v1/orders', orderRouter);
 app.use('/api/v1/users', userRouter);
-
 app.use('/api/v1/reviews', reviewRouter);
 app.use('/api/v1/images', imageRouter);
 app.use('/api/v1/address', addressRouter);
 app.use('/api/v1', momoIPNHandler);
 app.use('/api/v1/admin', AdminRouter);
+
+// Swagger setup
+app.use('/api-docs', swaggerSetup, swaggerDocs);
+
 // Catch 404 errors
 app.use(notFoundHandler);
 
