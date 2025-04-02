@@ -11,7 +11,12 @@ const transporter = nodemailer.createTransport({
 });
 
 async function isEmailValid(email) {
-    return validate(email);
+    // Configure deep-email-validator to skip the SMTP check
+    const result = await validate({
+        email,
+        validateSMTP: false, // Disable SMTP check
+    });
+    return result;
 }
 
 async function sendVerificationEmail(to, code) {
