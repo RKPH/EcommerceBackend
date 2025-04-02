@@ -168,7 +168,7 @@ exports.forgotPassword = async ({ email }) => {
         user.resetTokenExpiry = Date.now() + 15 * 60 * 1000; // 15 mins expiry
         await user.save();
 
-        const resetLink = `http://localhost:5173/reset-password/${resetToken}`;
+        const resetLink = `https://d2f.io.vn:5173/reset-password/${resetToken}`;
         await sendResetPasswordEmail(user.email, resetLink);
 
         return { message: "Password reset email sent!" };

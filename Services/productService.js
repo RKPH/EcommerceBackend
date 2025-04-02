@@ -146,7 +146,7 @@ exports.createProduct = async ({
             payload: qdrantPayload
         };
 
-        const qdrantUrl = 'http://103.155.161.100:6333/collections/test_collection/points';
+        const qdrantUrl = process.env.QDRANT_API_URL;
         const upsertParams = { points: [point] };
 
         console.log("Upserting to Qdrant with payload:", JSON.stringify(upsertParams, null, 2));
@@ -472,77 +472,101 @@ exports.getProductsByCategories = async ({ category, type, page = 1, brand, pric
 };
 
 exports.getRecommendations = async (product_id) => {
-    product_id=product_id.toString();
-    const response = await axios.post("http://dockersetup-flask-app-1:5000/predict", { product_id }, { headers: { 'Content-Type': 'application/json' } });
+    product_id = product_id.toString();
+    const response = await axios.post(
+        `${process.env.AI_API_BASE_URL}/predict`, // Use base URL from env
+        { product_id },
+        { headers: { 'Content-Type': 'application/json' } }
+    );
     if (!response.data?.recommendations) throw new Error("No recommendations found");
 
     const recommendations = response.data.recommendations;
-    const recommendedProducts = await Product.find({ product_id: { $in: recommendations.map(r => r.product_id) } });
+    const recommendedProducts = await Product.find({
+        product_id: { $in: recommendations.map(r => r.product_id) },
+    });
 
     return recommendations.map(rec => {
         const product = recommendedProducts.find(p => p.product_id == rec.product_id);
         return {
             ...rec,
-            productDetails: product ? {
-                name: product.name,
-                category: product.category,
-                rating: product.rating,
-                price: product.price,
-                brand: product.brand,
-                MainImage: product.MainImage,
-                description: product.description,
-            } : null,
+            productDetails: product
+                ? {
+                    name: product.name,
+                    category: product.category,
+                    rating: product.rating,
+                    price: product.price,
+                    brand: product.brand,
+                    MainImage: product.MainImage,
+                    description: product.description,
+                }
+                : null,
         };
     });
 };
 
 exports.sessionBasedRecommendation = async ({ user_id, product_id }) => {
-    user_id=user_id.toString();
+    user_id = user_id.toString();
     product_id = Number(product_id);
-    console.log("type of u_id:", typeof(user_id));
-    console.log("type of u_id:", typeof(product_id));
-    const response = await axios.post("http://dockersetup-flask-app-1:5000/session-recommend", { user_id, product_id }, { headers: { 'Content-Type': 'application/json' } });
+    console.log("type of u_id:", typeof user_id);
+    console.log("type of p_id:", typeof product_id);
+    const response = await axios.post(
+        `${process.env.AI_API_BASE_URL}/session-recommend`, // Use base URL from env
+        { user_id, product_id },
+        { headers: { 'Content-Type': 'application/json' } }
+    );
     let data = typeof response?.data === "string" ? JSON.parse(response.data.replace(/NaN/g, "0")) : response.data;
     const Recommendations = data?.recommendations || [];
 
-    const recommendedProducts = await Product.find({ product_id: { $in: Recommendations.map(r => r.product_id) } });
+    const recommendedProducts = await Product.find({
+        product_id: { $in: Recommendations.map(r => r.product_id) },
+    });
     return Recommendations.map(rec => {
         const product = recommendedProducts.find(p => p.product_id == rec.product_id);
         return {
             ...rec,
-            productDetails: product ? {
-                name: product.name,
-                category: product.category,
-                price: product.price,
-                rating: product.rating,
-                brand: product.brand,
-                MainImage: product.MainImage,
-                description: product.description,
-            } : null,
+            productDetails: product
+                ? {
+                    name: product.name,
+                    category: product.category,
+                    price: product.price,
+                    rating: product.rating,
+                    brand: product.brand,
+                    MainImage: product.MainImage,
+                    description: product.description,
+                }
+                : null,
         };
     });
 };
 
 exports.anonymousRecommendation = async (product_id) => {
     product_id = Number(product_id);
-    const response = await axios.post("http://dockersetup-flask-app-1:5000/anonymous-recommend", { product_id }, { headers: { 'Content-Type': 'application/json' } });
+    const response = await axios.post(
+        `${process.env.AI_API_BASE_URL}/anonymous-recommend`, // Use base URL from env
+        { product_id },
+        { headers: { 'Content-Type': 'application/json' } }
+    );
     let data = typeof response?.data === "string" ? JSON.parse(response.data.replace(/NaN/g, "0")) : response.data;
     const Recommendations = data?.recommendations || [];
 
-    const recommendedProducts = await Product.find({ product_id: { $in: Recommendations.map(r => r.product_id) } });
+    const recommendedProducts = await Product.find({
+        product_id: { $in: Recommendations.map(r => r.product_id) },
+    });
     return Recommendations.map(rec => {
         const product = recommendedProducts.find(p => p.product_id == rec.product_id);
         return {
             ...rec,
-            productDetails: product ? {
-                name: product.name,
-                category: product.category,
-                price: product.price,
-                rating: product.rating,
-                brand: product.brand,
-                MainImage: product.MainImage,
-                description: product.description,
-            } : null,
+            productDetails: product
+                ? {
+                    name: product.name,
+                    category: product.category,
+                    price: product.price,
+                    rating: product.rating,
+                    brand: product.brand,
+                    MainImage: product.MainImage,
+                    description: product.description,
+                }
+                : null,
         };
     });
 };
