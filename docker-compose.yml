@@ -12,3 +12,9 @@ services:
       - .:/usr/src/app
       - /usr/src/app/node_modules
     restart: always  # Restarts if it crashes
+    networks:
+      - shared-network
+
+networks:
+  shared-network:
+    external: true

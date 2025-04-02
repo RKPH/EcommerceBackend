@@ -6,24 +6,67 @@ const {
     getAllTypes,
     getProductByTypes,
     getAllCategories,
-    getRecommendations, sessionBasedRecommendation, getTopTrendingProducts,
-    searchProducts, getProductsByCategories, anonymousRecommendation, searchProductsPaginated,
-    getTypesByCategory
+    getRecommendations,
+    sessionBasedRecommendation,
+    getTopTrendingProducts,
+    searchProducts,
+    getProductsByCategories,
+    anonymousRecommendation,
+    searchProductsPaginated,
+    getTypesByCategory,
+    createProduct,
+    importProducts,
+    updateProduct,
+    deleteProduct
 } = require('../controllers/productController');
+const multer = require('multer');
+
+// Middleware to check if the user is an admin (example implementation)
+const isAdmin = (req, res, next) => {
+    // This is a placeholder; replace with your actual authentication/authorization logic
+    const user = req.user; // Assuming req.user is set by an authentication middleware (e.g., JWT)
+    if (!user || user.role !== 'admin') {
+        return res.status(403).json({
+            success: false,
+            message: 'Access denied. Admin privileges required.',
+        });
+    }
+    next();
+};
+
+// Configure multer for file uploads (for importProducts)
+const upload = multer({ dest: 'uploads/' });
 
 /**
  * @swagger
  * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
  *   schemas:
  *     Product:
  *       type: object
  *       properties:
  *         id:
  *           type: string
- *           description: The product ID (MongoDB ObjectId)
+ *           description: The MongoDB ObjectId of the product (auto-generated)
+ *         product_id:
+ *           type: string
+ *           description: The unique identifier for the product
  *         name:
  *           type: string
  *           description: The name of the product
+ *         stock:
+ *           type: number
+ *           description: The stock quantity of the product
+ *         rating:
+ *           type: number
+ *           description: The rating of the product (optional)
+ *         brand:
+ *           type: string
+ *           description: The brand of the product
  *         price:
  *           type: number
  *           description: The price of the product
@@ -33,49 +76,162 @@ const {
  *         type:
  *           type: string
  *           description: The type of the product
- *         brand:
- *            type: string
- *            description: The brand of the product
- *         color:
- *           type: array
- *           items:
- *             type: string
- *           description: An array of colors for the product
- *         size:
- *           type: array
- *           items:
- *             type: string
- *           description: An array of sizes for the product
+ *         MainImage:
+ *           type: string
+ *           description: The URL to the main image of the product
  *         description:
- *             type: string
- *             description: A description of the product
- *         image:
- *           type: array
- *           items:
- *             type: string
- *           description: A URL to the product's image
- *         productImage:
- *           type: array
- *           items:
- *             type: string
- *           description: An array of URLs to detailed product images
+ *           type: string
+ *           description: A description of the product (optional)
  *       required:
+ *         - product_id
  *         - name
+ *         - stock
+ *         - brand
  *         - price
  *         - category
- *         - brand
  *         - type
- *         - color
- *         - description
- *         - size
- *         - image
- *         - productImage
- */
+ *         - MainImage
+ *     SearchProduct:
+ *       type: object
+ *       allOf:
+ *         - $ref: '#/components/schemas/Product'
+ *         - type: object
+ *           properties:
+ *             similarityScore:
+ *               type: number
+ *               description: The similarity score from vector search
+ *             qdrantData:
+ *               type: object
+ *               description: Additional metadata from Qdrant
+ *               properties:
+ *                 event_type:
+ *                   type: string
+ *                 event_time:
+ *                   type: string
+ *                 user_id:
+ *                   type: string
+ *                 user_session:
+ *                   type: string
+ *                 price:
+ *                   type: number
 
+ /**
+ * @swagger
+ * /api/v1/products/search:
+ *   get:
+ *     summary: Search products using Qdrant vector search
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The search query to find products
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/SearchProduct'
+ *       400:
+ *         description: Search query is required
+ *       404:
+ *         description: No products found for this query
+ *       500:
+ *         description: Internal server error. Failed to retrieve search results.
+ */
 router.get("/search", searchProducts);
 
-
-
+/**
+ * @swagger
+ * /api/v1/products/searchFullPage:
+ *   get:
+ *     summary: Search products with pagination and filters using Qdrant vector search
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: query
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The search query to find products
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: The number of products per page
+ *       - in: query
+ *         name: brand
+ *         schema:
+ *           type: string
+ *         description: Filter by brand
+ *       - in: query
+ *         name: price_min
+ *         schema:
+ *           type: number
+ *         description: Minimum price filter
+ *       - in: query
+ *         name: price_max
+ *         schema:
+ *           type: number
+ *         description: Maximum price filter
+ *       - in: query
+ *         name: rating
+ *         schema:
+ *           type: number
+ *         description: Filter by rating
+ *     responses:
+ *       200:
+ *         description: Search results retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/SearchProduct'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalProducts:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     currentPage:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *       400:
+ *         description: Search query is required or invalid pagination parameters
+ *       404:
+ *         description: No products found for this query
+ *       500:
+ *         description: Internal server error. Failed to retrieve search results.
+ */
 router.get("/searchFullPage", searchProductsPaginated);
 
 /**
@@ -90,14 +246,62 @@ router.get("/searchFullPage", searchProductsPaginated);
  *         description: A list of product types retrieved successfully
  *         content:
  *           application/json:
- *
- *               schema:type: array
- *               items:
- *                 type: string
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       404:
+ *         description: No types found
  *       500:
  *         description: Internal server error. Failed to retrieve product types.
  */
 router.get('/types', getAllTypes);
+
+/**
+ * @swagger
+ * /api/v1/products/types/category/{category}:
+ *   get:
+ *     summary: Retrieve product types by category
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The product category
+ *     responses:
+ *       200:
+ *         description: A list of product types for the category retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Category is required
+ *       404:
+ *         description: No types found for the given category
+ *       500:
+ *         description: Internal server error. Failed to retrieve types.
+ */
+router.get("/types/category/:category", getTypesByCategory);
 
 /**
  * @swagger
@@ -113,27 +317,66 @@ router.get('/types', getAllTypes);
  *           type: string
  *         required: true
  *         description: The product type
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: brand
+ *         schema:
+ *           type: string
+ *         description: Filter by brand
+ *       - in: query
+ *         name: price_min
+ *         schema:
+ *           type: number
+ *         description: Minimum price filter
+ *       - in: query
+ *         name: price_max
+ *         schema:
+ *           type: number
+ *         description: Maximum price filter
+ *       - in: query
+ *         name: rating
+ *         schema:
+ *           type: number
+ *         description: Filter by rating
  *     responses:
  *       200:
  *         description: A list of products by type retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalProducts:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     currentPage:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
  *       400:
- *         description: Invalid product type format.
+ *         description: Invalid product type format or pagination parameters
  *       404:
- *         description: No products found for the given type.
+ *         description: No products found for the given type
  *       500:
  *         description: Internal server error. Failed to retrieve products by type.
  */
 router.get('/type/:type', getProductByTypes);
-
-
-
-router.get("/types/category/:category", getTypesByCategory);
 
 /**
  * @swagger
@@ -148,15 +391,101 @@ router.get("/types/category/:category", getTypesByCategory);
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: string
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       404:
+ *         description: No categories found
  *       500:
  *         description: Internal server error. Failed to retrieve product categories.
  */
 router.get('/categories', getAllCategories);
 
-
+/**
+ * @swagger
+ * /api/v1/products/category/{category}:
+ *   get:
+ *     summary: Retrieve products by category
+ *     security: []
+ *     tags: [Products]
+ *     parameters:
+ *       - in: path
+ *         name: category
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: The product category
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: Filter by product type
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: brand
+ *         schema:
+ *           type: string
+ *         description: Filter by brand
+ *       - in: query
+ *         name: price_min
+ *         schema:
+ *           type: number
+ *         description: Minimum price filter
+ *       - in: query
+ *         name: price_max
+ *         schema:
+ *           type: number
+ *         description: Maximum price filter
+ *       - in: query
+ *         name: rating
+ *         schema:
+ *           type: number
+ *         description: Filter by rating
+ *     responses:
+ *       200:
+ *         description: A list of products by category retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalProducts:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     currentPage:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *       400:
+ *         description: Category is required or invalid pagination parameters
+ *       404:
+ *         description: No products found for the given category
+ *       500:
+ *         description: Internal server error. Failed to retrieve products by category.
+ */
 router.get("/category/:category", getProductsByCategories);
 
 /**
@@ -172,9 +501,18 @@ router.get("/category/:category", getProductsByCategories);
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *       404:
+ *         description: No trending products found
  *       500:
  *         description: Internal server error. Failed to retrieve trending products.
  */
@@ -187,15 +525,63 @@ router.get('/trending', getTopTrendingProducts);
  *     summary: Retrieve a list of products
  *     security: []
  *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: The number of products per page
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *         description: Filter by category
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: Filter by type
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term to filter products
  *     responses:
  *       200:
  *         description: A list of products retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     currentPage:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                     totalItems:
+ *                       type: integer
+ *                     itemsPerPage:
+ *                       type: integer
+ *       400:
+ *         description: Invalid pagination parameters
+ *       404:
+ *         description: No products found
  *       500:
  *         description: Internal server error. Failed to retrieve products.
  */
@@ -221,16 +607,22 @@ router.get('/all', getAllProducts);
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/Product'
  *       400:
- *         description: Invalid product ID format.
+ *         description: Invalid product ID format
  *       404:
- *         description: Product not found with the given ID.
+ *         description: Product not found with the given ID
  *       500:
  *         description: Internal server error. Failed to retrieve the product.
  */
 router.get('/:id', getProductById);
-
 
 /**
  * @swagger
@@ -252,18 +644,24 @@ router.get('/:id', getProductById);
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
  *       400:
- *         description: Invalid product ID format.
+ *         description: Invalid product ID format
  *       404:
- *         description: No recommendations found for the given product ID.
+ *         description: No recommendations found for the given product ID
  *       500:
  *         description: Internal server error. Failed to retrieve recommendations.
  */
-router.post('/predict/:product_id', getRecommendations)
-
+router.post('/predict/:product_id', getRecommendations);
 
 /**
  * @swagger
@@ -279,30 +677,82 @@ router.post('/predict/:product_id', getRecommendations)
  *           schema:
  *             type: object
  *             properties:
- *               sessionData:
- *                 type: object
- *                 description: Session data used to generate recommendations
- *                 additionalProperties:
- *                   type: string
+ *               user_id:
+ *                 type: string
+ *                 description: The user ID for session-based recommendations
+ *               product_id:
+ *                 type: string
+ *                 description: The product ID to base recommendations on
+ *             required:
+ *               - user_id
+ *               - product_id
  *     responses:
  *       200:
  *         description: Session-based recommendations retrieved successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Product'
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
  *       400:
- *         description: Invalid request body or session data format.
+ *         description: Invalid request body or missing required fields
+ *       404:
+ *         description: No recommendations found
  *       500:
  *         description: Internal server error. Failed to retrieve session-based recommendations.
  */
-router.post('/recommendations', sessionBasedRecommendation)
+router.post('/recommendations', sessionBasedRecommendation);
 
-
-router.post('/anomynus_recommendations', anonymousRecommendation)
-
-
+/**
+ * @swagger
+ * /api/v1/products/anonymous_recommendations:
+ *   post:
+ *     summary: Get product recommendations for anonymous users
+ *     security: []
+ *     tags: [Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               product_id:
+ *                 type: string
+ *                 description: The product ID to base recommendations on
+ *             required:
+ *               - product_id
+ *     responses:
+ *       200:
+ *         description: Anonymous recommendations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Invalid product ID format
+ *       404:
+ *         description: No recommendations found
+ *       500:
+ *         description: Internal server error. Failed to retrieve recommendations.
+ */
+router.post('/anonymous_recommendations', anonymousRecommendation);
 
 module.exports = router;

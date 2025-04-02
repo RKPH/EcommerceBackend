@@ -228,16 +228,17 @@ exports.getOrdersDetail = async (userId) => {
     return orders;
 };
 
-exports.purchaseOrder = async ({ userId, orderId, shippingAddress, phone, deliverAt, paymentMethod, totalPrice }) => {
-    const order = await Order.findById(orderId).populate('products.product');
-    if (!order) throw new Error('No pending order found');
-
+exports.purchaseOrder = async ({ userId, orderId, shippingAddress, phone, shippingFee ,deliverAt, paymentMethod, totalPrice }) => {
+        const order = await Order.findById(orderId).populate('products.product');
+        if (!order) throw new Error('No pending order found');
+        console.log("shhipping fee" , shippingFee);
     if (!totalPrice || totalPrice <= 0) {
         throw new Error('Invalid total price');
     }
 
     order.shippingAddress = shippingAddress;
     order.phoneNumber = phone;
+    order.shippingFee = shippingFee;
     order.PaymentMethod = paymentMethod;
     order.createdAt = new Date();
     order.DeliveredAt = deliverAt;
@@ -280,7 +281,7 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
     const secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
     const partnerCode = 'MOMO';
     const redirectUrl = `http://localhost:5173/checkout/success/${orderId}`;
-    const ipnUrl = 'https://early-wings-refuse.loca.lt/api/v1/webhook/momo-ipn';
+    const ipnUrl = 'https://heavy-symbols-walk.loca.lt/api/v1/webhook/momo-ipn';
     const orderInfo = 'pay with MoMo';
     const Totalprice = 10000; // Fixed: Use totalPrice instead of hardcoding
     const requestId = `${orderId}-${Date.now()}`;

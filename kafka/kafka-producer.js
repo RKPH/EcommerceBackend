@@ -1,16 +1,21 @@
-﻿const { Kafka, logLevel } = require("kafkajs");
+﻿const { validateEnvVars, initializeKafka } = require("./kafka-config");
+require("dotenv").config(); // Load environment variables from .env file
+const producerRequiredEnvVars = [
+    "KAFKA_TOPIC_RETENTION_MS",
+    "KAFKA_TOPIC_NUM_PARTITIONS",
+    "KAFKA_TOPIC_REPLICATION_FACTOR",
+];
 
-const kafka = new Kafka({
-    clientId: "ecommerce-app",
-    brokers: ["kafka.d2f.io.vn:9092"], // Update with your actual broker
-    logLevel: logLevel.INFO,
-});
+// Validate producer-specific environment variables
+validateEnvVars(producerRequiredEnvVars);
+
+// Initialize Kafka client
+const kafka = initializeKafka("producer", "INFO");
 
 const admin = kafka.admin();
 const producer = kafka.producer();
 
-// Retention period: 4 weeks = 28 days = 28 * 24 * 60 * 60 * 1000 milliseconds
-const RETENTION_MS = 28 * 24 * 60 * 60 * 1000; // 2,419,200,000 ms
+const RETENTION_MS = parseInt(process.env.KAFKA_TOPIC_RETENTION_MS, 10);
 
 const createTopicIfNotExists = async (topic) => {
     try {
@@ -23,28 +28,26 @@ const createTopicIfNotExists = async (topic) => {
                 topics: [
                     {
                         topic,
-                        numPartitions: 3,
-                        replicationFactor: 1,
+                        numPartitions: parseInt(process.env.KAFKA_TOPIC_NUM_PARTITIONS, 10),
+                        replicationFactor: parseInt(process.env.KAFKA_TOPIC_REPLICATION_FACTOR, 10),
                         configEntries: [
-                            { name: "retention.ms", value: RETENTION_MS.toString() }, // Set retention to 4 weeks
+                            { name: "retention.ms", value: RETENTION_MS.toString() },
                         ],
                     },
                 ],
             });
-            console.log(`✅ Kafka topic [${topic}] created with retention of 4 weeks.`);
+            console.log(`✅ Kafka topic [${topic}] created with retention of ${RETENTION_MS}ms.`);
         } else {
             console.log(`✅ Kafka topic [${topic}] already exists. Checking retention settings...`);
-            // Optionally update retention for existing topic
             await updateTopicRetention(topic);
         }
     } catch (error) {
-        console.error("❌ Kafka Admin Error:", error);
+        console.error(`❌ Kafka Admin Error: ${error.message}`);
     } finally {
         await admin.disconnect();
     }
 };
 
-// Function to update retention for an existing topic
 const updateTopicRetention = async (topic) => {
     try {
         await admin.connect();
@@ -57,7 +60,7 @@ const updateTopicRetention = async (topic) => {
         );
 
         if (currentRetention && currentRetention.value !== RETENTION_MS.toString()) {
-            console.log(`📝 Updating retention for topic [${topic}] to 4 weeks...`);
+            console.log(`📝 Updating retention for topic [${topic}] to ${RETENTION_MS}ms...`);
             await admin.alterConfigs({
                 resources: [
                     {
@@ -67,12 +70,12 @@ const updateTopicRetention = async (topic) => {
                     },
                 ],
             });
-            console.log(`✅ Retention for topic [${topic}] updated to 4 weeks.`);
+            console.log(`✅ Retention for topic [${topic}] updated to ${RETENTION_MS}ms.`);
         } else {
-            console.log(`✅ Topic [${topic}] already has retention set to 4 weeks.`);
+            console.log(`✅ Topic [${topic}] already has retention set to ${RETENTION_MS}ms.`);
         }
     } catch (error) {
-        console.error(`❌ Error updating retention for topic [${topic}]:`, error);
+        console.error(`❌ Error updating retention for topic [${topic}]: ${error.message}`);
     } finally {
         await admin.disconnect();
     }
@@ -82,8 +85,22 @@ const connectProducer = async () => {
     try {
         await producer.connect();
         console.log("✅ Kafka Producer connected.");
+
+        producer.on(producer.events.CONNECT, () => {
+            console.log("✅ Producer successfully connected to broker.");
+        });
+
+        producer.on(producer.events.DISCONNECT, async () => {
+            console.log("⚠️ Producer disconnected unexpectedly. Attempting to reconnect...");
+            await producer.connect().catch((err) => console.error(`❌ Reconnect failed: ${err.message}`));
+        });
+
+        producer.on(producer.events.REQUEST_TIMEOUT, (event) => {
+            console.log(`⏳ Network request timeout: ${JSON.stringify(event, null, 2)}`);
+        });
+
     } catch (error) {
-        console.error("❌ Kafka Producer Connection Error:", error);
+        console.error(`❌ Kafka Producer Connection Error: ${error.message}`);
     }
 };
 
@@ -94,16 +111,25 @@ const sendMessage = async (topic, message) => {
             topic,
             messages: [{ value: JSON.stringify(message) }],
         });
-        console.log(`📤 Sent message to Kafka topic [${topic}]:`, message);
+        console.log(`📤 Sent message to Kafka topic [${topic}]: ${JSON.stringify(message)}`);
     } catch (error) {
-        console.error("❌ Error sending message to Kafka:", error);
+        console.error(`❌ Error sending message to Kafka: ${error.message}`);
     }
 };
 
-process.on("SIGINT", async () => {
+const shutdown = async () => {
     console.log("🔴 Disconnecting Kafka Producer...");
-    await producer.disconnect();
-    process.exit(0);
-});
+    try {
+        await producer.disconnect();
+        console.log("✅ Kafka Producer disconnected.");
+        process.exit(0);
+    } catch (err) {
+        console.error(`❌ Error during shutdown: ${err.message}`);
+        process.exit(1);
+    }
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 module.exports = { connectProducer, sendMessage };

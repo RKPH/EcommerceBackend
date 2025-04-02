@@ -28,11 +28,32 @@ var io = new Server(server, {
 
 app.locals.io = io;
 
+// Import your User model (adjust the path based on your project structure)
+const User = require('../models/user'); // Replace with the actual path to your User model
+
 /**
- * Example Socket.IO connection handler
+ * Socket.IO connection handler
  */
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
+
+  // Handle the 'join' event to add the socket to a room
+  socket.on('join', async (userId) => {
+    try {
+      console.log(`User ${userId} joined room`);
+      socket.join(userId);
+      console.log(`Socket ${socket.id} rooms:`, socket.rooms); // Debug rooms
+
+      // Check if the user is an admin
+      const user = await User.findById(userId);
+      if (user && user.role === 'admin') { // Assuming your User model has a 'role' field
+        socket.join('admin');
+        console.log(`Admin ${userId} joined the admin room`);
+      }
+    } catch (error) {
+      console.error(`Error joining room for user ${userId}:`, error.message);
+    }
+  });
 
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
@@ -42,6 +63,11 @@ io.on('connection', (socket) => {
   socket.on('custom_event', (data) => {
     console.log('Received custom_event:', data);
     socket.emit('custom_response', { message: 'Hello from server!' });
+  });
+
+  // Debug all events received by the server
+  socket.onAny((event, ...args) => {
+    console.log(`Received event: ${event}`, args);
   });
 });
 

@@ -5,46 +5,96 @@ const Review = require('../models/reviewSchema');
 const axios = require('axios');
 const fs = require('fs');
 const fsp = require('fs').promises;
+const { v4: uuidv4 } = require('uuid');
 const { parse } = require('csv-parse');
+require('dotenv').config();
 // Service functions
-exports.createProduct = async ({
-                                 name,
-                                 price,
-                                 category,
-                                 type,
-                                 brand,
-                                 stock,
-                                 mainImage,
-                                 description
-                             }) => {
+
+// Configuration for Jina AI
+const JINA_API_KEY = process.env.JINA_API_KEY;
+const JINA_ENDPOINT = 'https://api.jina.ai/v1/embeddings';
+const MODEL = 'jina-embeddings-v3';
+const TARGET_DIMENSION = 128;
+
+const getEmbeddingFromJinaAI = async (text) => {
     try {
-        // Validate required fields
-        if (!name || !price || !category || !type || !brand || !stock || !mainImage) {
-            throw new Error('Name, price, category, type, brand, stock, and MainImage are required.');
+        // Validate the API key
+        if (!JINA_API_KEY) {
+            throw new Error('Jina AI API key is not set. Please set the JINA_API_KEY environment variable in your .env file.');
         }
 
-        // Validate numeric fields
+        // Validate input text
+        if (!text || typeof text !== 'string' || text.trim() === '') {
+            throw new Error('Input text must be a non-empty string.');
+        }
+
+        // Prepare the request payload
+        const payload = {
+            input: [text],
+            model: MODEL,
+            normalized: true, // Jina AI will normalize the embedding
+            embedding_type: 'float'
+        };
+
+        console.log(`Fetching embedding from Jina AI for text: "${text}"...`);
+        // Make the request to Jina AI
+        const response = await axios.post(JINA_ENDPOINT, payload, {
+            headers: {
+                'Authorization': `Bearer ${JINA_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        // Check for API errors
+        if (response.status !== 200 || !response.data.data || !response.data.data[0]) {
+            throw new Error('Invalid response from Jina AI: ' + JSON.stringify(response.data));
+        }
+
+        // Extract and truncate the embedding to 128 dimensions
+        const embedding = response.data.data[0].embedding.slice(0, TARGET_DIMENSION);
+        if (!embedding || embedding.length !== TARGET_DIMENSION) {
+            throw new Error(`Embedding dimension mismatch: expected ${TARGET_DIMENSION}, got ${embedding.length}`);
+        }
+
+        // Normalize the embedding (Jina AI already normalizes, but we verify)
+        const norm = Math.sqrt(embedding.reduce((sum, val) => sum + val * val, 0));
+        const normalizedEmbedding = norm > 0 ? embedding.map(val => val / norm) : embedding;
+
+        console.log(`Embedding generated successfully, length: ${normalizedEmbedding.length}`);
+        return normalizedEmbedding; // Returns a 128-dimensional vector
+    } catch (error) {
+        console.error('Failed to get embedding from Jina AI:', error.message);
+        // Fallback to a zero vector if the request fails
+        return Array(TARGET_DIMENSION).fill(0);
+    }
+};
+
+const generateUserSession = () => {
+    return uuidv4(); // Generates a UUID v4, e.g., "550e8400-e29b-41d4-a716-446655440000"
+};
+exports.createProduct = async ({
+                                   name, price, category, type, brand, stock, mainImage, description
+                               }) => {
+    try {
+        console.log("Starting createProduct...");
+        if (!name || !price || !category || !type || !brand || !stock || !mainImage) {
+            throw new Error('Missing required fields');
+        }
+        console.log("Creating product...");
+
         const parsedPrice = parseFloat(price);
         const parsedStock = parseInt(stock, 10);
-        if (isNaN(parsedPrice) || parsedPrice <= 0) {
-            throw new Error('Price must be a positive number.');
-        }
-        if (isNaN(parsedStock) || parsedStock < 0) {
-            throw new Error('Stock must be a non-negative integer.');
-        }
+        if (isNaN(parsedPrice) || parsedPrice <= 0) throw new Error('Invalid price');
+        if (isNaN(parsedStock) || parsedStock < 0) throw new Error('Invalid stock');
 
-        // Generate a unique product_id
         let product_id;
         let isUnique = false;
         do {
-            product_id = Math.floor(1000000 + Math.random() * 9000000).toString(); // 7-digit number
+            product_id = Math.floor(1000000 + Math.random() * 9000000).toString();
             const existingProduct = await Product.findOne({ product_id });
-            if (!existingProduct) {
-                isUnique = true;
-            }
+            if (!existingProduct) isUnique = true;
         } while (!isUnique);
 
-        // Prepare the new product data
         const newProductData = {
             product_id,
             name,
@@ -57,20 +107,72 @@ exports.createProduct = async ({
             description: description || '',
         };
 
-        // Create and save the new product
         const newProduct = new Product(newProductData);
         const savedProduct = await newProduct.save();
+        console.log("Product saved to DB:", savedProduct.product_id);
 
-        if (!savedProduct) {
-            throw new Error('Failed to create product.');
+        const textToEmbed = savedProduct.name.trim();
+        console.log("Fetching embedding for:", textToEmbed);
+        const vector = await getEmbeddingFromJinaAI(textToEmbed);
+        console.log("Embedding received, length:", vector.length);
+        const now = new Date();
+        const year = now.getUTCFullYear();
+        const month = String(now.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-based
+        const day = String(now.getUTCDate()).padStart(2, '0');
+        const hours = String(now.getUTCHours()).padStart(2, '0');
+        const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+        const eventTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds} UTC`;
+        const user_session = generateUserSession();
+        const category_code = `${savedProduct.category.trim().replace(/\s+/g, '_')}.${savedProduct.type.trim().replace(/\s+/g, '_')}`.toLowerCase();
+
+        const qdrantPayload = {
+            event_type: "view",
+            price: savedProduct.price,
+            name: savedProduct.name,
+            category_code,
+            user_id: "574370358",
+            product_id: savedProduct.product_id,
+            event_time,
+            user_session,
+            brand: savedProduct.brand
+        };
+
+        const qdrantPointId = uuidv4(); // e.g., "550e8400-e29b-41d4-a716-446655440000"
+
+        const point = {
+            id: qdrantPointId, // Use UUID instead of omitting id
+            vector,
+            payload: qdrantPayload
+        };
+
+        const qdrantUrl = 'http://103.155.161.100:6333/collections/test_collection/points';
+        const upsertParams = { points: [point] };
+
+        console.log("Upserting to Qdrant with payload:", JSON.stringify(upsertParams, null, 2));
+        console.log("Sending request to Qdrant...");
+        try {
+            const response = await axios.put(qdrantUrl, upsertParams, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'api-key': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.SWMCjlnWh7pD_BlK885iwtg30KtPXcngjNkTd8BuFAU',
+                },
+            });
+            console.log("RE", response.data);
+
+        } catch (qdrantError) {
+            console.error("Qdrant upsert failed:", qdrantError.message, qdrantError.response?.data);
+            throw new Error("Qdrant upsert error: " + qdrantError.message);
         }
 
+        console.log("Product creation completed.");
         return {
             product_id: savedProduct.product_id,
             name: savedProduct.name,
             price: savedProduct.price,
             category: savedProduct.category,
             type: savedProduct.type,
+
             brand: savedProduct.brand,
             stock: savedProduct.stock,
             MainImage: savedProduct.MainImage,
@@ -79,14 +181,9 @@ exports.createProduct = async ({
             createdAt: savedProduct.createdAt,
         };
     } catch (error) {
-        if (error.name === 'ValidationError') {
-            throw new Error('Validation error: ' + Object.values(error.errors).map(err => err.message).join(', '));
+            console.error("Error in createProduct:", error.message, error.stack);
+            throw error;
         }
-        if (error.code === 11000 && error.keyPattern?.product_id) {
-            throw new Error('Product ID already exists.');
-        }
-        throw error; // Re-throw for unexpected errors
-    }
 };
 
 //create multiple products
@@ -485,112 +582,125 @@ exports.getTopTrendingProducts = async () => {
 
 // Updated searchProducts with Qdrant and Filtering
 
-exports.searchProducts = async (query, { category, priceMin, priceMax, offset = 0, limit = 20 } = {}) => {
+exports.searchProducts = async (query, { offset = 0, limit = 20 } = {}) => {
     if (!query) throw new Error("Search query is required.");
 
     try {
-        // Build Qdrant filter
-        const filter = { must: [] };
-        if (query) {
-            filter.must.push({
-                should: [
-                    { key: 'name', match: { text: query } },
-                    { key: 'category_code', match: { text: query } },
-                    { key: 'brand', match: { text: query } }
-                ],
-            });
-        }
-        if (category) {
-            filter.must.push({
-                key: 'category_code',
-                match: { value: category },
-            });
-        }
-        if (priceMin || priceMax) {
-            const priceFilter = { key: 'price', range: {} };
-            if (priceMin) priceFilter.range.gte = Number(priceMin);
-            if (priceMax) priceFilter.range.lte = Number(priceMax);
-            filter.must.push(priceFilter);
+        // Step 1: Embed the query using Jina AI
+        const startEmbedding = Date.now();
+        const queryVector = await getEmbeddingFromJinaAI(query);
+        console.log(`Embedding query took: ${(Date.now() - startEmbedding) / 1000} seconds`);
+
+        if (queryVector.every(val => val === 0)) {
+            console.warn('Failed to generate a valid embedding for the query. Falling back to empty results.');
+            return { results: [], total: 0 };
         }
 
-        // Prepare Qdrant scroll request
-        const scrollParams = {
-            filter: filter.must.length > 0 ? filter : undefined,
-            limit: parseInt(limit), // Reduced limit for faster response
-            offset: parseInt(offset), // Add offset for pagination
+        // Step 2: Prepare Qdrant query request with a filter for the name field
+        const queryParams = {
+            query: queryVector, // The query vector for vector similarity search
+            filter: {
+                must: [
+                    {
+                        key: 'name',
+                        match: {
+                            text: query // Use 'text' for substring matching
+                        }
+                    }
+                ]
+            },
+            params: {
+                hnsw_ef: 128, // Adjust for search efficiency/accuracy trade-off
+                exact: false, // Use approximate search for better performance
+            },
+            limit: parseInt(limit),
+            offset: parseInt(offset),
             with_payload: true,
             with_vector: false,
         };
 
-        // Call Qdrant API
-        const qdrantUrl = 'http://103.155.161.100:6333/collections/recommendation_system/points/scroll';
+        // Step 3: Call Qdrant API (use /query endpoint)
+        const qdrantUrl = 'http://103.155.161.100:6333/collections/test_collection/points/query';
         const startTime = Date.now();
-        const response = await axios.post(qdrantUrl, scrollParams, {
+        const response = await axios.post(qdrantUrl, queryParams, {
             headers: {
                 'Content-Type': 'application/json',
                 'api-key': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.SWMCjlnWh7pD_BlK885iwtg30KtPXcngjNkTd8BuFAU',
             },
         });
-        console.log(`Qdrant API callssss took: ${(Date.now() - startTime) / 1000} seconds`);
-
+        console.log(`Qdrant API query took: ${(Date.now() - startTime) / 1000} seconds`);
+        console.log("reposne from qrdant", response)
         if (response.status !== 200 || response.data.status !== 'ok') {
-            throw new Error('Qdrant scroll failed: ' + JSON.stringify(response.data));
+            throw new Error('Qdrant query failed: ' + JSON.stringify(response.data));
         }
 
-        const scrollResults = response.data.result.points;
-        if (!scrollResults || scrollResults.length === 0) {
-            return { results: [], total: 0 };
+        const queryResults = response.data.result.points;
+        if (!queryResults || queryResults.length === 0) {
+            return {
+                results: [],
+                total: 0,
+                message: 'No products found matching your search query.',
+            };
         }
 
-        // Build a dictionary for faster lookups
+        // Log similarity scores for debugging
+        queryResults.forEach(result => {
+            console.log(`Product: ${result.payload.name}, Similarity Score: ${result.score}`);
+        });
+
+        // Step 4: Build a dictionary for faster lookups and check for exact match
         const qdrantDataMap = new Map();
         const queryLower = query.toLowerCase();
         let exactMatch = null;
 
-        // Single pass to build map and find exact match
-        for (const result of scrollResults) {
+        for (const result of queryResults) {
             if (!result.payload || !result.payload.product_id) continue;
+
             const productId = result.payload.product_id.toString();
             qdrantDataMap.set(productId, result.payload);
 
             const name = (result.payload.name || '').toLowerCase();
+            // Check for exact match
             if (name === queryLower && !exactMatch) {
                 exactMatch = result;
             }
         }
 
-        // Prepare filtered results
+        // Step 5: Prepare filtered results
         let filteredResults;
         if (exactMatch) {
             filteredResults = [exactMatch];
         } else {
-            filteredResults = scrollResults.filter(result => result.payload && result.payload.product_id);
+            filteredResults = queryResults.filter(result => result.payload && result.payload.product_id);
         }
 
-        console.log('Filtered Scroll Results:', filteredResults.length);
+        console.log('Filtered Query Results:', filteredResults.length);
 
-        // Extract product IDs
+        // Step 6: Extract product IDs
         const productIds = [...new Set(filteredResults.map(result => result.payload.product_id.toString()))];
         if (productIds.length === 0) {
-            return { results: [], total: 0 };
+            return {
+                results: [],
+                total: 0,
+                message: 'No products found matching your search query.',
+            };
         }
 
-        // Build MongoDB filter
-        const mongoFilter = { product_id: { $in: productIds } };
-
-        // Fetch from MongoDB with selected fields
+        // Step 7: Fetch from MongoDB with selected fields
         const startMongo = Date.now();
-        const products = await Product.find(mongoFilter)
+        const products = await Product.find({ product_id: { $in: productIds } })
             .select('product_id name category_code brand price')
             .lean();
         console.log(`MongoDB query took: ${(Date.now() - startMongo) / 1000} seconds`);
 
-        // Map Qdrant data to MongoDB products
+        // Step 8: Map Qdrant data to MongoDB products
         const startMapping = Date.now();
         const results = products.map(product => {
             const qdrantData = qdrantDataMap.get(product.product_id);
+            const similarityScore = filteredResults.find(result => result.payload.product_id.toString() === product.product_id)?.score || 0;
             return {
                 ...product,
+                similarityScore, // Add similarity score to the response for debugging
                 qdrantData: qdrantData
                     ? {
                         event_type: qdrantData.event_type,
@@ -606,50 +716,114 @@ exports.searchProducts = async (query, { category, priceMin, priceMax, offset = 
 
         return {
             results,
-            total: filteredResults.length, // Approximate total; use Qdrant count API for exact total if needed
+            total: filteredResults.length,
+            message: filteredResults.length === 0 ? 'No products found matching your search query.' : undefined,
         };
     } catch (error) {
-        console.error("Error scrolling products in Qdrant:", error);
-        throw new Error(`Failed to scroll products: ${error.message}`);
+        console.error("Error querying products in Qdrant:", error.message, error.stack);
+        throw new Error(`Failed to query products: ${error.message}`);
     }
-};;
-
-exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, price_min, price_max, rating }) => {
-    const pageSize = parseInt(limit, 10) || 20;
-    let pageNum = parseInt(page, 10) || 1;
-    if (isNaN(pageNum) || pageNum <= 0) pageNum = 1;
-
-    const searchFilter = {
-        $or: [
-            { name: { $regex: query || '', $options: 'i' } },
-            { category: { $regex: query || '', $options: 'i' } },
-            { brand: { $regex: query || '', $options: 'i' } },
-            { description: { $regex: query || '', $options: 'i' } },
-        ],
-    };
-
-    const filterConditions = {};
-    if (brand) filterConditions.brand = { $regex: brand, $options: 'i' };
-    if (price_min || price_max) {
-        filterConditions.price = {};
-        if (price_min) filterConditions.price.$gte = parseFloat(price_min);
-        if (price_max) filterConditions.price.$lte = parseFloat(price_max);
-    }
-    if (rating) filterConditions.rating = Number(rating);
-
-    const combinedFilters = [searchFilter];
-    if (Object.keys(filterConditions).length > 0) combinedFilters.push(filterConditions);
-
-    const finalFilter = combinedFilters.length > 1 ? { $and: combinedFilters } : searchFilter;
-
-    const totalProducts = await Product.countDocuments(finalFilter);
-    const totalPages = Math.ceil(totalProducts / pageSize);
-    if (pageNum > totalPages) pageNum = totalPages;
-
-    const products = await Product.find(finalFilter)
-        .skip((pageNum - 1) * pageSize)
-        .limit(pageSize);
-
-    return { products, totalProducts, totalPages, currentPage: pageNum, pageSize };
 };
 
+exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, price_min, price_max, rating }) => {
+    try {
+        // Validate and parse pagination parameters
+        const pageSize = Math.max(1, parseInt(limit, 10) || 20); // Ensure pageSize is at least 1
+        let pageNum = parseInt(page, 10) || 1;
+        if (isNaN(pageNum) || pageNum <= 0) pageNum = 1;
+
+        // Log for debugging
+        console.log('Pagination params:', { page, limit, pageNum, pageSize });
+
+        // Build the search filter (regex search across multiple fields)
+        const searchFilter = {
+            $or: [
+                { name: { $regex: query || '', $options: 'i' } },
+                { category: { $regex: query || '', $options: 'i' } },
+                { brand: { $regex: query || '', $options: 'i' } },
+                { description: { $regex: query || '', $options: 'i' } },
+            ],
+        };
+
+        // Build additional filters
+        const filterConditions = {};
+        if (brand) {
+            filterConditions.brand = { $regex: brand, $options: 'i' };
+        }
+        if (price_min || price_max) {
+            filterConditions.price = {};
+            const minPrice = price_min ? parseFloat(price_min) : undefined;
+            const maxPrice = price_max ? parseFloat(price_max) : undefined;
+            if (!isNaN(minPrice)) filterConditions.price.$gte = minPrice;
+            if (!isNaN(maxPrice)) filterConditions.price.$lte = maxPrice;
+            // Ensure minPrice <= maxPrice
+            if (!isNaN(minPrice) && !isNaN(maxPrice) && minPrice > maxPrice) {
+                throw new Error('price_min cannot be greater than price_max');
+            }
+        }
+        if (rating) {
+            const ratingNum = Number(rating);
+            if (!isNaN(ratingNum) && ratingNum >= 0 && ratingNum <= 5) {
+                filterConditions.rating = ratingNum;
+            } else {
+                throw new Error('rating must be a number between 0 and 5');
+            }
+        }
+
+        // Combine filters
+        const combinedFilters = [searchFilter];
+        if (Object.keys(filterConditions).length > 0) combinedFilters.push(filterConditions);
+
+        const finalFilter = combinedFilters.length > 1 ? { $and: combinedFilters } : searchFilter;
+
+        // Get total count and products in a single aggregation pipeline
+        const aggregation = Product.aggregate([
+            { $match: finalFilter },
+            {
+                $facet: {
+                    metadata: [{ $count: 'total' }],
+                    data: [
+                        { $skip: (pageNum - 1) * pageSize },
+                        { $limit: pageSize },
+                    ],
+                },
+            },
+        ]);
+
+        const result = await aggregation.exec();
+        const totalProducts = result[0].metadata.length > 0 ? result[0].metadata[0].total : 0;
+        const products = result[0].data;
+
+        // Calculate total pages
+        const totalPages = Math.ceil(totalProducts / pageSize);
+
+        // Adjust pageNum if it exceeds totalPages, but ensure it's at least 1
+        if (totalPages === 0) {
+            pageNum = 1; // If no products, set pageNum to 1 to avoid skip becoming negative
+        } else if (pageNum > totalPages) {
+            pageNum = totalPages;
+            // Re-fetch products if pageNum was adjusted
+            const adjustedResult = await Product.find(finalFilter)
+                .skip((pageNum - 1) * pageSize)
+                .limit(pageSize);
+            return {
+                products: adjustedResult,
+                totalProducts,
+                totalPages,
+                currentPage: pageNum,
+                pageSize,
+            };
+        }
+
+        return {
+            products,
+            totalProducts,
+            totalPages,
+            currentPage: pageNum,
+            pageSize,
+        };
+    } catch (error) {
+        console.error('Error in searchProductsPaginated:', error.message, error.stack);
+        throw new Error(`Failed to search products: ${error.message}`);
+    }
+};

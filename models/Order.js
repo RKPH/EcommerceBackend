@@ -30,6 +30,9 @@ const OrderSchema = new mongoose.Schema({
         enum: ['Paid', 'Unpaid', 'Failed'],
         default: 'Unpaid'
     },
+    shippingFee: {
+        type: Number,
+    },
     cancellationReason: {
         type: String,
         default: null

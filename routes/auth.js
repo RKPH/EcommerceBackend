@@ -2,11 +2,7 @@ const express = require('express');
 const router = express.Router();
 const verifyAccessToken = require('../middlewares/verifyToken');
 
-
-const { registerUser, loginUser, getUserProfile,refreshAccessToken ,logoutUser, verifyUser, forgotPassword,
-    resetPassword
-} = require('../controllers/authController'); // Update the path if necessary
-
+const { registerUser, loginUser, getUserProfile, refreshAccessToken, logoutUser, verifyUser, forgotPassword, resetPassword } = require('../controllers/authController'); // Update the path if necessary
 
 /**
  * @swagger
@@ -139,7 +135,7 @@ router.post('/login', loginUser);
  *       500:
  *         description: Server error
  */
-router.get('/profile', verifyAccessToken,getUserProfile); // Apply authorizationMiddleware here
+router.get('/profile', verifyAccessToken, getUserProfile);
 
 /**
  * @swagger
@@ -177,13 +173,101 @@ router.post('/refresh-token', refreshAccessToken);
  *       500:
  *         description: Server error
  */
-router.post('/logout', logoutUser); // Add logout endpoint
+router.post('/logout', logoutUser);
 
-
+/**
+ * @swagger
+ * /api/v1/auth/verify:
+ *   post:
+ *     summary: Verify the user's access token and return user information
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []  # Ensure the request is authenticated via token
+ *     responses:
+ *       200:
+ *         description: User verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   description: The user ID (MongoDB ObjectId)
+ *                 name:
+ *                   type: string
+ *                   description: The user's name
+ *                 email:
+ *                   type: string
+ *                   description: The user's email
+ *       401:
+ *         description: Unauthorized - No token provided or token is invalid
+ *       403:
+ *         description: Forbidden - Invalid token
+ *       500:
+ *         description: Server error
+ */
 router.post('/verify', verifyAccessToken, verifyUser);
 
-router.post("/forgot-password",forgotPassword); // Send reset email
+/**
+ * @swagger
+ * /api/v1/auth/forgot-password:
+ *   post:
+ *     summary: Request a password reset link via email
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The user's email address
+ *                 format: email
+ *     responses:
+ *       200:
+ *         description: Password reset email sent successfully
+ *       400:
+ *         description: Invalid email or user not found
+ *       500:
+ *         description: Server error
+ */
+router.post("/forgot-password", forgotPassword);
 
-
+/**
+ * @swagger
+ * /api/v1/auth/reset-password:
+ *   post:
+ *     summary: Reset the user's password using a reset token
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - newPassword
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: The password reset token received via email
+ *               newPassword:
+ *                 type: string
+ *                 description: The new password for the user
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *       400:
+ *         description: Invalid or expired token, or invalid new password
+ *       500:
+ *         description: Server error
+ */
 router.post('/reset-password', resetPassword);
+
 module.exports = router;

@@ -115,7 +115,7 @@ exports.getOrderDetailsForAdmin = async (req, res) => {
 
 exports.purchaseOrder = async (req, res) => {
     const { userId } = req.user;
-    const { orderId, shippingAddress, phone, deliverAt, paymentMethod, totalPrice } = req.body;
+    const { orderId, shippingAddress, phone, deliverAt, shippingFee, paymentMethod, totalPrice } = req.body;
 
     try {
         const order = await orderService.purchaseOrder({
@@ -124,8 +124,19 @@ exports.purchaseOrder = async (req, res) => {
             shippingAddress,
             phone,
             deliverAt,
+            shippingFee,
             paymentMethod,
             totalPrice,
+        });
+
+        // Notify admin about the new purchase
+        const io = req.app.locals.io;
+        io.to("admin").emit("newOrderPlaced", {
+            orderId: order._id,
+            userId,
+            totalPrice,
+            paymentMethod,
+            createdAt: new Date(),
         });
 
         if (paymentMethod === 'momo') {
@@ -313,7 +324,11 @@ exports.updateOrderStatus = async (req, res) => {
         });
 
         const io = req.app.locals.io;
-        io.emit("orderStatusUpdated", {
+        // Emit the event to the specific user's room
+        const userId = updatedOrder.user._id.toString();
+
+        console.log("user: ", userId);
+        io.to(userId).emit("orderStatusUpdated", {
             orderId: updatedOrder._id,
             newStatus,
             updatedAt: new Date(),
