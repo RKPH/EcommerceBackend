@@ -35,11 +35,12 @@ const io = socketIo(server, {
 
 app.locals.io = io;
 
-// Global CORS configuration to allow all origins
+// Global CORS configuration to allow specific origin
 app.use(cors({
-    origin: '*', // Allow all origins
+    origin: 'https://d2f.io.vn', // Allow specific frontend domain
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
-    credentials: false // Set to false when using wildcard origin
+    credentials: true, // Enable credentials
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'] // Allow necessary headers
 }));
 
 app.use(logger);
