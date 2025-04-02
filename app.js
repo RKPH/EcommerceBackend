@@ -32,7 +32,7 @@ const app = express();
 const server = http.createServer(app);      // Create HTTP server
 const io = socketIo(server, {
     cors: {
-        origin: "http://d2f.io.vn:5173",  // Allow only your frontend during development
+        origin: "http://d2f.io.vn",  // Allow only your frontend during development
         methods: ["GET", "POST", "PUT", "DELETE"],
         credentials: true  // If you're using cookies for auth, include this
     }
