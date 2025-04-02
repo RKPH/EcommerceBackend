@@ -76,7 +76,7 @@ io.on('connection', (socket) => {
 
 // Middleware setup
 const corsOptions = {
-    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173', 'http://localhost:5174', 'https://d2f.io.vn' ],  // ✅ Add both frontend URLs
+    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173', 'http://localhost:5174', 'https://d2f.io.vn' , 'https://d2f.io.vn:5173', 'https://backend.d2f.io.vn'],  // ✅ Add both frontend URLs
     credentials: true,  // ✅ Required to allow cookies
 };
 // Apply CORS for authenticated routes (e.g., tracking, auth)
