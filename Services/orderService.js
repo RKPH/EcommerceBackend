@@ -281,7 +281,7 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
     const secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
     const partnerCode = 'MOMO';
     const redirectUrl = `http://localhost:5173/checkout/success/${orderId}`;
-    const ipnUrl = 'https://heavy-symbols-walk.loca.lt/api/v1/webhook/momo-ipn';
+    const ipnUrl = 'https://backend.d2f.io.vn/api/v1/webhook/momo-ipn';
     const orderInfo = 'pay with MoMo';
     const Totalprice = 10000; // Fixed: Use totalPrice instead of hardcoding
     const requestId = `${orderId}-${Date.now()}`;
