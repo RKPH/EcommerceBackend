@@ -21,7 +21,7 @@ var server = http.createServer(app);
 var { Server } = require('socket.io');
 var io = new Server(server, {
   cors: {
-    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://103.155.161.94:3000', 'http://103.155.161.94:5173'],
+    origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174', 'http://103.155.161.94:3000', 'http://103.155.161.94:5173', 'https://d2f.io.vn:5173' ,'https://d2f.io.vn:5174' ],
     credentials: true
   }
 });

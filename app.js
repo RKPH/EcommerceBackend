@@ -32,7 +32,7 @@ const app = express();
 const server = http.createServer(app);      // Create HTTP server
 const io = socketIo(server, {
     cors: {
-        origin: "http://localhost:5173",  // Allow only your frontend during development
+        origin: "http://d2f.io.vn:5173",  // Allow only your frontend during development
         methods: ["GET", "POST", "PUT", "DELETE"],
         credentials: true  // If you're using cookies for auth, include this
     }
@@ -76,7 +76,7 @@ io.on('connection', (socket) => {
 
 // Middleware setup
 const corsOptions = {
-    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173', 'http://localhost:5174'],  // ✅ Add both frontend URLs
+    origin: ['http://103.155.161.94:3000', 'http://103.155.161.94:5173' , 'http://localhost:3000' , 'http://localhost:5173', 'http://localhost:5174', 'https://d2f.io.vn:5173' ,'https://d2f.io.vn:5174' ],  // ✅ Add both frontend URLs
     credentials: true,  // ✅ Required to allow cookies
 };
 // Apply CORS for authenticated routes (e.g., tracking, auth)
