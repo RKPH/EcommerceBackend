@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const https = require('https');
 const { sendCancellationEmail, sendRefundRequestEmail, sendRefundSuccessEmail, sendRefundFailedEmail } = require('../Services/Email');
 const Review = require('../models/reviewSchema');
+const { v4: uuidv4 } = require('uuid');
 
 const formatDate = (date) => {
     const offset = 7; // Vietnam Time GMT+7
@@ -25,10 +26,14 @@ const getUTCMonthRange = (year, month) => {
     return { start, end };
 };
 
-exports.createOrder = async ({ userId, orderID, products, shippingAddress, PaymentMethod }) => {
+exports.createOrder = async ({ userId, products, shippingAddress, PaymentMethod }) => {
     if (!products || !products.length) {
         throw new Error('Order must include at least one product');
     }
+
+    // Get the total count of existing orders
+    const orderCount = await Order.countDocuments();
+    const order_id = (orderCount + 1).toString().padStart(4, '0');
 
     const existingOrder = await Order.findOne({ user: userId, status: 'Draft' });
 
@@ -57,7 +62,7 @@ exports.createOrder = async ({ userId, orderID, products, shippingAddress, Payme
 
     const newOrder = new Order({
         user: userId,
-        orderID,
+        order_id,
         products: products.map((item) => ({
             product: item.product,
             quantity: item.quantity,

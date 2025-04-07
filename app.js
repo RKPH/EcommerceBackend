@@ -29,7 +29,7 @@ const io = socketIo(server, {
     cors: {
         origin: "*", // Allow all origins for Socket.IO
         methods: ["GET", "POST", "PUT", "DELETE"],
-        credentials: false // Set to false since we're allowing all origins
+        credentials: true // Set to false since we're allowing all origins
     }
 });
 
@@ -37,7 +37,7 @@ app.locals.io = io;
 
 // Global CORS configuration to allow specific origin
 app.use(cors({
-    origin: ['https://d2f.io.vn', 'http://localhost:5173','http://localhost:5174'], // Allow specific frontend domain
+    origin: ['https://d2f.io.vn', 'https://dashboard.d2f.io.vn' ,'http://localhost:5173','http://localhost:5174'], // Allow specific frontend domain
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Specify allowed methods
     credentials: true, // Enable credentials
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'] // Allow necessary headers

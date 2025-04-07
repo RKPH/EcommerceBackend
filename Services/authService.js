@@ -19,15 +19,17 @@ exports.registerUser = async ({ name, email, password }) => {
         // Generate a unique user_id
         let user_id;
         let isUnique = false;
+        const userCount = await User.countDocuments();
 
         while (!isUnique) {
-            user_id = Math.floor(Math.random() * (10000000 - 10000) + 10000);
+           
+            user_id = (userCount + 1).toString().padStart(4, '0');
             const existingUser = await User.findOne({ user_id });
             if (!existingUser) {
                 isUnique = true;
             }
         }
-
+       
         // Hash the password and generate the salt
         const { salt, hashedPassword } = await hash(password);
 
@@ -39,7 +41,7 @@ exports.registerUser = async ({ name, email, password }) => {
             password: hashedPassword,
             salt,
             isVerified: false,
-            verificationCode: crypto.randomInt(100000000000, 999999999999),
+            verificationCode: crypto.randomInt(100000, 999999),
         });
 
         // Send the verification email

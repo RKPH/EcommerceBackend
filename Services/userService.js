@@ -1,7 +1,7 @@
 ﻿// userService.js
 const User = require('../models/user');
 const { hash } = require('../utils/hash'); // Import password utility
-
+const { v4: uuidv4 } = require('uuid');
 
 
 const getUTCMonthRange = (year, month) => {
@@ -51,9 +51,9 @@ exports.getAllUsers = async (page = 1, limit = 10, search = "", role = "") => {
 
 exports.getUserDetails = async (userId) => {
     try {
-        const id = parseInt(userId.trim(), 10);
+ 
         const user = await User.findOne(
-            { user_id: id },
+            { user_id: userId },
             { password: 0, salt: 0, verificationCode: 0, resetToken: 0, restTokenExpiry: 0, __v: 0 }
         );
 
@@ -90,8 +90,8 @@ exports.updateUser = async (userId, updateData) => {
             throw new Error('Invalid role. Role must be either "customer" or "admin".');
         }
 
-        const id = parseInt(userId.trim(), 10);
-        const user = await User.findOne({ user_id: id });
+        console.log(userId);
+        const user = await User.findOne({ user_id: userId });
         if (!user) {
             throw new Error('User not found.');
         }
@@ -121,7 +121,7 @@ exports.updateUser = async (userId, updateData) => {
         }
 
         const updatedUser = await User.findOneAndUpdate(
-            { user_id: id },
+            { user_id: userId },
             { $set: updateObj },
             { new: true, runValidators: true }
         );
@@ -175,16 +175,20 @@ exports.createUser = async (userData) => {
             throw new Error('Email is already in use by another user.');
         }
 
-        // Generate a unique user_id
+        // Find the next available user_id
         let user_id;
+        let nextId = 1;
         let isUnique = false;
-        do {
-            user_id = Math.floor(100000000 + Math.random() * 900000000); // Generate a 9-digit number
+        
+        while (!isUnique) {
+            user_id = nextId.toString().padStart(4, '0');
             const existingUser = await User.findOne({ user_id });
             if (!existingUser) {
                 isUnique = true;
+            } else {
+                nextId++;
             }
-        } while (!isUnique);
+        }
 
         // Hash the password
         const { salt, hashedPassword } = hash(password);

@@ -2,12 +2,30 @@
 const fs = require("fs");
 const path = require("path");
 const { validate } = require('deep-email-validator');
+
 const transporter = nodemailer.createTransport({
     service: "Gmail",
     auth: {
-        user: "pnghung2003@gmail.com", // Your Gmail
-        pass: "gvxj cxav vddo fhkd", // Your app password
+        user: process.env.EMAIL_USER || "pnghung2003@gmail.com",
+        pass: process.env.EMAIL_PASSWORD || "gvxj cxav vddo fhkd",
     },
+    tls: {
+        rejectUnauthorized: false // Only use this in development
+    },
+    pool: true, // Use pooled connections
+    maxConnections: 5,
+    maxMessages: 100,
+    rateDelta: 1000, // How many messages between rate limit
+    rateLimit: 5 // Max number of messages per rateDelta
+});
+
+// Test the connection on startup
+transporter.verify(function(error, success) {
+    if (error) {
+        console.error("SMTP Connection Error:", error);
+    } else {
+        console.log("SMTP Server is ready to take our messages");
+    }
 });
 
 async function isEmailValid(email) {
@@ -36,13 +54,13 @@ async function sendVerificationEmail(to, code) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";  // Replace with your image URL
 
     const mailOptions = {
-        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
         to: to,
-        subject: "Verify Your Account - Sport Ecommerce",
+        subject: "Verify Your Account - D2F Ecommerce",
         html: `
         <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
-            <h2 style="color: #333;">Welcome to Sport Ecommerce!</h2>
+            <img src="${logoUrl}" alt="D2F Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <h2 style="color: #333;">Welcome to D2F Ecommerce!</h2>
             <p style="font-size: 16px; color: #555;">To complete your registration, please verify your email address by entering the code below:</p>
             <div style="background: #007bff; color: white; padding: 15px; font-size: 24px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
                 ${code}
@@ -50,7 +68,7 @@ async function sendVerificationEmail(to, code) {
             
             <p style="font-size: 14px; color: #777;">If you did not request this, you can safely ignore this email.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+            <p style="font-size: 12px; color: #aaa;">D2F Ecommerce | All Rights Reserved</p>
         </div>
 
         <style>
@@ -84,23 +102,21 @@ async function sendVerificationEmail(to, code) {
     }
 }
 
-
 async function sendResetPasswordEmail(to, resetLink) {
     if (!to) {
         console.error("Error: No recipient email provided!");
         return;
     }
 
-
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";  // Replace with your image URL
 
     const mailOptions = {
-        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
         to: to,
-        subject: "Reset Your Password - Sport Ecommerce",
+        subject: "Reset Your Password - D2F Ecommerce",
         html: `
         <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <img src="${logoUrl}" alt="D2F Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
             <h2 style="color: #333;">Reset Your Password</h2>
             <p style="font-size: 16px; color: #555;">We received a request to reset your password. Click the button below to set a new password:</p>
             
@@ -110,7 +126,7 @@ async function sendResetPasswordEmail(to, resetLink) {
 
             <p style="font-size: 14px; color: #777;">If you did not request this, you can safely ignore this email.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+            <p style="font-size: 12px; color: #aaa;">D2F Ecommerce | All Rights Reserved</p>
         </div>
 
         <style>
@@ -150,12 +166,12 @@ async function sendCancellationEmail(to, orderId) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
         to: to,
-        subject: "Order Cancellation - Sport Ecommerce",
+        subject: "Order Cancellation - D2F Ecommerce",
         html: `
         <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <img src="${logoUrl}" alt="D2F Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
             <h2 style="color: #333;">Order Cancellation</h2>
             <p style="font-size: 16px; color: #555;">Your order is canceled successfully</p>
             
@@ -165,7 +181,7 @@ async function sendCancellationEmail(to, orderId) {
 
             <p style="font-size: 14px; color: #777;">If you have any questions or need further assistance, please contact our support team.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+            <p style="font-size: 12px; color: #aaa;">D2F Ecommerce | All Rights Reserved</p>
         </div>
 
         <style>
@@ -195,6 +211,7 @@ async function sendCancellationEmail(to, orderId) {
         console.error("Error sending cancellation email:", error);
     }
 }
+
 async function sendRefundSuccessEmail(to, orderId) {
     if (!to) {
         console.error("Error: No recipient email provided!");
@@ -204,12 +221,12 @@ async function sendRefundSuccessEmail(to, orderId) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
         to: to,
-        subject: "Refund Processed Successfully - Sport Ecommerce",
+        subject: "Refund Processed Successfully - D2F Ecommerce",
         html: `
         <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <img src="${logoUrl}" alt="D2F Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
             <h2 style="color: #333;">Refund Processed Successfully</h2>
             <p style="font-size: 16px; color: #555;">Your refund for the following order has been processed successfully:</p>
             <div style="background: #28a745; color: white; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
@@ -217,7 +234,7 @@ async function sendRefundSuccessEmail(to, orderId) {
             </div>
             <p style="font-size: 14px; color: #777;">If you have any questions, please contact our support team.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+            <p style="font-size: 12px; color: #aaa;">D2F Ecommerce | All Rights Reserved</p>
         </div>
         <style>
             @media screen and (max-width: 600px) {
@@ -233,10 +250,8 @@ async function sendRefundSuccessEmail(to, orderId) {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log("Refund success email sent to:", to, "Response:", info.response);
-        return true
     } catch (error) {
         console.error("Error sending refund success email:", error);
-        return false
     }
 }
 
@@ -249,12 +264,12 @@ async function sendRefundFailedEmail(to, orderId) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
         to: to,
-        subject: "Refund Failed - Additional Information Required - Sport Ecommerce",
+        subject: "Refund Failed - Additional Information Required - D2F Ecommerce",
         html: `
         <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <img src="${logoUrl}" alt="D2F Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
             <h2 style="color: #333;">Refund Failed</h2>
             <p style="font-size: 16px; color: #555;">We encountered an issue processing your refund for the following order:</p>
             <div style="background: #dc3545; color: white; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
@@ -268,7 +283,7 @@ async function sendRefundFailedEmail(to, orderId) {
             </ul>
             <p style="font-size: 14px; color: #777;">If you have any questions, please reach out to our support team.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+            <p style="font-size: 12px; color: #aaa;">D2F Ecommerce | All Rights Reserved</p>
         </div>
         <style>
             @media screen and (max-width: 600px) {
@@ -301,12 +316,12 @@ async function sendRefundRequestEmail(to, orderId, cancellationReason) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"Sport Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
         to: to,
-        subject: "Refund Request - Sport Ecommerce",
+        subject: "Refund Request - D2F Ecommerce",
         html: `
         <div style="max-width: 600px; margin: auto; font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 10px; padding: 20px; text-align: center; background: #f9f9f9;">
-            <img src="${logoUrl}" alt="Sport Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
+            <img src="${logoUrl}" alt="D2F Ecommerce Logo" style="width: 150px; margin-bottom: 20px; max-width: 100%; height: auto;">
             <h2 style="color: #333;">Refund Request</h2>
             <p style="font-size: 16px; color: #555;">Your order has been cancelled by an admin with the following reason:</p>
             <div style="background: #ff9800; color: white; padding: 15px; font-size: 18px; font-weight: bold; border-radius: 5px; display: inline-block; margin: 20px 0;">
@@ -321,7 +336,7 @@ async function sendRefundRequestEmail(to, orderId, cancellationReason) {
             </ul>
             <p style="font-size: 14px; color: #777;">If you have any questions, please reach out to our support team.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-            <p style="font-size: 12px; color: #aaa;">Sport Ecommerce | All Rights Reserved</p>
+            <p style="font-size: 12px; color: #aaa;">D2F Ecommerce | All Rights Reserved</p>
         </div>
         <style>
             @media screen and (max-width: 600px) {
@@ -344,6 +359,5 @@ async function sendRefundRequestEmail(to, orderId, cancellationReason) {
         return false;
     }
 }
-
 
 module.exports = {sendResetPasswordEmail,sendVerificationEmail, sendCancellationEmail, sendRefundSuccessEmail, sendRefundFailedEmail , sendRefundRequestEmail};

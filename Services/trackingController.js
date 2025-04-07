@@ -54,7 +54,7 @@ exports.trackUserBehavior = async (req, res) => {
 
         console.log("Tracking data to send to Kafka:", trackingData);
 
-        await sendMessage("retrain_model_event", trackingData);
+        await sendMessage("user_behavior_events", trackingData);
 
         res.status(201).json({
             message: "User behavior tracked successfully",

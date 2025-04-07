@@ -132,7 +132,8 @@ exports.purchaseOrder = async (req, res) => {
         // Notify admin about the new purchase
         const io = req.app.locals.io;
         io.to("admin").emit("newOrderPlaced", {
-            orderId: order._id,
+            id: order._id,
+            orderId: order.order_id,
             userId,
             totalPrice,
             paymentMethod,
@@ -329,7 +330,8 @@ exports.updateOrderStatus = async (req, res) => {
 
         console.log("user: ", userId);
         io.to(userId).emit("orderStatusUpdated", {
-            orderId: updatedOrder._id,
+            id: updatedOrder._id,
+            orderId: updatedOrder.order_id,
             newStatus,
             updatedAt: new Date(),
         });

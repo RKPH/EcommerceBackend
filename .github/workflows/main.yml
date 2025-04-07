@@ -1,0 +1,110 @@
+name: CI/CD Pipeline with Docker
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Build and test
+      run: |
+        docker build -t d2f-backend:test .
+        docker run --rm \
+          -e NODE_ENV=test \
+          -e MONGODB_URI=${{ secrets.MONGODB_URI }} \
+          -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+          -e KAFKA_BROKERS=${{ secrets.KAFKA_BROKERS }} \
+          -e KAFKA_CLIENT_ID=${{ secrets.KAFKA_CLIENT_ID }} \
+          -e KAFKA_GROUP_ID=${{ secrets.KAFKA_GROUP_ID }} \
+          -e MOMO_PARTNER_CODE=${{ secrets.MOMO_PARTNER_CODE }} \
+          -e MOMO_ACCESS_KEY=${{ secrets.MOMO_ACCESS_KEY }} \
+          -e MOMO_SECRET_KEY=${{ secrets.MOMO_SECRET_KEY }} \
+          -e MOMO_ENDPOINT=${{ secrets.MOMO_ENDPOINT }} \
+          -e MOMO_RETURN_URL=${{ secrets.MOMO_RETURN_URL }} \
+          -e MOMO_NOTIFY_URL=${{ secrets.MOMO_NOTIFY_URL }} \
+          -e MOMO_IPN_URL=${{ secrets.MOMO_IPN_URL }} \
+          -e MOMO_REDIRECT_URL=${{ secrets.MOMO_REDIRECT_URL }} \
+          d2f-backend:test npm test
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/d2f-backend:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/d2f-backend:${{ github.sha }}
+        cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/d2f-backend:buildcache
+        cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/d2f-backend:buildcache,mode=max
+    
+    - name: Deploy to server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          # Pull the latest image
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/d2f-backend:latest
+          
+          # Stop and remove the old container
+          docker stop backend || true
+          docker rm backend || true
+          
+          # Run the new container with proper CORS configuration
+          docker run -d \
+            --name backend \
+            --network shared-network \
+            -p 3000:3000 \
+            --restart always \
+            -e NODE_ENV=production \
+            -e CORS_ORIGIN=https://d2f.io.vn,http://localhost:5173,http://localhost:5174 \
+            -e EMAIL_USER=${{ secrets.EMAIL_USER }} \
+            -e EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }} \
+            -e MONGODB_URI=${{ secrets.MONGODB_URI }} \
+            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+            -e KAFKA_BROKERS=${{ secrets.KAFKA_BROKERS }} \
+            -e KAFKA_CLIENT_ID=${{ secrets.KAFKA_CLIENT_ID }} \
+            -e KAFKA_GROUP_ID=${{ secrets.KAFKA_GROUP_ID }} \
+            -e MOMO_PARTNER_CODE=${{ secrets.MOMO_PARTNER_CODE }} \
+            -e MOMO_ACCESS_KEY=${{ secrets.MOMO_ACCESS_KEY }} \
+            -e MOMO_SECRET_KEY=${{ secrets.MOMO_SECRET_KEY }} \
+            -e MOMO_ENDPOINT=${{ secrets.MOMO_ENDPOINT }} \
+            -e MOMO_RETURN_URL=${{ secrets.MOMO_RETURN_URL }} \
+            -e MOMO_NOTIFY_URL=${{ secrets.MOMO_NOTIFY_URL }} \
+            -e MOMO_IPN_URL=${{ secrets.MOMO_IPN_URL }} \
+            -e MOMO_REDIRECT_URL=${{ secrets.MOMO_REDIRECT_URL }} \
+            ${{ secrets.DOCKERHUB_USERNAME }}/d2f-backend:latest 
