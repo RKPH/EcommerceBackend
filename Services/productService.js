@@ -133,7 +133,7 @@ exports.createProduct = async ({
             category_code,
             user_id: "574370358",
             product_id: savedProduct.product_id,
-            event_time,
+            eventTime,
             user_session,
             brand: savedProduct.brand
         };
@@ -644,7 +644,7 @@ exports.searchProducts = async (query, { offset = 0, limit = 20 } = {}) => {
         };
 
         // Step 3: Call Qdrant API (use /query endpoint)
-        const qdrantUrl = 'http://103.155.161.100:6333/collections/test_collection/points/query';
+        const qdrantUrl = 'https://qdrant.d2f.io.vn/collections/test_v2/points/query';
         const startTime = Date.now();
         const response = await axios.post(qdrantUrl, queryParams, {
             headers: {
