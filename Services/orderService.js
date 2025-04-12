@@ -7,6 +7,7 @@ const https = require('https');
 const { sendCancellationEmail, sendRefundRequestEmail, sendRefundSuccessEmail, sendRefundFailedEmail } = require('../Services/Email');
 const Review = require('../models/reviewSchema');
 const { v4: uuidv4 } = require('uuid');
+const axios = require ('axios')
 
 const formatDate = (date) => {
     const offset = 7; // Vietnam Time GMT+7
@@ -234,7 +235,7 @@ exports.getOrdersDetail = async (userId) => {
 };
 
 exports.purchaseOrder = async ({ userId, orderId, shippingAddress, phone, shippingFee ,deliverAt, paymentMethod, totalPrice }) => {
-        const order = await Order.findById(orderId).populate('products.product');
+        const order = await Order.findOne({order_id:orderId}).populate('products.product');
         if (!order) throw new Error('No pending order found');
         console.log("shhipping fee" , shippingFee);
     if (!totalPrice || totalPrice <= 0) {
@@ -260,7 +261,20 @@ exports.purchaseOrder = async ({ userId, orderId, shippingAddress, phone, shippi
             console.error(`MoMo payment initiation failed for order ${orderId}:`, error.message);
             throw new Error(`MoMo payment initiation failed: ${error.message}`);
         }
-    } else {
+    }
+    else if(paymentMethod === 'payos') {
+        order.status = 'Draft';
+        order.payingStatus = 'Unpaid';
+
+        try {
+            const payUrl = await exports.createPayOSPayment({ orderId, totalPrice });
+            order.paymentUrl = payUrl; // Store the payment URL in the order
+        } catch (error) {
+            console.error(`Payos payment initiation failed for order ${orderId}:`, error.message);
+            throw new Error(`Payos payment initiation failed: ${error.message}`);
+        }
+    }
+    else {
         order.status = 'Pending';
         order.payingStatus = 'Unpaid';
     }
@@ -274,7 +288,7 @@ exports.purchaseOrder = async ({ userId, orderId, shippingAddress, phone, shippi
 
     await order.save();
 
-    if (paymentMethod !== 'momo') {
+    if (paymentMethod !== 'momo' || paymentMethod !=='payos') {
         await clearUserCart(userId, order.products);
     }
 
@@ -285,8 +299,8 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
     const accessKey = 'F8BBA842ECF85';
     const secretKey = 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
     const partnerCode = 'MOMO';
-    const redirectUrl = `https://d2f.io.vn/checkout/success/${orderId}`;
-    const ipnUrl = 'https://backend.d2f.io.vn/api/v1/webhook/momo-ipn';
+    const redirectUrl = `http://localhost:5173/checkout/result/${orderId}`;
+    const ipnUrl = 'https://cool-wombats-exist.loca.lt/api/v1/webhook/momo-ipn';
     const orderInfo = 'pay with MoMo';
     const Totalprice = 10000; // Fixed: Use totalPrice instead of hardcoding
     const requestId = `${orderId}-${Date.now()}`;
@@ -362,6 +376,57 @@ exports.createMoMoPayment = async ({ orderId, totalPrice }) => {
     });
 };
 
+exports.createPayOSPayment = async ({ orderId, totalPrice }) => {
+    const PAYOS_API_URL = 'https://api-merchant.payos.vn/v2/payment-requests';
+    const PAYOS_API_KEY = 'b6585e6d-b4ad-4cdf-a6e9-3fbcab7b1293'; // Replace with your PayOS API key
+    const PAYOS_CLIENT_ID = '6feea606-7770-4745-bcc0-61d11ec77dff'; // Replace with your PayOS client ID
+    const PAYOS_CHECKSUM_KEY = '21cf69f90ea459a7c2fee82d41402465223fdb990c7c26764436f2f28c66658d'; // Replace with your PayOS checksum key
+
+    const orderCode = parseInt(`${orderId}-${Date.now()}`); // Unique order code
+    const returnUrl = `https://d2f.io.vn/checkout/result/${orderId}`;
+    const cancelUrl = `https://d2f.io.vn/checkout/result/${orderId}`;
+    const description = `order is ready`;
+
+    console.log("code", orderCode)
+
+    const paymentData = {
+        orderCode: orderCode,
+        amount: 10000,
+        description: description,
+        returnUrl: returnUrl,
+        cancelUrl: cancelUrl,
+        clientId: PAYOS_CLIENT_ID,
+        signature: ''
+    };
+
+    // Create signature
+    const rawSignature = `amount=${paymentData.amount}&cancelUrl=${paymentData.cancelUrl}&description=${paymentData.description}&orderCode=${paymentData.orderCode}&returnUrl=${paymentData.returnUrl}`;
+    const signature = crypto.createHmac('sha256', PAYOS_CHECKSUM_KEY)
+        .update(rawSignature)
+        .digest('hex');
+    paymentData.signature = signature;
+
+    try {
+        const response = await axios.post(PAYOS_API_URL, paymentData, {
+            headers: {
+                'x-client-id': PAYOS_CLIENT_ID,
+                'x-api-key': PAYOS_API_KEY,
+                'Content-Type': 'application/json'
+            }
+        });
+        console.log("re: ",response.data);
+        if (response.data.code === '00') {
+            return response.data.data.checkoutUrl;
+        } else {
+            throw new Error(`PayOS payment initiation failed: ${response.data.desc}`);
+        }
+    } catch (error) {
+        console.error('PayOS Request Error:', error.message);
+        throw new Error(`PayOS payment initiation failed: ${error.message}`);
+    }
+};
+
+
 const clearUserCart = async (userId, productsInOrder) => {
     const productIdsInOrder = productsInOrder.map((item) => item.product);
     const result = await Cart.deleteMany({ user: userId, product: { $in: productIdsInOrder } });
@@ -369,22 +434,20 @@ const clearUserCart = async (userId, productsInOrder) => {
 };
 
 exports.getOrderDetailByID = async (orderId) => {
-    const order = await Order.findById(orderId).populate('products.product').lean();
+    const order = await Order.findOne({order_id: orderId}).populate('products.product').lean();
     if (!order) throw new Error('Order not found');
     return order;
 };
 
 exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) => {
-    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-        throw new Error("Invalid order ID format");
-    }
+
 
     const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
     if (!newStatus || !validStatuses.includes(newStatus)) {
         throw new Error(`Invalid status value. Must be one of: ${validStatuses.join(', ')}`);
     }
 
-    const order = await Order.findById(orderId).populate('products.product').populate('user', 'name email');
+    const order = await Order.findOne({order_id:orderId}).populate('products.product').populate('user', 'name email');
     if (!order) {
         throw new Error("Order not found");
     }
@@ -479,7 +542,7 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
 };
 
 exports.cancelOrder = async ({ orderId, userId, reason }) => {
-    const order = await Order.findOne({ _id: orderId, user: userId }).populate('user');
+    const order = await Order.findOne({ order_id: orderId, user: userId }).populate('user');
     if (!order) throw new Error('Order not found');
     if (!['Draft', 'Pending'].includes(order.status)) {
         throw new Error('Order cannot be canceled at this stage');
@@ -506,7 +569,7 @@ exports.submitRefundBankDetails = async ({ orderId, userId, bankName, accountNum
         throw new Error('All bank details are required');
     }
     console.log(accountNumber, accountHolderName);
-    const order = await Order.findOne({ _id: orderId, user: userId });
+    const order = await Order.findOne({ order_id: orderId, user: userId });
     if (!order) throw new Error('Order not found');
     if (order.status !== 'Cancelled' || order.refundStatus !== 'Pending') {
         throw new Error('Refund details can only be submitted for cancelled orders with pending refund');
@@ -518,15 +581,14 @@ exports.submitRefundBankDetails = async ({ orderId, userId, bankName, accountNum
 };
 
 exports.getOrderDetails = async (orderId) => {
-    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-        throw new Error("Invalid order ID format");
-    }
 
-    const order = await Order.findById(orderId)
+
+    const order = await Order.findOne({order_id: orderId })
         .populate("user", "name avatar email")
         .populate("products.product", "name price MainImage");
 
     if (!order) {
+        console.log("not found")
         throw new Error("Order not found");
     }
 

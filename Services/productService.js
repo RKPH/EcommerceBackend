@@ -130,11 +130,11 @@ exports.createProduct = async ({
             event_type: "view",
             price: savedProduct.price,
             name: savedProduct.name,
-            category_code,
+            category_code: category_code,
             user_id: "574370358",
             product_id: savedProduct.product_id,
-            eventTime,
-            user_session,
+            event_time: eventTime,
+            user_session: user_session,
             brand: savedProduct.brand
         };
 

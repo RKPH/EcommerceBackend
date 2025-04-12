@@ -18,6 +18,7 @@ const socketIo = require('socket.io');
 const imageRouter = require('./routes/image');
 const addressRouter = require('./routes/ShipAddress');
 const momoIPNHandler = require('./routes/momo_ipn');
+const payosWebhook = require('./routes/payos_ipn');
 const AdminRouter = require('./routes/admin');
 const promClient = require('prom-client');
 const logger = require('./config/logger');
@@ -86,6 +87,7 @@ app.use('/api/v1/reviews', reviewRouter);
 app.use('/api/v1/images', imageRouter);
 app.use('/api/v1/address', addressRouter);
 app.use('/api/v1', momoIPNHandler);
+app.use('/api/v1', payosWebhook);
 app.use('/api/v1/admin', AdminRouter);
 
 // Swagger setup

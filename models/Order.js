@@ -57,7 +57,8 @@ const OrderSchema = new mongoose.Schema({
         accountName: { type: String },
         bankName: { type: String },
         accountNumber: { type: String }
-    }
+    },
+    paymentUrl: String,
 });
 
 const Order = mongoose.model('Order', OrderSchema);
