@@ -254,10 +254,8 @@ async function sendRefundSuccessEmail(to, orderId) {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log("Refund success email sent to:", to, "Response:", info.response);
-        return true;
     } catch (error) {
         console.error("Error sending refund success email:", error);
-        return false;
     }
 }
 
