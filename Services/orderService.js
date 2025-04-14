@@ -552,13 +552,13 @@ exports.cancelOrder = async ({ orderId, userId, reason }) => {
     order.cancellationReason = reason;
     order.history.push({ action: `Order cancelled - Reason: ${reason}`, date: formatDate(new Date()) });
 
-    if (['momo', 'BankTransfer'].includes(order.PaymentMethod)) {
+    if (['momo', 'payos'].includes(order.PaymentMethod)) {
         order.refundStatus = 'Pending';
     }
 
     await order.save();
     if (order.PaymentMethod === 'cod') {
-        await sendCancellationEmail(order.user.email, order._id);
+        await sendCancellationEmail(order.user.email, order.order_id);
     }
 
     return order;
@@ -604,21 +604,25 @@ exports.getOrderDetails = async (orderId) => {
 };
 
 exports.updatePaymentStatus = async ({ orderId, payingStatus }) => {
+    // Validate the payingStatus value
     if (!payingStatus || !["Paid", "Unpaid", "Failed"].includes(payingStatus)) {
         throw new Error("Invalid payingStatus value. Must be 'Paid', 'Unpaid', or 'Failed'.");
     }
 
+    // Prepare the data to update
     const updateData = { payingStatus };
     if (payingStatus === "Paid") {
         updateData.PaidAt = new Date();
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-        orderId,
-        { $set: updateData },
-        { new: true, runValidators: true }
+    // Update the order using findOneAndUpdate with a query on orderId
+    const updatedOrder = await Order.findOneAndUpdate(
+        { order_id: orderId }, // Query to find the document by orderId
+        { $set: updateData }, // Update operation
+        { new: true, runValidators: true } // Options: return the updated document and run schema validators
     );
 
+    // Check if the order was found
     if (!updatedOrder) {
         throw new Error("Order not found");
     }
@@ -627,29 +631,34 @@ exports.updatePaymentStatus = async ({ orderId, payingStatus }) => {
 };
 
 exports.updateRefundStatus = async ({ orderId, refundStatus }) => {
+    // Validate refundStatus
     if (!refundStatus || !["NotInitiated", "Pending", "Processing", "Completed", "Failed"].includes(refundStatus)) {
         throw new Error("Invalid refundStatus value. Must be 'NotInitiated', 'Pending', 'Processing', 'Completed', or 'Failed'.");
     }
 
-    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-        throw new Error("Invalid order ID format");
-    }
-
-    const order = await Order.findById(orderId).populate("user", "email");
+    // Find the order and populate user email
+    const order = await Order.findOne({ order_id: orderId }).populate("user", "email");
     if (!order) {
         throw new Error("Order not found");
     }
 
+    // Check if order is eligible for refund
     if (order.status !== "Cancelled" || order.payingStatus !== "Paid") {
         throw new Error("Refund can only be processed for cancelled and paid orders");
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-        orderId,
+    // Update the refundStatus
+    const updatedOrder = await Order.findOneAndUpdate(
+        { order_id: orderId }, // Query using order_id
         { $set: { refundStatus } },
         { new: true, runValidators: true }
     );
 
+    if (!updatedOrder) {
+        throw new Error("Order not found during update");
+    }
+
+    // Send email notifications based on refundStatus
     let emailSent = true;
     const userEmail = order.user.email;
 
@@ -661,7 +670,6 @@ exports.updateRefundStatus = async ({ orderId, refundStatus }) => {
 
     return { updatedOrder, emailSent };
 };
-
 exports.getMonthlyRevenue = async () => {
     try {
         const currentYear = new Date().getFullYear();
