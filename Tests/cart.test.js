@@ -1,7 +1,6 @@
 ﻿const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+
 const cartController = require('../controllers/cartController'); // Adjust path to your controller
 const cartService = require('../Services/cartService');
 
@@ -29,18 +28,6 @@ app.get('/api/v1/cart', mockAuthMiddleware, cartController.getCartItems);
 app.put('/api/v1/cart/update', mockAuthMiddleware, cartController.updateCartItem);
 app.delete('/api/v1/cart/remove', mockAuthMiddleware, cartController.removeCartItem);
 
-let mongoServer;
-
-beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-});
-
-afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
-});
 
 beforeEach(() => {
     jest.clearAllMocks();

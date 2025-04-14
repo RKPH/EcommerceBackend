@@ -1,7 +1,6 @@
 const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+
 const productController = require('../controllers/productController');
 const productService = require('../Services/productService');
 const multer = require('multer'); // Added for file uploads
@@ -55,18 +54,6 @@ app.post('/api/v1/products/import', upload.single('file'), productController.imp
 app.put('/api/v1/products/:id', productController.updateProduct); // Added
 app.delete('/api/v1/products/:product_id', productController.deleteProduct); // Added
 
-let mongoServer;
-
-beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-});
-
-afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
-});
 
 beforeEach(() => {
     jest.clearAllMocks();

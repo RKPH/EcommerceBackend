@@ -22,7 +22,7 @@ exports.createOrder = async (req, res) => {
             data: order,
         });
     } catch (error) {
-        console.error('Error creating or updating order:', error.message);
+        
         const statusCode = error.message.includes('must include') ? 400 : 500;
         const response = {
             status: 'error',
@@ -59,7 +59,7 @@ exports.getAllOrders = async (req, res) => {
             pagination,
         });
     } catch (error) {
-        console.error('Error fetching orders:', error.message, error.stack);
+
         res.status(500).json({
             success: false,
             message: 'Internal server error',
@@ -88,7 +88,7 @@ exports.getOrdersDetail = async (req, res) => {
             data: orders,
         });
     } catch (error) {
-        console.error('Error retrieving order details:', error.message);
+       
         res.status(500).json({
             status: 'error',
             message: 'Internal server error',
@@ -105,7 +105,7 @@ exports.getOrderDetailsForAdmin = async (req, res) => {
             data: formattedOrder,
         });
     } catch (error) {
-        console.error("Error fetching order details:", error);
+       
         res.status(error.message.includes("not found") ? 404 : 400).json({
             success: false,
             message: error.message || "Error fetching order details",
@@ -156,7 +156,7 @@ exports.purchaseOrder = async (req, res) => {
             data: order,
         });
     } catch (error) {
-        console.error('Error processing purchase:', error.message);
+       
         const statusCode = error.message.includes('No pending order') ? 404 : 500;
         res.status(statusCode).json({
             status: 'error',
@@ -177,7 +177,7 @@ exports.getOrderDetailByID = async (req, res) => {
             data: order,
         });
     } catch (error) {
-        console.error('Error retrieving order:', error.message);
+        
         const statusCode = error.message.includes('not found') ? 404 : 500;
         res.status(statusCode).json({
             status: 'error',
@@ -200,7 +200,7 @@ exports.cancelOrder = async (req, res) => {
             order,
         });
     } catch (error) {
-        console.error('Error cancelling order:', error);
+     
         let statusCode;
         if (error.message.includes('cannot be canceled')) {
             statusCode = 400;
@@ -234,7 +234,7 @@ exports.submitRefundBankDetails = async (req, res) => {
             order,
         });
     } catch (error) {
-        console.error('Error submitting refund bank details:', error);
+        
         let statusCode;
         if (error.message.includes('required') || error.message.includes('pending refund')) {
             statusCode = 400;
@@ -261,7 +261,7 @@ exports.updatePaymentStatus = async (req, res) => {
             data: updatedOrder,
         });
     } catch (error) {
-        console.error("Error updating payment status:", error);
+
         res.status(error.message.includes("not found") ? 404 : 400).json({
             success: false,
             message: error.message || "Server error while updating payment status",
@@ -289,7 +289,7 @@ exports.updateRefundStatus = async (req, res) => {
             data: updatedOrder,
         });
     } catch (error) {
-        console.error("Error updating refund status:", error);
+       
         res.status(error.message.includes("not found") ? 404 : 400).json({
             success: false,
             message: error.message || "Server error while updating refund status",
@@ -344,7 +344,7 @@ exports.updateOrderStatus = async (req, res) => {
             order: populatedOrder,
         });
     } catch (error) {
-        console.error('Error updating order status:', error.message, error.stack);
+ 
         if (error.message.includes("not found")) {
             return res.status(404).json({
                 success: false,
@@ -369,7 +369,7 @@ exports.getMonthlyRevenue = async (req, res) => {
         const { monthlyRevenue, range } = await orderService.getMonthlyRevenue();
         res.status(200).json({ monthlyRevenue, range });
     } catch (error) {
-        console.error("Error fetching revenue:", error);
+        
         res.status(500).json({
             message: "Internal server error",
             error: error.message // Always include the error message
@@ -382,7 +382,7 @@ exports.getWeeklyRevenue = async (req, res) => {
         const { weekDateRange, weeklyRevenue } = await orderService.getWeeklyRevenue();
         res.status(200).json({ weekDateRange, weeklyRevenue });
     } catch (error) {
-        console.error("Error fetching weekly revenue:", error);
+    
         res.status(500).json({
             message: "Internal server error",
             error: error.message // Always include the error message
@@ -395,7 +395,7 @@ exports.getRevenueComparison = async (req, res) => {
         const revenueData = await orderService.getRevenueComparison();
         res.status(200).json(revenueData);
     } catch (error) {
-        console.error("Error in getRevenueComparison controller:", error.message, error.stack);
+     
         res.status(500).json({
             message: "Internal server error",
             error: error.message // Always include the error message
@@ -408,7 +408,7 @@ exports.getOrderComparison = async (req, res) => {
         const orderData = await orderService.getOrderComparison();
         res.status(200).json(orderData);
     } catch (error) {
-        console.error("Error in getOrderComparison controller:", error.message, error.stack);
+        
         res.status(500).json({
             message: "Internal server error",
             error: error.message // Always include the error message
@@ -430,7 +430,7 @@ exports.getTopRatedProducts = async (req, res) => {
             data: topProducts
         });
     } catch (error) {
-        console.error("Error in getTopRatedProducts controller:", error.message, error.stack);
+      
         res.status(500).json({
             message: "Server error while fetching top rated products",
             error: error.message // Always include the error message
@@ -447,7 +447,7 @@ exports.getTopOrderedProductsController = async (req, res) => {
             data: topProducts
         });
     } catch (error) {
-        console.error("Error in getTopOrderedProductsController:", error.message, error.stack);
+        
         res.status(500).json({
             success: false,
             message: "Failed to fetch top ordered products",
