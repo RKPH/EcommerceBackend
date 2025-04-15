@@ -1,7 +1,6 @@
 ﻿const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
+
 const reviewController = require('../controllers/ReviewAndRatingController'); // Adjust path
 const reviewService = require('../Services/reviewService');
 
@@ -27,18 +26,6 @@ app.post('/api/v1/reviews/:id/add', mockAuthMiddleware, reviewController.addRevi
 app.get('/api/v1/reviews/:id/reviews', reviewController.getReviews);
 app.get('/api/v1/reviews/:id/order/:orderID/review', mockAuthMiddleware, reviewController.getUserReviewForProductOrder);
 
-let mongoServer;
-
-beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-});
-
-afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
-});
 
 beforeEach(() => {
     jest.clearAllMocks();
