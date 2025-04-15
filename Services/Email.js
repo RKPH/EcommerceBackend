@@ -6,7 +6,7 @@ const { validate } = require('deep-email-validator');
 const transporter = nodemailer.createTransport({
     host: 'smtp.sendgrid.net',
     port: 587,
-    secure: true,
+    secure: false,
     auth: {
         user: 'apikey', // Must be 'apikey'
         pass: process.env.SENDGRID_API_KEY,
