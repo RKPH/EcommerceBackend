@@ -4,27 +4,27 @@ const path = require("path");
 const { validate } = require('deep-email-validator');
 
 const transporter = nodemailer.createTransport({
-    service: "Gmail",
+    host: 'smtp.sendgrid.net',
+    port: 587,
+    secure: true,
     auth: {
-        user: process.env.EMAIL_USER || "pnghung2003@gmail.com",
-        pass: process.env.EMAIL_PASSWORD || "gvxj cxav vddo fhkd",
+        user: 'apikey', // Must be 'apikey'
+        pass: process.env.SENDGRID_API_KEY,
     },
-    tls: {
-        rejectUnauthorized: false // Only use this in development
-    },
-    pool: true, // Use pooled connections
+    pool: true,
     maxConnections: 5,
     maxMessages: 100,
-    rateDelta: 1000, // How many messages between rate limit
-    rateLimit: 5 // Max number of messages per rateDelta
+    rateDelta: 60000, // 1 minute
+    rateLimit: 10, // 10 emails per minute
+    logger: true, // Enable for debugging
+    debug: true, // Enable for detailed logs
 });
 
-// Test the connection on startup
-transporter.verify(function(error, success) {
+transporter.verify((error) => {
     if (error) {
-        console.error("SMTP Connection Error:", error);
+        console.error('SendGrid SMTP Connection Error:', error);
     } else {
-        console.log("SMTP Server is ready to take our messages");
+        console.log('SendGrid SMTP Server is ready to send emails');
     }
 });
 
@@ -54,7 +54,7 @@ async function sendVerificationEmail(to, code) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";  // Replace with your image URL
 
     const mailOptions = {
-        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <phamhung20031106@gmail.com>',
         to: to,
         subject: "Verify Your Account - D2F Ecommerce",
         html: `
@@ -111,7 +111,7 @@ async function sendResetPasswordEmail(to, resetLink) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";  // Replace with your image URL
 
     const mailOptions = {
-        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <phamhung20031106@gmail.com>',
         to: to,
         subject: "Reset Your Password - D2F Ecommerce",
         html: `
@@ -166,7 +166,7 @@ async function sendCancellationEmail(to, orderId) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <phamhung20031106@gmail.com>',
         to: to,
         subject: "Order Cancellation - D2F Ecommerce",
         html: `
@@ -221,7 +221,7 @@ async function sendRefundSuccessEmail(to, orderId) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <phamhung20031106@gmail.com>',
         to: to,
         subject: "Refund Processed Successfully - D2F Ecommerce",
         html: `
@@ -264,7 +264,7 @@ async function sendRefundFailedEmail(to, orderId) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <phamhung20031106@gmail.com>',
         to: to,
         subject: "Refund Failed - Additional Information Required - D2F Ecommerce",
         html: `
@@ -316,7 +316,7 @@ async function sendRefundRequestEmail(to, orderId, cancellationReason) {
     const logoUrl = "https://res.cloudinary.com/djxxlou5u/image/upload/v1739790344/logo_s1fbxd.png";
 
     const mailOptions = {
-        from: '"D2F Ecommerce" <pnghung2003@gmail.com>',
+        from: '"D2F Ecommerce" <phamhung20031106@gmail.com>',
         to: to,
         subject: "Refund Request - D2F Ecommerce",
         html: `
