@@ -1,6 +1,7 @@
 ﻿const request = require('supertest');
 const express = require('express');
-
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const userController = require('../controllers/UserController'); // Adjust path
 const userService = require('../Services/userService');
 
@@ -30,6 +31,18 @@ app.put('/api/v1/users/profile', mockAuthMiddleware, userController.updateUserPr
 app.put('/api/v1/users/:id', mockAuthMiddleware, userController.updateUser);
 app.post('/api/v1/users/add', mockAuthMiddleware, userController.createUser);
 
+let mongoServer;
+
+beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+});
+
+afterAll(async () => {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+});
 
 beforeEach(() => {
     jest.clearAllMocks();

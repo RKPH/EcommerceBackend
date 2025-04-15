@@ -1,6 +1,7 @@
 ﻿const request = require('supertest');
 const express = require('express');
-
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const shippingAddressController = require('../controllers/AddressController'); // Adjust path
 const shippingAddressService = require('../Services/addressService');
 
@@ -36,6 +37,16 @@ app.use('/api/v1/address', [
 
 let mongoServer;
 
+beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+});
+
+afterAll(async () => {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+});
 
 beforeEach(() => {
     jest.clearAllMocks();

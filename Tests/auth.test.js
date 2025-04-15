@@ -1,6 +1,7 @@
 const request = require('supertest');
 const express = require('express');
-
+const mongoose = require('mongoose');
+const { MongoMemoryServer } = require('mongodb-memory-server');
 const authController = require('../controllers/authController');
 const authService = require('../Services/authService');
 const { verifyRefreshToken } = require('../utils/jwt');
@@ -44,8 +45,18 @@ app.get('/api/v1/auth/profile', mockAuthMiddleware, authController.getUserProfil
 app.post('/api/v1/auth/refresh-token', authController.refreshAccessToken);
 app.post('/api/v1/auth/logout', mockAuthMiddleware, authController.logoutUser);
 
+let mongoServer;
 
+beforeAll(async () => {
+    mongoServer = await MongoMemoryServer.create();
+    const uri = mongoServer.getUri();
+    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
+});
 
+afterAll(async () => {
+    await mongoose.disconnect();
+    await mongoServer.stop();
+});
 
 beforeEach(() => {
     jest.clearAllMocks();
