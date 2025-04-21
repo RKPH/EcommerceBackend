@@ -552,7 +552,7 @@ exports.cancelOrder = async ({ orderId, userId, reason }) => {
     order.cancellationReason = reason;
     order.history.push({ action: `Order cancelled - Reason: ${reason}`, date: formatDate(new Date()) });
 
-    if (['momo', 'BankTransfer'].includes(order.PaymentMethod)) {
+    if (['momo', 'payos'].includes(order.PaymentMethod)) {
         order.refundStatus = 'Pending';
     }
 
@@ -631,11 +631,8 @@ exports.updateRefundStatus = async ({ orderId, refundStatus }) => {
         throw new Error("Invalid refundStatus value. Must be 'NotInitiated', 'Pending', 'Processing', 'Completed', or 'Failed'.");
     }
 
-    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-        throw new Error("Invalid order ID format");
-    }
-
-    const order = await Order.findById(orderId).populate("user", "email");
+   
+    const order = await Order.findOne({order_id:orderId}).populate("user", "email");
     if (!order) {
         throw new Error("Order not found");
     }
@@ -644,11 +641,11 @@ exports.updateRefundStatus = async ({ orderId, refundStatus }) => {
         throw new Error("Refund can only be processed for cancelled and paid orders");
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-        orderId,
+    const updatedOrder = await Order.findOneAndUpdate(
+        { order_id: orderId },
         { $set: { refundStatus } },
         { new: true, runValidators: true }
-    );
+    )
 
     let emailSent = true;
     const userEmail = order.user.email;
