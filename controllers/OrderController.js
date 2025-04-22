@@ -310,7 +310,7 @@ exports.updateOrderStatus = async (req, res) => {
             });
         }
 
-        const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+        const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivering' ,'Delivered', 'Cancelled', 'CancelledByAdmin'];
         if (!validStatuses.includes(newStatus)) {
             return res.status(400).json({
                 success: false,

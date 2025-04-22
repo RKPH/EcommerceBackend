@@ -382,7 +382,7 @@ exports.createPayOSPayment = async ({ orderId, totalPrice }) => {
     const PAYOS_CLIENT_ID = '6feea606-7770-4745-bcc0-61d11ec77dff'; // Replace with your PayOS client ID
     const PAYOS_CHECKSUM_KEY = '21cf69f90ea459a7c2fee82d41402465223fdb990c7c26764436f2f28c66658d'; // Replace with your PayOS checksum key
 
-    const orderCode = parseInt(`${orderId}-${Date.now()}`); // Unique order code
+    const orderCode = parseInt(`${orderId}${Date.now()}`); // Unique order code
     const returnUrl = `https://d2f.io.vn/checkout/result/${orderId}`;
     const cancelUrl = `https://d2f.io.vn/checkout/result/${orderId}`;
     const description = `order is ready`;
@@ -439,15 +439,15 @@ exports.getOrderDetailByID = async (orderId) => {
     return order;
 };
 
+
 exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) => {
 
-
-    const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+    const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivering', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
     if (!newStatus || !validStatuses.includes(newStatus)) {
         throw new Error(`Invalid status value. Must be one of: ${validStatuses.join(', ')}`);
     }
 
-    const order = await Order.findOne({order_id:orderId}).populate('products.product').populate('user', 'name email');
+    const order = await Order.findOne({ order_id: orderId }).populate('products.product').populate('user', 'name email');
     if (!order) {
         throw new Error("Order not found");
     }
@@ -455,7 +455,8 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
     const allowedTransitions = {
         Draft: ["Pending"],
         Pending: ["Confirmed", "Cancelled", "CancelledByAdmin"],
-        Confirmed: ["Delivered", "Cancelled", "CancelledByAdmin"],
+        Confirmed: ["Delivering", "Cancelled", "CancelledByAdmin"],
+        Delivering: ["Delivered"],
         Delivered: [],
         Cancelled: [],
         CancelledByAdmin: []
@@ -510,17 +511,24 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
     }
 
     order.status = newStatus;
+
+
+
     if (newStatus === "Delivered") {
         order.DeliveredAt = new Date();
     }
+
     if (newStatus === "Cancelled" || newStatus === "CancelledByAdmin") {
         order.cancellationReason = cancellationReason;
     }
 
-    const actionText = newStatus === "Confirmed" ? "Order is confirmed" :
+    const actionText =
+        newStatus === "Confirmed" ? "Order is confirmed" :
+        newStatus === "Delivering" ? "Order is out for delivery" :
         newStatus === "Delivered" ? "Order is delivered successfully" :
-            newStatus === "Cancelled" ? "Order is cancelled" :
-                newStatus === "CancelledByAdmin" ? "Order is cancelled by Admin" : `Order is ${newStatus}`;
+        newStatus === "Cancelled" ? "Order is cancelled" :
+        newStatus === "CancelledByAdmin" ? "Order is cancelled by Admin" :
+        `Order is ${newStatus}`;
 
     order.history.push({
         action: actionText,
@@ -540,6 +548,8 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
 
     return { order, emailSent };
 };
+
+
 
 exports.cancelOrder = async ({ orderId, userId, reason }) => {
     const order = await Order.findOne({ order_id: orderId, user: userId }).populate('user');
@@ -613,8 +623,8 @@ exports.updatePaymentStatus = async ({ orderId, payingStatus }) => {
         updateData.PaidAt = new Date();
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-        orderId,
+    const updatedOrder = await Order.findOneAndUpdate(
+        {order_id:orderId},
         { $set: updateData },
         { new: true, runValidators: true }
     );
