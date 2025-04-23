@@ -97,7 +97,7 @@ exports.getAllOrders = async ({ page = 1, limit = 10, search, status, PaymentMet
 
         // Add status filter
         if (status && status !== 'All' && status !== 'Draft') {
-            const validStatuses = ['Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+            const validStatuses = ['Pending', 'Confirmed', 'Delivering' ,'Delivered', 'Cancelled', 'CancelledByAdmin'];
             if (!validStatuses.includes(status)) {
                 throw new Error(`Invalid status value. Must be one of: ${validStatuses.join(', ')}`);
             }
@@ -382,7 +382,7 @@ exports.createPayOSPayment = async ({ orderId, totalPrice }) => {
     const PAYOS_CLIENT_ID = '6feea606-7770-4745-bcc0-61d11ec77dff'; // Replace with your PayOS client ID
     const PAYOS_CHECKSUM_KEY = '21cf69f90ea459a7c2fee82d41402465223fdb990c7c26764436f2f28c66658d'; // Replace with your PayOS checksum key
 
-    const orderCode = parseInt(`${orderId}${Date.now()}`); // Unique order code
+    const orderCode = parseInt(`${orderId}-${Date.now()}`); // Unique order code
     const returnUrl = `https://d2f.io.vn/checkout/result/${orderId}`;
     const cancelUrl = `https://d2f.io.vn/checkout/result/${orderId}`;
     const description = `order is ready`;
@@ -549,7 +549,139 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
     return { order, emailSent };
 };
 
+exports.getOrdersWithRefundRequests = async ({ page = 1, limit = 10, search, refundStatus = 'Pending' }) => {
+    try {
+        // Validate inputs
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        if (isNaN(pageNum) || pageNum < 1) {
+            throw new Error('Invalid page number');
+        }
+        if (isNaN(limitNum) || limitNum < 1) {
+            throw new Error('Invalid limit value');
+        }
 
+        // Validate refundStatus
+        const validRefundStatuses = ['NotInitiated', 'Pending', 'Processing', 'Completed', 'Failed'];
+        if (refundStatus && !validRefundStatuses.includes(refundStatus)) {
+            throw new Error(`Invalid refundStatus value. Must be one of: ${validRefundStatuses.join(', ')}`);
+        }
+
+        // Build the initial match stage
+        let initialMatchStage = {
+            refundStatus: refundStatus,
+            status: 'Cancelled', // Refund requests are only for cancelled orders
+            payingStatus: 'Paid' // Refund requests require paid orders
+        };
+
+        // Add order_id filter if search is provided
+        if (search) {
+            initialMatchStage.order_id = search; // Exact match for order_id
+        }
+
+        // Pipeline to get total unique orders with refund requests
+        const totalOrdersPipeline = [
+            { $match: initialMatchStage },
+            { $group: { _id: null, total: { $sum: 1 } } }
+        ];
+
+        const totalOrdersResult = await Order.aggregate(totalOrdersPipeline);
+        const totalOrders = totalOrdersResult[0]?.total || 0;
+
+        // Pipeline to fetch paginated orders
+        const skip = (pageNum - 1) * limitNum;
+
+        const pipeline = [
+            // Initial match
+            { $match: initialMatchStage },
+
+            // Lookup user
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'user',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+
+            // Add user.name filter after lookup (if search is provided and not an order_id)
+            ...(search && !initialMatchStage.order_id
+                ? [
+                    {
+                        $match: {
+                            'user.name': { $regex: search, $options: 'i' }
+                        }
+                    }
+                ]
+                : []),
+
+            // Sort by createdAt (descending)
+            { $sort: { createdAt: -1 } },
+
+            // Paginate
+            { $skip: skip },
+            { $limit: limitNum },
+
+            // Lookup products
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'products.product',
+                    foreignField: '_id',
+                    as: 'productsDetails'
+                }
+            },
+
+            // Transform the products array
+            {
+                $addFields: {
+                    products: {
+                        $map: {
+                            input: '$products',
+                            as: 'prod',
+                            in: {
+                                $mergeObjects: [
+                                    '$$prod',
+                                    {
+                                        product: {
+                                            $arrayElemAt: [
+                                                '$productsDetails',
+                                                {
+                                                    $indexOfArray: ['$productsDetails._id', '$$prod.product']
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+
+            // Remove temporary productsDetails field
+            { $project: { productsDetails: 0 } }
+        ];
+
+        const orders = await Order.aggregate(pipeline);
+
+        return {
+            orders,
+            totalOrders,
+            pagination: {
+                totalItems: totalOrders,
+                totalPages: Math.ceil(totalOrders / limitNum),
+                currentPage: pageNum,
+                itemsPerPage: limitNum,
+            }
+        };
+    } catch (error) {
+        console.error('Error fetching orders with refund requests:', error.message, error.stack);
+        throw error;
+    }
+};
 
 exports.cancelOrder = async ({ orderId, userId, reason }) => {
     const order = await Order.findOne({ order_id: orderId, user: userId }).populate('user');
