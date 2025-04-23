@@ -751,6 +751,10 @@ exports.searchProducts = async (query, { offset = 0, limit = 20 } = {}) => {
 
 exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, price_min, price_max, rating }) => {
     try {
+        // Log collection and database
+        console.log('Collection name:', Product.collection.name);
+        console.log('Database name:', Product.db.db.databaseName);
+
         // Validate and parse pagination parameters
         const pageSize = Math.max(1, parseInt(limit, 10) || 20); // Ensure pageSize is at least 1
         let pageNum = parseInt(page, 10) || 1;
@@ -759,15 +763,30 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
         // Log for debugging
         console.log('Pagination params:', { page, limit, pageNum, pageSize });
 
-        // Build the search filter (regex search across multiple fields)
-        const searchFilter = {
-            $or: [
-                { name: { $regex: query || '', $options: 'i' } },
-                { category: { $regex: query || '', $options: 'i' } },
-                { brand: { $regex: query || '', $options: 'i' } },
-                { description: { $regex: query || '', $options: 'i' } },
-            ],
-        };
+        // Check if text index exists
+        const indexes = await Product.collection.getIndexes();
+        console.log('Indexes:', JSON.stringify(indexes, null, 2));
+        const hasTextIndex = indexes.some(index => index.key && index.key._fts === 'text');
+        console.log('Has text index:', hasTextIndex);
+
+        let searchFilter;
+        if (query && hasTextIndex) {
+            // Use full-text search if index exists
+            searchFilter = { $text: { $search: query } };
+        } else if (query) {
+            // Fallback to regex search if no text index
+            console.warn('Text index not found, falling back to regex search');
+            searchFilter = {
+                $or: [
+                    { name: { $regex: query, $options: 'i' } },
+                    { category: { $regex: query, $options: 'i' } },
+                    { brand: { $regex: query, $options: 'i' } },
+                    { description: { $regex: query, $options: 'i' } },
+                ],
+            };
+        } else {
+            searchFilter = {};
+        }
 
         // Build additional filters
         const filterConditions = {};
@@ -780,7 +799,6 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
             const maxPrice = price_max ? parseFloat(price_max) : undefined;
             if (!isNaN(minPrice)) filterConditions.price.$gte = minPrice;
             if (!isNaN(maxPrice)) filterConditions.price.$lte = maxPrice;
-            // Ensure minPrice <= maxPrice
             if (!isNaN(minPrice) && !isNaN(maxPrice) && minPrice > maxPrice) {
                 throw new Error('price_min cannot be greater than price_max');
             }
@@ -795,41 +813,66 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
         }
 
         // Combine filters
-        const combinedFilters = [searchFilter];
+        const combinedFilters = [];
+        if (query) combinedFilters.push(searchFilter);
         if (Object.keys(filterConditions).length > 0) combinedFilters.push(filterConditions);
 
-        const finalFilter = combinedFilters.length > 1 ? { $and: combinedFilters } : searchFilter;
+        const finalFilter = combinedFilters.length > 1 ? { $and: combinedFilters } : combinedFilters[0] || {};
 
-        // Get total count and products in a single aggregation pipeline
-        const aggregation = Product.aggregate([
+        // Build aggregation pipeline
+        const aggregationPipeline = [
             { $match: finalFilter },
-            {
-                $facet: {
-                    metadata: [{ $count: 'total' }],
-                    data: [
-                        { $skip: (pageNum - 1) * pageSize },
-                        { $limit: pageSize },
-                    ],
-                },
-            },
-        ]);
+        ];
 
-        const result = await aggregation.exec();
+        // Add text score and sorting if text search is used
+        if (query && hasTextIndex) {
+            aggregationPipeline.push(
+                { $addFields: { score: { $meta: "textScore" } } },
+                { $sort: { score: { $meta: "textScore" }, _id: 1 } }
+            );
+        } else {
+            aggregationPipeline.push(
+                { $sort: { _id: 1 } }
+            );
+        }
+
+        // Add facet for pagination
+        aggregationPipeline.push({
+            $facet: {
+                metadata: [{ $count: 'total' }],
+                data: [
+                    { $skip: (pageNum - 1) * pageSize },
+                    { $limit: pageSize },
+                ],
+            },
+        });
+
+        // Execute aggregation
+        const result = await Product.aggregate(aggregationPipeline).exec();
         const totalProducts = result[0].metadata.length > 0 ? result[0].metadata[0].total : 0;
         const products = result[0].data;
 
         // Calculate total pages
         const totalPages = Math.ceil(totalProducts / pageSize);
 
-        // Adjust pageNum if it exceeds totalPages, but ensure it's at least 1
+        // Adjust pageNum if it exceeds totalPages
         if (totalPages === 0) {
-            pageNum = 1; // If no products, set pageNum to 1 to avoid skip becoming negative
+            pageNum = 1; // If no products, set pageNum to 1
         } else if (pageNum > totalPages) {
             pageNum = totalPages;
-            // Re-fetch products if pageNum was adjusted
-            const adjustedResult = await Product.find(finalFilter)
-                .skip((pageNum - 1) * pageSize)
-                .limit(pageSize);
+            // Re-fetch products for the adjusted page
+            const adjustedPipeline = [
+                { $match: finalFilter },
+                ...(query && hasTextIndex ? [
+                    { $addFields: { score: { $meta: "textScore" } } },
+                    { $sort: { score: { $meta: "textScore" }, _id: 1 } }
+                ] : [
+                    { $sort: { _id: 1 } }
+                ]),
+                { $skip: (pageNum - 1) * pageSize },
+                { $limit: pageSize },
+            ];
+            const adjustedResult = await Product.aggregate(adjustedPipeline).exec();
             return {
                 products: adjustedResult,
                 totalProducts,
@@ -850,4 +893,4 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
         console.error('Error in searchProductsPaginated:', error.message, error.stack);
         throw new Error(`Failed to search products: ${error.message}`);
     }
-};
+}

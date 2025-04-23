@@ -26,7 +26,7 @@ const uploadImageToStorage = async (file) => {
         // Check if bucket exists, create it if it doesn't
         const bucketExists = await minioClient.bucketExists(BUCKET_NAME);
         if (!bucketExists) {
-            await minioClient.makeBucket(BUCKET_NAME, process.env.MINIO_REGION);
+            await minioClient.makeBucket(BUCKET_NAME);
         }
 
         // Upload to MinIO

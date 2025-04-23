@@ -1,7 +1,7 @@
 const express = require("express");
 const { getAllProducts, createProduct, deleteProduct, importProducts, updateProduct } = require("../controllers/productController");
 const { getAllUsers, getUserDetails, updateUser, createUser, getUserComparison } = require("../controllers/UserController");
-const { getAllOrders, getOrderDetailsForAdmin, updatePaymentStatus, updateRefundStatus, updateOrderStatus, getMonthlyRevenue, getWeeklyRevenue, getRevenueComparison, getOrderComparison, getTopRatedProducts, getTopOrderedProductsController } = require("../controllers/OrderController");
+const { getAllOrders, getOrderDetailsForAdmin, updatePaymentStatus,getOrdersWithRefundRequests ,updateRefundStatus, updateOrderStatus, getMonthlyRevenue, getWeeklyRevenue, getRevenueComparison, getOrderComparison, getTopRatedProducts, getTopOrderedProductsController } = require("../controllers/OrderController");
 const { loginAdmin } = require("../controllers/authController");
 const verifyToken = require('../middlewares/verifyToken');
 const verifyAdmin = require('../middlewares/verifyAdmin');
@@ -1490,6 +1490,88 @@ router.get("/orders/:orderId", verifyToken, verifyAdmin, getOrderDetailsForAdmin
  *                   example: Server error
  */
 router.put("/orders/updatePaymentStatus/:orderId", verifyToken, verifyAdmin, updatePaymentStatus);
+
+
+/**
+ * @swagger
+ * /api/v1/orders/admin/refund-requests:
+ *   get:
+ *     summary: Get orders with refund requests for admin
+ *     security:
+ *       - bearerAuth: []
+ *     tags: [Orders]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: The page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: The number of orders per page
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search by order ID (exact match) or user name (partial match)
+ *       - in: query
+ *         name: refundStatus
+ *         schema:
+ *           type: string
+ *           enum: ['NotInitiated', 'Pending', 'Processing', 'Completed', 'Failed']
+ *           default: Pending
+ *         description: Filter by refund status
+ *     responses:
+ *       200:
+ *         description: Orders with refund requests retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   description: Indicates if the request was successful
+ *                 message:
+ *                   type: string
+ *                   description: Message about the response
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Order'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     totalItems:
+ *                       type: integer
+ *                       description: Total number of orders
+ *                     totalPages:
+ *                       type: integer
+ *                       description: Total number of pages
+ *                     currentPage:
+ *                       type: integer
+ *                       description: Current page number
+ *                     itemsPerPage:
+ *                       type: integer
+ *                       description: Number of items per page
+ *       400:
+ *         description: Bad request (e.g., invalid query parameters)
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - User is not an admin
+ *       404:
+ *         description: No orders with refund requests found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/refund-requests', verifyToken, verifyAdmin, getOrdersWithRefundRequests);
+
+
 
 /**
  * @swagger

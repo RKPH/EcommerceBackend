@@ -3,9 +3,363 @@
 ----------------------------------------
 
 ========================================
+[INFO] CREATEORDER Tests
+----------------------------------------
+Test #1
+Route: /create-order
+Description: should return 201 with new order on successful creation
+Status: ✅ passed
+Time: 72 ms
+____
+Test #2
+Route: /create-order
+Description: should return 200 with updated order if exists
+Status: ✅ passed
+Time: 5 ms
+____
+Test #3
+Route: /create-order
+Description: should return 400 for missing required fields
+Status: ✅ passed
+Time: 36 ms
+____
+Test #4
+Route: /create-order
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 7 ms
+____
+
+========================================
+[INFO] GETORDERSDETAIL Tests
+----------------------------------------
+Test #1
+Route: /get-orders-detail
+Description: should return 200 with user orders
+Status: ✅ passed
+Time: 4 ms
+____
+Test #2
+Route: /get-orders-detail
+Description: should return 404 if no orders found
+Status: ✅ passed
+Time: 2 ms
+____
+Test #3
+Route: /get-orders-detail
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 10 ms
+____
+
+========================================
+[INFO] PURCHASEORDER Tests
+----------------------------------------
+Test #1
+Route: /purchase-order
+Description: should return 200 with order data for non-momo payment
+Status: ✅ passed
+Time: 21 ms
+____
+Test #2
+Route: /purchase-order
+Description: should return 200 with momo payment URL
+Status: ✅ passed
+Time: 8 ms
+____
+Test #3
+Route: /purchase-order
+Description: should return 404 if no pending order
+Status: ✅ passed
+Time: 13 ms
+____
+Test #4
+Route: /purchase-order
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 6 ms
+____
+
+========================================
+[INFO] GETORDERDETAILBYID Tests
+----------------------------------------
+Test #1
+Route: /get-order-detail-by-i-d
+Description: should return 200 with order details
+Status: ✅ passed
+Time: 3 ms
+____
+Test #2
+Route: /get-order-detail-by-i-d
+Description: should return 404 if order not found
+Status: ✅ passed
+Time: 5 ms
+____
+Test #3
+Route: /get-order-detail-by-i-d
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
+[INFO] CANCELORDER Tests
+----------------------------------------
+Test #1
+Route: /cancel-order
+Description: should return 200 on successful cancellation
+Status: ✅ passed
+Time: 5 ms
+____
+Test #2
+Route: /cancel-order
+Description: should return 400 if order cannot be canceled
+Status: ✅ passed
+Time: 6 ms
+____
+Test #3
+Route: /cancel-order
+Description: should return 404 if order not found
+Status: ✅ passed
+Time: 6 ms
+____
+Test #4
+Route: /cancel-order
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 6 ms
+____
+
+========================================
+[INFO] SUBMITREFUNDBANKDETAILS Tests
+----------------------------------------
+Test #1
+Route: /submit-refund-bank-details
+Description: should return 200 on successful submission
+Status: ✅ passed
+Time: 3 ms
+____
+Test #2
+Route: /submit-refund-bank-details
+Description: should return 400 if required fields are missing
+Status: ✅ passed
+Time: 5 ms
+____
+Test #3
+Route: /submit-refund-bank-details
+Description: should return 400 if refund is pending
+Status: ✅ passed
+Time: 7 ms
+____
+Test #4
+Route: /submit-refund-bank-details
+Description: should return 404 if order not found
+Status: ✅ passed
+Time: 5 ms
+____
+Test #5
+Route: /submit-refund-bank-details
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
+[INFO] UPDATEPAYMENTSTATUS Tests
+----------------------------------------
+Test #1
+Route: /update-payment-status
+Description: should return 200 on successful update
+Status: ✅ passed
+Time: 3 ms
+____
+Test #2
+Route: /update-payment-status
+Description: should return 404 if order not found
+Status: ✅ passed
+Time: 5 ms
+____
+Test #3
+Route: /update-payment-status
+Description: should return 400 on invalid status
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
+[INFO] UPDATEREFUNDSTATUS Tests
+----------------------------------------
+Test #1
+Route: /update-refund-status
+Description: should return 200 on successful update with email sent
+Status: ✅ passed
+Time: 2 ms
+____
+Test #2
+Route: /update-refund-status
+Description: should return 500 if email fails
+Status: ✅ passed
+Time: 4 ms
+____
+Test #3
+Route: /update-refund-status
+Description: should return 404 if order not found
+Status: ✅ passed
+Time: 5 ms
+____
+Test #4
+Route: /update-refund-status
+Description: should return 400 on invalid status
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
+[INFO] UPDATEORDERSTATUS Tests
+----------------------------------------
+Test #1
+Route: /update-order-status
+Description: should return 200 on successful update
+Status: ✅ passed
+Time: 3 ms
+____
+Test #2
+Route: /update-order-status
+Description: should return 404 if order not found
+Status: ✅ passed
+Time: 5 ms
+____
+Test #3
+Route: /update-order-status
+Description: should return 400 if newStatus is invalid
+Status: ✅ passed
+Time: 2 ms
+____
+Test #4
+Route: /update-order-status
+Description: should return 400 if newStatus is missing
+Status: ✅ passed
+Time: 2 ms
+____
+Test #5
+Route: /update-order-status
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 7 ms
+____
+
+========================================
+[INFO] GETREVENUECOMPARISON Tests
+----------------------------------------
+Test #1
+Route: /get-revenue-comparison
+Description: should return 200 with revenue comparison data
+Status: ✅ passed
+Time: 2 ms
+____
+Test #2
+Route: /get-revenue-comparison
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
+[INFO] GETORDERCOMPARISON Tests
+----------------------------------------
+Test #1
+Route: /get-order-comparison
+Description: should return 200 with order comparison data
+Status: ✅ passed
+Time: 2 ms
+____
+Test #2
+Route: /get-order-comparison
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
+[INFO] GETTOPRATEDPRODUCTS Tests
+----------------------------------------
+Test #1
+Route: /get-top-rated-products
+Description: should return 200 with top rated products
+Status: ✅ passed
+Time: 2 ms
+____
+Test #2
+Route: /get-top-rated-products
+Description: should return 200 with empty data if no top rated products found
+Status: ✅ passed
+Time: 2 ms
+____
+Test #3
+Route: /get-top-rated-products
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
+[INFO] GETTOPORDEREDPRODUCTSCONTROLLER Tests
+----------------------------------------
+Test #1
+Route: /get-top-ordered-products-controller
+Description: should return 200 with top ordered products
+Status: ✅ passed
+Time: 3 ms
+____
+Test #2
+Route: /get-top-ordered-products-controller
+Description: should return 200 with top ordered products for a specific category
+Status: ✅ passed
+Time: 2 ms
+____
+Test #3
+Route: /get-top-ordered-products-controller
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 7 ms
+____
+
+========================================
+[INFO] GETMONTHLYREVENUE Tests
+----------------------------------------
+Test #1
+Route: /get-monthly-revenue
+Description: should return 200 with monthly revenue data
+Status: ✅ passed
+Time: 2 ms
+____
+Test #2
+Route: /get-monthly-revenue
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 4 ms
+____
+
+========================================
+[INFO] GETWEEKLYREVENUE Tests
+----------------------------------------
+Test #1
+Route: /get-weekly-revenue
+Description: should return 200 with weekly revenue data
+Status: ✅ passed
+Time: 2 ms
+____
+Test #2
+Route: /get-weekly-revenue
+Description: should return 500 on server error
+Status: ✅ passed
+Time: 5 ms
+____
+
+========================================
 📊 Summary:
 ----------------------------------------
-✔ Test Suites: 0 Passed (1 Total)
-✔ Tests:       0 Passed (0 Total)
-✔ Time Taken:  0.615 seconds
+✔ Test Suites: 1 Passed (1 Total)
+✔ Tests:       49 Passed (49 Total)
+✔ Time Taken:  0.988 seconds
 ========================================

@@ -1,7 +1,5 @@
 const request = require('supertest');
 const express = require('express');
-const mongoose = require('mongoose');
-const { MongoMemoryServer } = require('mongodb-memory-server');
 const { createOrder, getOrdersDetail, purchaseOrder, getOrderDetailByID, cancelOrder, submitRefundBankDetails, updatePaymentStatus, updateRefundStatus, updateOrderStatus,
     getRevenueComparison, getOrderComparison, getTopRatedProducts, getTopOrderedProductsController, getMonthlyRevenue, getWeeklyRevenue
 } = require('../controllers/OrderController'); // Adjust path as needed
@@ -55,18 +53,6 @@ app.get('/api/v1/orders/top-ordered-products', getTopOrderedProductsController);
 app.get('/api/v1/orders/monthly-revenue', getMonthlyRevenue);
 app.get('/api/v1/orders/weekly-revenue', getWeeklyRevenue);
 
-let mongoServer;
-
-beforeAll(async () => {
-    mongoServer = await MongoMemoryServer.create();
-    const uri = mongoServer.getUri();
-    await mongoose.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-});
-
-afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
-});
 
 beforeEach(() => {
     jest.clearAllMocks();

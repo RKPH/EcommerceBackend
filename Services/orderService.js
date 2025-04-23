@@ -97,7 +97,7 @@ exports.getAllOrders = async ({ page = 1, limit = 10, search, status, PaymentMet
 
         // Add status filter
         if (status && status !== 'All' && status !== 'Draft') {
-            const validStatuses = ['Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+            const validStatuses = ['Pending', 'Confirmed', 'Delivering' ,'Delivered', 'Cancelled', 'CancelledByAdmin'];
             if (!validStatuses.includes(status)) {
                 throw new Error(`Invalid status value. Must be one of: ${validStatuses.join(', ')}`);
             }
@@ -439,15 +439,15 @@ exports.getOrderDetailByID = async (orderId) => {
     return order;
 };
 
+
 exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) => {
 
-
-    const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+    const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivering', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
     if (!newStatus || !validStatuses.includes(newStatus)) {
         throw new Error(`Invalid status value. Must be one of: ${validStatuses.join(', ')}`);
     }
 
-    const order = await Order.findOne({order_id:orderId}).populate('products.product').populate('user', 'name email');
+    const order = await Order.findOne({ order_id: orderId }).populate('products.product').populate('user', 'name email');
     if (!order) {
         throw new Error("Order not found");
     }
@@ -455,7 +455,8 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
     const allowedTransitions = {
         Draft: ["Pending"],
         Pending: ["Confirmed", "Cancelled", "CancelledByAdmin"],
-        Confirmed: ["Delivered", "Cancelled", "CancelledByAdmin"],
+        Confirmed: ["Delivering", "Cancelled", "CancelledByAdmin"],
+        Delivering: ["Delivered"],
         Delivered: [],
         Cancelled: [],
         CancelledByAdmin: []
@@ -510,17 +511,24 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
     }
 
     order.status = newStatus;
+
+
+
     if (newStatus === "Delivered") {
         order.DeliveredAt = new Date();
     }
+
     if (newStatus === "Cancelled" || newStatus === "CancelledByAdmin") {
         order.cancellationReason = cancellationReason;
     }
 
-    const actionText = newStatus === "Confirmed" ? "Order is confirmed" :
+    const actionText =
+        newStatus === "Confirmed" ? "Order is confirmed" :
+        newStatus === "Delivering" ? "Order is out for delivery" :
         newStatus === "Delivered" ? "Order is delivered successfully" :
-            newStatus === "Cancelled" ? "Order is cancelled" :
-                newStatus === "CancelledByAdmin" ? "Order is cancelled by Admin" : `Order is ${newStatus}`;
+        newStatus === "Cancelled" ? "Order is cancelled" :
+        newStatus === "CancelledByAdmin" ? "Order is cancelled by Admin" :
+        `Order is ${newStatus}`;
 
     order.history.push({
         action: actionText,
@@ -541,6 +549,140 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
     return { order, emailSent };
 };
 
+exports.getOrdersWithRefundRequests = async ({ page = 1, limit = 10, search, refundStatus = 'Pending' }) => {
+    try {
+        // Validate inputs
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        if (isNaN(pageNum) || pageNum < 1) {
+            throw new Error('Invalid page number');
+        }
+        if (isNaN(limitNum) || limitNum < 1) {
+            throw new Error('Invalid limit value');
+        }
+
+        // Validate refundStatus
+        const validRefundStatuses = ['NotInitiated', 'Pending', 'Processing', 'Completed', 'Failed'];
+        if (refundStatus && !validRefundStatuses.includes(refundStatus)) {
+            throw new Error(`Invalid refundStatus value. Must be one of: ${validRefundStatuses.join(', ')}`);
+        }
+
+        // Build the initial match stage
+        let initialMatchStage = {
+            refundStatus: refundStatus,
+            status: 'Cancelled', // Refund requests are only for cancelled orders
+            payingStatus: 'Paid' // Refund requests require paid orders
+        };
+
+        // Add order_id filter if search is provided
+        if (search) {
+            initialMatchStage.order_id = search; // Exact match for order_id
+        }
+
+        // Pipeline to get total unique orders with refund requests
+        const totalOrdersPipeline = [
+            { $match: initialMatchStage },
+            { $group: { _id: null, total: { $sum: 1 } } }
+        ];
+
+        const totalOrdersResult = await Order.aggregate(totalOrdersPipeline);
+        const totalOrders = totalOrdersResult[0]?.total || 0;
+
+        // Pipeline to fetch paginated orders
+        const skip = (pageNum - 1) * limitNum;
+
+        const pipeline = [
+            // Initial match
+            { $match: initialMatchStage },
+
+            // Lookup user
+            {
+                $lookup: {
+                    from: 'users',
+                    localField: 'user',
+                    foreignField: '_id',
+                    as: 'user'
+                }
+            },
+            { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+
+            // Add user.name filter after lookup (if search is provided and not an order_id)
+            ...(search && !initialMatchStage.order_id
+                ? [
+                    {
+                        $match: {
+                            'user.name': { $regex: search, $options: 'i' }
+                        }
+                    }
+                ]
+                : []),
+
+            // Sort by createdAt (descending)
+            { $sort: { createdAt: -1 } },
+
+            // Paginate
+            { $skip: skip },
+            { $limit: limitNum },
+
+            // Lookup products
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'products.product',
+                    foreignField: '_id',
+                    as: 'productsDetails'
+                }
+            },
+
+            // Transform the products array
+            {
+                $addFields: {
+                    products: {
+                        $map: {
+                            input: '$products',
+                            as: 'prod',
+                            in: {
+                                $mergeObjects: [
+                                    '$$prod',
+                                    {
+                                        product: {
+                                            $arrayElemAt: [
+                                                '$productsDetails',
+                                                {
+                                                    $indexOfArray: ['$productsDetails._id', '$$prod.product']
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+
+            // Remove temporary productsDetails field
+            { $project: { productsDetails: 0 } }
+        ];
+
+        const orders = await Order.aggregate(pipeline);
+
+        return {
+            orders,
+            totalOrders,
+            pagination: {
+                totalItems: totalOrders,
+                totalPages: Math.ceil(totalOrders / limitNum),
+                currentPage: pageNum,
+                itemsPerPage: limitNum,
+            }
+        };
+    } catch (error) {
+        console.error('Error fetching orders with refund requests:', error.message, error.stack);
+        throw error;
+    }
+};
+
 exports.cancelOrder = async ({ orderId, userId, reason }) => {
     const order = await Order.findOne({ order_id: orderId, user: userId }).populate('user');
     if (!order) throw new Error('Order not found');
@@ -552,7 +694,7 @@ exports.cancelOrder = async ({ orderId, userId, reason }) => {
     order.cancellationReason = reason;
     order.history.push({ action: `Order cancelled - Reason: ${reason}`, date: formatDate(new Date()) });
 
-    if (['momo', 'BankTransfer'].includes(order.PaymentMethod)) {
+    if (['momo', 'payos'].includes(order.PaymentMethod)) {
         order.refundStatus = 'Pending';
     }
 
@@ -613,8 +755,8 @@ exports.updatePaymentStatus = async ({ orderId, payingStatus }) => {
         updateData.PaidAt = new Date();
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-        orderId,
+    const updatedOrder = await Order.findOneAndUpdate(
+        {order_id:orderId},
         { $set: updateData },
         { new: true, runValidators: true }
     );
@@ -631,11 +773,8 @@ exports.updateRefundStatus = async ({ orderId, refundStatus }) => {
         throw new Error("Invalid refundStatus value. Must be 'NotInitiated', 'Pending', 'Processing', 'Completed', or 'Failed'.");
     }
 
-    if (!orderId.match(/^[0-9a-fA-F]{24}$/)) {
-        throw new Error("Invalid order ID format");
-    }
-
-    const order = await Order.findById(orderId).populate("user", "email");
+   
+    const order = await Order.findOne({order_id:orderId}).populate("user", "email");
     if (!order) {
         throw new Error("Order not found");
     }
@@ -644,11 +783,11 @@ exports.updateRefundStatus = async ({ orderId, refundStatus }) => {
         throw new Error("Refund can only be processed for cancelled and paid orders");
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-        orderId,
+    const updatedOrder = await Order.findOneAndUpdate(
+        { order_id: orderId },
         { $set: { refundStatus } },
         { new: true, runValidators: true }
-    );
+    )
 
     let emailSent = true;
     const userEmail = order.user.email;

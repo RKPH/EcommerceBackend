@@ -310,7 +310,7 @@ exports.updateOrderStatus = async (req, res) => {
             });
         }
 
-        const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivered', 'Cancelled', 'CancelledByAdmin'];
+        const validStatuses = ['Draft', 'Pending', 'Confirmed', 'Delivering' ,'Delivered', 'Cancelled', 'CancelledByAdmin'];
         if (!validStatuses.includes(newStatus)) {
             return res.status(400).json({
                 success: false,
@@ -452,6 +452,39 @@ exports.getTopOrderedProductsController = async (req, res) => {
             success: false,
             message: "Failed to fetch top ordered products",
             error: error.message // Always include the error message
+        });
+    }
+};
+exports.getOrdersWithRefundRequests = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search, refundStatus = 'Pending' } = req.query;
+        const { orders, totalOrders, pagination } = await orderService.getOrdersWithRefundRequests({
+            page,
+            limit,
+            search,
+            refundStatus,
+        });
+
+        if (!orders || orders.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No orders with refund requests found',
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Orders with refund requests retrieved successfully',
+            data: orders,
+            pagination,
+        });
+    } catch (error) {
+        console.error('Error fetching orders with refund requests:', error.message, error.stack);
+        const statusCode = error.message.includes('Invalid') ? 400 : 500;
+        res.status(statusCode).json({
+            success: false,
+            message: error.message || 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined,
         });
     }
 };
