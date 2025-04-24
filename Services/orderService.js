@@ -549,7 +549,8 @@ exports.updateOrderStatus = async ({ orderId, newStatus, cancellationReason }) =
     return { order, emailSent };
 };
 
-exports.getOrdersWithRefundRequests = async ({ page = 1, limit = 10, search, refundStatus = 'Pending' }) => {
+
+exports.getOrdersWithRefundRequests = async ({ page = 1, limit = 10, search, refundStatus = 'All' }) => {
     try {
         // Validate inputs
         const pageNum = parseInt(page);
@@ -561,18 +562,25 @@ exports.getOrdersWithRefundRequests = async ({ page = 1, limit = 10, search, ref
             throw new Error('Invalid limit value');
         }
 
-        // Validate refundStatus
+        // Define valid refund statuses
         const validRefundStatuses = ['NotInitiated', 'Pending', 'Processing', 'Completed', 'Failed'];
-        if (refundStatus && !validRefundStatuses.includes(refundStatus)) {
-            throw new Error(`Invalid refundStatus value. Must be one of: ${validRefundStatuses.join(', ')}`);
+
+        // Validate refundStatus
+        if (refundStatus && refundStatus !== 'All' && !validRefundStatuses.includes(refundStatus)) {
+            throw new Error(`Invalid refundStatus value. Must be one of: All, ${validRefundStatuses.join(', ')}`);
         }
 
         // Build the initial match stage
         let initialMatchStage = {
-            refundStatus: refundStatus,
             status: 'Cancelled', // Refund requests are only for cancelled orders
             payingStatus: 'Paid' // Refund requests require paid orders
         };
+
+        // Include refundStatus filter only if a specific status is provided
+        if (refundStatus && refundStatus !== 'All') {
+            initialMatchStage.refundStatus = refundStatus;
+        }
+        // Note: No refundStatus filter when refundStatus='All' or not provided, so all Cancelled and Paid orders are included
 
         // Add order_id filter if search is provided
         if (search) {
@@ -668,6 +676,7 @@ exports.getOrdersWithRefundRequests = async ({ page = 1, limit = 10, search, ref
         const orders = await Order.aggregate(pipeline);
 
         return {
+            success: true,
             orders,
             totalOrders,
             pagination: {

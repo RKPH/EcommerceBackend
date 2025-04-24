@@ -756,35 +756,49 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
         console.log('Database name:', Product.db.db.databaseName);
 
         // Validate and parse pagination parameters
-        const pageSize = Math.max(1, parseInt(limit, 10) || 20); // Ensure pageSize is at least 1
+        const pageSize = Math.max(1, parseInt(limit, 10) || 20);
         let pageNum = parseInt(page, 10) || 1;
         if (isNaN(pageNum) || pageNum <= 0) pageNum = 1;
 
-        // Log for debugging
         console.log('Pagination params:', { page, limit, pageNum, pageSize });
 
         // Check if text index exists
-        const indexes = await Product.collection.getIndexes();
-        console.log('Indexes:', JSON.stringify(indexes, null, 2));
-        const hasTextIndex = indexes.some(index => index.key && index.key._fts === 'text');
-        console.log('Has text index:', hasTextIndex);
+        let hasTextIndex = false;
+        try {
+            const indexes = await Product.collection.getIndexes();
+            console.log('Indexes:', JSON.stringify(indexes, null, 2));
+            if (Array.isArray(indexes)) {
+                hasTextIndex = indexes.some(index => index.key && index.key._fts === 'text');
+            } else if (typeof indexes === 'object' && indexes !== null) {
+                hasTextIndex = Object.values(indexes).some(index =>
+                    Array.isArray(index) && index.some(([key, value]) => key === '_fts' && value === 'text')
+                );
+            }
+            console.log('Has text index:', hasTextIndex);
+        } catch (error) {
+            console.warn('Error checking indexes:', error.message);
+            hasTextIndex = false;
+        }
 
         let searchFilter;
         if (query && hasTextIndex) {
-            // Use full-text search if index exists
-            searchFilter = { $text: { $search: query } };
-        } else if (query) {
-            // Fallback to regex search if no text index
-            console.warn('Text index not found, falling back to regex search');
-            searchFilter = {
-                $or: [
-                    { name: { $regex: query, $options: 'i' } },
-                    { category: { $regex: query, $options: 'i' } },
-                    { brand: { $regex: query, $options: 'i' } },
-                    { description: { $regex: query, $options: 'i' } },
-                ],
-            };
+            // Process query: add * to each term for prefix matching
+            const textQuery = query.split(' ').map(term => `"${term}"`).join(' ');
+
+            console.log('Raw query:', query);
+            console.log('Processed text query:', textQuery);
+            searchFilter = { $text: { $search: textQuery } };
+
+            // Debug: Check matched documents
+            const debugPipeline = [
+                { $match: searchFilter },
+                { $limit: 2 },
+                { $project: { name: 1, category: 1, brand: 1, description: 1 } }
+            ];
+            const debugResults = await Product.aggregate(debugPipeline).exec();
+            console.log('Debug matched documents:', JSON.stringify(debugResults, null, 2));
         } else {
+            console.log('No text index or no query provided, using empty filter');
             searchFilter = {};
         }
 
@@ -814,7 +828,7 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
 
         // Combine filters
         const combinedFilters = [];
-        if (query) combinedFilters.push(searchFilter);
+        if (query && hasTextIndex) combinedFilters.push(searchFilter);
         if (Object.keys(filterConditions).length > 0) combinedFilters.push(filterConditions);
 
         const finalFilter = combinedFilters.length > 1 ? { $and: combinedFilters } : combinedFilters[0] || {};
@@ -852,26 +866,33 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
         const totalProducts = result[0].metadata.length > 0 ? result[0].metadata[0].total : 0;
         const products = result[0].data;
 
+        console.log('Total products found:', totalProducts);
+
         // Calculate total pages
         const totalPages = Math.ceil(totalProducts / pageSize);
 
         // Adjust pageNum if it exceeds totalPages
         if (totalPages === 0) {
-            pageNum = 1; // If no products, set pageNum to 1
+            pageNum = 1;
         } else if (pageNum > totalPages) {
             pageNum = totalPages;
-            // Re-fetch products for the adjusted page
             const adjustedPipeline = [
                 { $match: finalFilter },
-                ...(query && hasTextIndex ? [
+            ];
+            if (query && hasTextIndex) {
+                adjustedPipeline.push(
                     { $addFields: { score: { $meta: "textScore" } } },
                     { $sort: { score: { $meta: "textScore" }, _id: 1 } }
-                ] : [
+                );
+            } else {
+                adjustedPipeline.push(
                     { $sort: { _id: 1 } }
-                ]),
+                );
+            }
+            adjustedPipeline.push(
                 { $skip: (pageNum - 1) * pageSize },
-                { $limit: pageSize },
-            ];
+                { $limit: pageSize }
+            );
             const adjustedResult = await Product.aggregate(adjustedPipeline).exec();
             return {
                 products: adjustedResult,
@@ -893,4 +914,4 @@ exports.searchProductsPaginated = async ({ query, page = 1, limit = 20, brand, p
         console.error('Error in searchProductsPaginated:', error.message, error.stack);
         throw new Error(`Failed to search products: ${error.message}`);
     }
-}
+};

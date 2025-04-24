@@ -457,7 +457,7 @@ exports.getTopOrderedProductsController = async (req, res) => {
 };
 exports.getOrdersWithRefundRequests = async (req, res) => {
     try {
-        const { page = 1, limit = 10, search, refundStatus = 'Pending' } = req.query;
+        const { page = 1, limit = 10, search, refundStatus = 'All' } = req.query;
         const { orders, totalOrders, pagination } = await orderService.getOrdersWithRefundRequests({
             page,
             limit,

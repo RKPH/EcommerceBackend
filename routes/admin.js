@@ -1494,7 +1494,7 @@ router.put("/orders/updatePaymentStatus/:orderId", verifyToken, verifyAdmin, upd
 
 /**
  * @swagger
- * /api/v1/orders/admin/refund-requests:
+ * /api/v1/admin/refund-requests:
  *   get:
  *     summary: Get orders with refund requests for admin
  *     security:
