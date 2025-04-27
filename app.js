@@ -67,7 +67,7 @@ app.get('/health', (req, res) => {
 // Connect to the database and Kafka
 connectDB();
 connectProducer();
-runConsumer();
+
 
 io.on('connection', (socket) => {
     console.log(`New client connected: ${socket.id}`);

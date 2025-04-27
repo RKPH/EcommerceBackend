@@ -1,8 +1,9 @@
 const { v4: uuidv4 } = require("uuid");
 const { sendMessage } = require("../kafka/kafka-producer");
 
-// In-memory store to track last event time per user
+// In-memory stores to track last event time and session ID per user
 const lastEventTimes = new Map();
+const lastSessionIds = new Map();
 
 exports.trackUserBehavior = async (req, res) => {
     try {
@@ -13,30 +14,39 @@ exports.trackUserBehavior = async (req, res) => {
             return res.status(400).json({ message: "Missing or invalid required fields: user, productId, product_name, behavior, or sessionId" });
         }
 
-        let newSessionId = reqSessionId.trim();
         const now = new Date();
+        let sessionId;
 
         const lastEventTime = lastEventTimes.get(user);
-        if (lastEventTime) {
+        const lastSessionId = lastSessionIds.get(user);
+
+        if (lastEventTime && lastSessionId) {
             const timeDifference = now - new Date(lastEventTime);
             console.log("Time difference (ms):", timeDifference);
-            if (timeDifference > 1 * 60 * 1000) { // 1 minute threshold
-                newSessionId = uuidv4();
-                console.log("New session ID generated:", newSessionId);
+
+            // Use 2 minutes (120,000 ms) as the threshold
+            if (timeDifference <= 2 * 60 * 1000) {
+                // Within 2 minutes, reuse the last session ID
+                sessionId = lastSessionId;
+                console.log("Reused last session ID:", sessionId);
             } else {
-                console.log("Reused session ID:", newSessionId);
+                // More than 2 minutes, generate a new session ID
+                sessionId = uuidv4();
+                console.log("New session ID generated (after 2 minutes):", sessionId);
             }
         } else {
-            newSessionId = uuidv4();
-            console.log("No last event, new session ID generated:", newSessionId);
+            // No previous event for this user, generate a new session ID
+            sessionId = uuidv4();
+            console.log("No last event, new session ID generated:", sessionId);
         }
 
-        // Update last event time for this user
+        // Update the last event time and session ID for this user
         lastEventTimes.set(user, now);
+        lastSessionIds.set(user, sessionId);
 
         // Format event_time as "YYYY-MM-DD HH:MM:SS UTC"
         const year = now.getUTCFullYear();
-        const month = String(now.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-based
+        const month = String(now.getUTCMonth() + 1).padStart(2, '0');
         const day = String(now.getUTCDate()).padStart(2, '0');
         const hours = String(now.getUTCHours()).padStart(2, '0');
         const minutes = String(now.getUTCMinutes()).padStart(2, '0');
@@ -44,12 +54,12 @@ exports.trackUserBehavior = async (req, res) => {
         const eventTime = `${year}-${month}-${day} ${hours}:${minutes}:${seconds} UTC`;
 
         const trackingData = {
-            user_session: newSessionId,
+            user_session: sessionId,
             user_id: user,
             product_id: productId,
             name: product_name,
             event_type: behavior,
-            event_time: eventTime, // Custom UTC format
+            event_time: eventTime,
         };
 
         console.log("Tracking data to send to Kafka:", trackingData);
@@ -58,7 +68,7 @@ exports.trackUserBehavior = async (req, res) => {
 
         res.status(201).json({
             message: "User behavior tracked successfully",
-            sessionId: newSessionId,
+            sessionId: sessionId,
         });
     } catch (error) {
         console.error("❌ Error tracking user behavior:", error);
