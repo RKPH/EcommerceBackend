@@ -395,6 +395,49 @@ exports.anonymousRecommendation = async (req, res) => {
     }
 };
 
+//get recommendation for  cart
+exports.getCartRecommendations = async (req, res) => {
+    try {
+        // Extract cart_items and k from the request body
+        const { cart_items, k = 5 } = req.body;
+
+        // Validate input
+        if (!cart_items || !Array.isArray(cart_items) || cart_items.length === 0) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'Invalid or missing cart_items. Must be a non-empty array.'
+            });
+        }
+
+        // Call the service to get recommendations
+        const recommendations = await productService.cartRecommendation(cart_items, k);
+
+        // Check if recommendations were returned
+        if (!recommendations || recommendations.length === 0) {
+            return res.status(404).json({
+                status: 'error',
+                message: 'No recommendations found for the given cart items.'
+            });
+        }
+
+        // Return the recommendations
+        return res.status(200).json({
+            status: 'success',
+            data: {
+                cart_items,
+                recommendations
+            }
+        });
+    } catch (error) {
+        console.error('Error in getCartRecommendations controller:', error.message);
+        return res.status(500).json({
+            status: 'error',
+            message: 'Internal server error while fetching cart recommendations.',
+            details: error.message
+        });
+    }
+}
+
 // get top trending propductrs
 exports.getTopTrendingProducts = async (req, res) => {
     try {

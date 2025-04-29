@@ -14,6 +14,7 @@ const {
     anonymousRecommendation,
     searchProductsPaginated,
     getTypesByCategory,
+    getCartRecommendations,
     createProduct,
     importProducts,
     updateProduct,
@@ -114,6 +115,7 @@ const upload = multer({ dest: 'uploads/' });
  *                   type: string
  *                 price:
  *                   type: number
+ */
 
  /**
  * @swagger
@@ -754,5 +756,68 @@ router.post('/recommendations', sessionBasedRecommendation);
  *         description: Internal server error. Failed to retrieve recommendations.
  */
 router.post('/anonymous_recommendations', anonymousRecommendation);
+
+
+/**
+ * @swagger
+ * /api/v1/products/cart-recommendations:
+ *   post:
+ *     summary: Get cart-based product recommendations
+ *     security: []
+ *     tags: [Products]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               cart_items:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: The list of product IDs in the cart
+ *               k:
+ *                 type: integer
+ *                 description: The number of recommendations to return (default 5)
+ *             required:
+ *               - cart_items
+ *     responses:
+ *       200:
+ *         description: Cart-based recommendations retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     cart_items:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                     recommendations:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           product_id:
+ *                             type: string
+ *                           productDetails:
+ *                             $ref: '#/components/schemas/Product'
+ *       400:
+ *         description: Invalid request body or missing required fields
+ *       404:
+ *         description: No recommendations found for the given cart items
+ *       500:
+ *         description: Internal server error. Failed to retrieve cart-based recommendations.
+ */
+router.post('/cart-recommendations', getCartRecommendations);
+
 
 module.exports = router;

@@ -13,13 +13,13 @@ const swaggerOptions = {
         },
         servers: [
             {
-                url: 'http://localhost:3000', // Adjust if your app uses a different port
+                url: 'https://backend.d2f.io.vn', // Adjust if your app uses a different port
             },
         ],
         components: {
             securitySchemes: {
                 bearerAuth: {
-                    type: 'http',
+                    type: 'https',
                     scheme: 'bearer',
                     bearerFormat: 'JWT', // Optional, can help Swagger UI understand the token format
                 },

@@ -33,7 +33,7 @@ const router = express.Router();
 // Revenue Routes (Admin Only)
 /**
  * @swagger
- * /revenue:
+ * /api/v1/admin/revenue:
  *   get:
  *     summary: Get monthly revenue (Admin Only)
  *     description: Retrieves the total revenue for the current month, considering only paid orders. Accessible only to admin users.
@@ -104,7 +104,7 @@ router.get("/revenue", verifyToken, verifyAdmin, getMonthlyRevenue);
 
 /**
  * @swagger
- * /WeeklyRevenue:
+ * /api/v1/admin/WeeklyRevenue:
  *   get:
  *     summary: Get weekly revenue (Admin Only)
  *     description: Retrieves the total revenue for the current week, considering only paid orders. Accessible only to admin users.
@@ -175,7 +175,7 @@ router.get("/WeeklyRevenue", verifyToken, verifyAdmin, getWeeklyRevenue);
 
 /**
  * @swagger
- * /total:
+ * /api/v1/admin/total:
  *   get:
  *     summary: Get revenue comparison (Admin Only)
  *     description: Compares the revenue between the current period and the previous period. Accessible only to admin users.
@@ -247,7 +247,7 @@ router.get("/total", verifyToken, verifyAdmin, getRevenueComparison);
 // Order Comparison (Admin Only)
 /**
  * @swagger
- * /totalOrders:
+ * /api/v1/admin/totalOrders:
  *   get:
  *     summary: Get order comparison (Admin Only)
  *     description: Compares the number of orders between the current period and the previous period. Accessible only to admin users.
@@ -319,7 +319,7 @@ router.get("/totalOrders", verifyToken, verifyAdmin, getOrderComparison);
 // User Comparison (Admin Only)
 /**
  * @swagger
- * /totalUsers:
+ * /api/v1/admin/totalUsers:
  *   get:
  *     summary: Get user comparison (Admin Only)
  *     description: Compares the number of users between the current period and the previous period. Accessible only to admin users.
@@ -391,7 +391,7 @@ router.get("/totalUsers", verifyToken, verifyAdmin, getUserComparison);
 // Top Products (Admin Only)
 /**
  * @swagger
- * /topRatedProducts:
+ * /api/v1/admin/topRatedProducts:
  *   get:
  *     summary: Get top-rated products (Admin Only)
  *     description: Retrieves a list of top-rated products based on user ratings. Accessible only to admin users.
@@ -467,7 +467,7 @@ router.get("/topRatedProducts", verifyToken, verifyAdmin, getTopRatedProducts);
 
 /**
  * @swagger
- * /topOrderedProducts:
+ * /api/v1/admin/topOrderedProducts:
  *   get:
  *     summary: Get top-ordered products (Admin Only)
  *     description: Retrieves a list of top-ordered products based on order frequency. Accessible only to admin users.
@@ -544,7 +544,7 @@ router.get("/topOrderedProducts", verifyToken, verifyAdmin, getTopOrderedProduct
 // Orders (Admin Only)
 /**
  * @swagger
- * /allOrders:
+ * /api/v1/admin/allOrders:
  *   get:
  *     summary: Get all orders (Admin Only)
  *     description: Retrieves a list of all orders in the system. Accessible only to admin users.
@@ -624,7 +624,7 @@ router.get("/allOrders", verifyToken, verifyAdmin, getAllOrders);
 // Products Routes (Admin Only)
 /**
  * @swagger
- * /products/all:
+ * /api/v1/admin/products/all:
  *   get:
  *     summary: Get all products (Admin Only)
  *     description: Retrieves a list of all products in the system. Accessible only to admin users.
@@ -706,7 +706,7 @@ router.get("/products/all", verifyToken, verifyAdmin, getAllProducts);
 
 /**
  * @swagger
- * /products/add:
+ * /api/v1/admin/products/add:
  *   post:
  *     summary: Create a new product (Admin Only)
  *     description: Creates a new product in the system. Accessible only to admin users.
@@ -832,7 +832,7 @@ router.post("/products/add", verifyToken, verifyAdmin, createProduct);
 
 /**
  * @swagger
- * /products/update/{product_id}:
+ * /api/v1/admin/products/update/{product_id}:
  *   put:
  *     summary: Update a product (Admin Only)
  *     description: Updates an existing product in the system. Accessible only to admin users.
@@ -974,7 +974,7 @@ router.put("/products/update/:id", verifyToken, verifyAdmin, updateProduct);
 
 /**
  * @swagger
- * /products/{product_id}:
+ * /api/v1/admin/products/{product_id}:
  *   delete:
  *     summary: Delete a product (Admin Only)
  *     description: Deletes a product from the system. Accessible only to admin users.
@@ -1060,7 +1060,7 @@ router.delete("/products/:product_id", verifyToken, verifyAdmin, deleteProduct);
 
 /**
  * @swagger
- * /products/import:
+ * /api/v1/admin/products/import:
  *   post:
  *     summary: Import products from a CSV file (Admin Only)
  *     description: Imports multiple products into the system using a CSV file. Accessible only to admin users.
@@ -1263,7 +1263,7 @@ router.post("/login", loginAdmin);
 // Orders Routes (Admin Only)
 /**
  * @swagger
- * /orders/{orderId}:
+ * /api/v1/admin/orders/{orderId}:
  *   get:
  *     summary: Get order details (Admin Only)
  *     description: Retrieves detailed information about a specific order. Accessible only to admin users.
@@ -1372,7 +1372,7 @@ router.get("/orders/:orderId", verifyToken, verifyAdmin, getOrderDetailsForAdmin
 
 /**
  * @swagger
- * /orders/updatePaymentStatus/{orderId}:
+ * /api/v1/admin/orders/updatePaymentStatus/{orderId}:
  *   put:
  *     summary: Update payment status of an order (Admin Only)
  *     description: Updates the payment status of a specific order. Accessible only to admin users.
@@ -1499,7 +1499,7 @@ router.put("/orders/updatePaymentStatus/:orderId", verifyToken, verifyAdmin, upd
  *     summary: Get orders with refund requests for admin
  *     security:
  *       - bearerAuth: []
- *     tags: [Orders]
+ *     tags: [Admin - Orders]
  *     parameters:
  *       - in: query
  *         name: page
@@ -1575,7 +1575,7 @@ router.get('/refund-requests', verifyToken, verifyAdmin, getOrdersWithRefundRequ
 
 /**
  * @swagger
- * /orders/updateRefundStatus/{orderId}:
+ * /api/v1/admin/orders/updateRefundStatus/{orderId}:
  *   put:
  *     summary: Update refund status of an order (Admin Only)
  *     description: Updates the refund status of a specific order. Accessible only to admin users.
@@ -1696,7 +1696,7 @@ router.put("/orders/updateRefundStatus/:orderId", verifyToken, verifyAdmin, upda
 
 /**
  * @swagger
- * /orders/updateOrderStatus/{orderId}:
+ * /api/v1/admin/orders/updateOrderStatus/{orderId}:
  *   put:
  *     summary: Update order status (Admin Only)
  *     description: Updates the status of a specific order (e.g., pending, shipped, delivered). Accessible only to admin users.
@@ -1818,7 +1818,7 @@ router.put('/orders/updateOrderStatus/:orderId', verifyToken, verifyAdmin, updat
 // Users Routes (Admin Only)
 /**
  * @swagger
- * /users:
+ * /api/v1/admin/users:
  *   get:
  *     summary: Get all users (Admin Only)
  *     description: Retrieves a list of all users in the system. Accessible only to admin users.
@@ -1897,7 +1897,7 @@ router.get("/users", verifyToken, verifyAdmin, getAllUsers);
 
 /**
  * @swagger
- * /users/{id}:
+ * /api/v1/admin/users/{id}:
  *   get:
  *     summary: Get user details (Admin Only)
  *     description: Retrieves detailed information about a specific user. Accessible only to admin users.
@@ -1995,7 +1995,7 @@ router.get("/users/:id", verifyToken, verifyAdmin, getUserDetails);
 
 /**
  * @swagger
- * /users/update/{id}:
+ * /api/v1/admin/users/update/{id}:
  *   put:
  *     summary: Update a user (Admin Only)
  *     description: Updates an existing user's information. Accessible only to admin users.
@@ -2128,7 +2128,7 @@ router.put("/users/update/:id", verifyToken, verifyAdmin, updateUser);
 
 /**
  * @swagger
- * /users/create:
+ * /api/v1/admin/users/create:
  *   post:
  *     summary: Create a new user (Admin Only)
  *     description: Creates a new user in the system. Accessible only to admin users.

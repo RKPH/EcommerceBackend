@@ -109,7 +109,7 @@ const verifyToken = require('../middlewares/verifyToken');
 // Cart Routes (Authenticated Users)
 /**
  * @swagger
- * /cart/add:
+ * /api/v1/cart/add:
  *   post:
  *     summary: Add a product to the cart (Authenticated User)
  *     description: Adds a product to the authenticated user's cart. Requires a valid JWT token.
@@ -194,7 +194,7 @@ router.post('/add', verifyToken, addProductToCart);
 
 /**
  * @swagger
- * /cart/get:
+ * /api/v1/cart/get:
  *   get:
  *     summary: Get all items in the cart (Authenticated User)
  *     description: Retrieves all items in the authenticated user's cart, including populated product details if available. Requires a valid JWT token.
@@ -247,7 +247,7 @@ router.get('/get', verifyToken, getCartItems);
 
 /**
  * @swagger
- * /cart/update:
+ * /api/v1/cart/update:
  *   put:
  *     summary: Update a cart item (Authenticated User)
  *     description: Updates the quantity of a specific product in the authenticated user's cart. Requires a valid JWT token.
@@ -345,7 +345,7 @@ router.put('/update', verifyToken, updateCartItem);
 
 /**
  * @swagger
- * /cart/delete:
+ * /api/v1/cart/delete:
  *   delete:
  *     summary: Remove a product from the cart (Authenticated User)
  *     description: Removes a specific product from the authenticated user's cart. Requires a valid JWT token.

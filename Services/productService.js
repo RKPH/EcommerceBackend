@@ -571,6 +571,43 @@ exports.anonymousRecommendation = async (product_id) => {
     });
 };
 
+exports.cartRecommendation = async (cart_items, k = 5) => {
+    // Ensure cart_items are strings (API expects strings)
+    cart_items = cart_items.map(item => String(item));
+
+    const response = await axios.post(
+        `${process.env.AI_API_BASE_URL}/cart-recommend`, // Use base URL from env
+        { cart_items, k },
+        { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    let data = typeof response?.data === "string" ? JSON.parse(response.data.replace(/NaN/g, "0")) : response.data;
+    const Recommendations = data?.recommendations || [];
+
+    const recommendedProducts = await Product.find({
+        product_id: { $in: Recommendations.map(r => r.product_id) },
+    });
+
+    return Recommendations.map(rec => {
+        const product = recommendedProducts.find(p => p.product_id == rec.product_id);
+        return {
+            ...rec,
+            productDetails: product
+                ? {
+                    name: product.name,
+                    category: product.category,
+                    price: product.price,
+                    rating: product.rating,
+                    brand: product.brand,
+                    MainImage: product.MainImage,
+                    description: product.description,
+                }
+                : null,
+        };
+    });
+};
+
+
 exports.getTopTrendingProducts = async () => {
     const trendingProducts = await UserBehavior.aggregate([
         { $group: { _id: '$product_id', totalInteractions: { $sum: 1 } } },

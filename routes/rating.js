@@ -77,7 +77,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/products/{id}/add:
+ * /api/v1/products/{id}/add:
  *   post:
  *     summary: Add a review for a product
  *     description: Allows a logged-in user to add a review for a specific product. The user must be authenticated via an access token.
@@ -194,7 +194,7 @@ router.post("/:id/add", verifyAccessToken, addReview);
 
 /**
  * @swagger
- * /api/products/{id}/reviews:
+ * /api/v1/products/{id}/reviews:
  *   get:
  *     summary: Get all reviews for a product
  *     description: Retrieves all reviews and the average rating for a specific product.
@@ -273,7 +273,7 @@ router.get("/:id/reviews", getReviews);
 
 /**
  * @swagger
- * /api/products/{id}/reviews/{orderID}:
+ * /api/v1/products/{id}/reviews/{orderID}:
  *   get:
  *     summary: Get a user's review for a specific product and order
  *     description: Retrieves a user's review for a specific product and order. The user must be authenticated via an access token.
