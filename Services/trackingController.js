@@ -74,7 +74,7 @@ exports.trackUserBehavior = async (req, res) => {
 
         console.log("Tracking data to send to Kafka:", trackingData);
 
-        await sendMessage("model_retrain_event", trackingData);
+        await sendMessage("user_events", trackingData);
         await eventDoc.save(); // Save to MongoDB
         console.log("✅ Saved to MongoDB:", eventDoc);
 
