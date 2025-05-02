@@ -1,5 +1,6 @@
 const { v4: uuidv4 } = require("uuid");
 const { sendMessage } = require("../kafka/kafka-producer");
+const UserBehavior = require('../models/UserBehaviors'); // Adjust path as needed
 
 // In-memory stores to track last event time and session ID per user
 const lastEventTimes = new Map();
@@ -62,12 +63,23 @@ exports.trackUserBehavior = async (req, res) => {
             event_time: eventTime,
         };
 
+        const eventDoc = new UserBehavior({
+            user_session: sessionId,
+            user_id: user,
+            product_id: productId,
+            name: product_name,
+            event_type: behavior,
+            event_time: new Date(eventTime), // Convert "YYYY-MM-DD HH:mm:ss UTC" to Date
+        });
+
         console.log("Tracking data to send to Kafka:", trackingData);
 
-        await sendMessage("user-behavior-events", trackingData);
+        await sendMessage("model_retrain_event", trackingData);
+        await eventDoc.save(); // Save to MongoDB
+        console.log("✅ Saved to MongoDB:", eventDoc);
 
         res.status(201).json({
-            message: "User behavior tracked successfully",
+            message: "User behavior tracked and saved successfully",
             sessionId: sessionId,
         });
     } catch (error) {

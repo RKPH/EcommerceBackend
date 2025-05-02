@@ -1,4 +1,3 @@
-// authController.js
 const authService = require('../Services/authService');
 const { verifyRefreshToken } = require('../utils/jwt');
 
@@ -8,6 +7,17 @@ const { verifyRefreshToken } = require('../utils/jwt');
 exports.registerUser = async (req, res) => {
     try {
         const { name, email, password } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ message: "Please provide name." });
+        }
+        if (!email) {
+            return res.status(400).json({ message: "Please provide email." });
+        }
+        if (!password) {
+            return res.status(400).json({ message: "Please provide password." });
+        }
+
         const { token, refreshToken, user } = await authService.registerUser({ name, email, password });
 
         // Set cookies
@@ -32,7 +42,6 @@ exports.registerUser = async (req, res) => {
             user,
         });
     } catch (error) {
-
         res.status(error.message.includes('User already exists') ? 400 : 500).json({ message: error.message });
     }
 };
@@ -43,6 +52,14 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "Please provide email." });
+        }
+        if (!password) {
+            return res.status(400).json({ message: "Please provide password." });
+        }
+
         const { token, refreshToken, user } = await authService.loginUser({ email, password });
 
         res.cookie('accessToken', token, {
@@ -66,7 +83,6 @@ exports.loginUser = async (req, res) => {
             user,
         });
     } catch (error) {
-
         res.status(error.message.includes('Invalid') || error.message.includes('verified') ? 401 : 500).json({ message: error.message });
     }
 };
@@ -78,6 +94,11 @@ exports.verifyUser = async (req, res) => {
     try {
         const { userId } = req.user;
         const { verificationCode } = req.body;
+
+        if (!verificationCode) {
+            return res.status(400).json({ message: "Please provide verification code." });
+        }
+
         const { user } = await authService.verifyUser({ userId, verificationCode });
 
         res.status(200).json({
@@ -85,7 +106,6 @@ exports.verifyUser = async (req, res) => {
             user,
         });
     } catch (error) {
-
         res.status(error.message.includes('Invalid') || error.message.includes('not found') ? 400 : 500).json({ message: error.message });
     }
 };
@@ -96,11 +116,15 @@ exports.verifyUser = async (req, res) => {
 exports.forgotPassword = async (req, res) => {
     try {
         const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ message: "Please provide email." });
+        }
+
         const result = await authService.forgotPassword({ email });
 
-        res.status(200).json(result); // Added 200 status for success
+        res.status(200).json(result);
     } catch (error) {
-
         res.status(error.message.includes('not found') ? 404 : 500).json({ message: error.message });
     }
 };
@@ -111,11 +135,18 @@ exports.forgotPassword = async (req, res) => {
 exports.resetPassword = async (req, res) => {
     try {
         const { token, password } = req.body;
+
+        if (!token) {
+            return res.status(400).json({ message: "Please provide reset token." });
+        }
+        if (!password) {
+            return res.status(400).json({ message: "Please provide new password." });
+        }
+
         const result = await authService.resetPassword({ token, password });
 
-        res.status(200).json(result); // Added 200 status for success
+        res.status(200).json(result);
     } catch (error) {
-
         res.status(error.message.includes('Invalid') ? 400 : 500).json({ message: error.message });
     }
 };
@@ -133,7 +164,6 @@ exports.getUserProfile = async (req, res) => {
             user,
         });
     } catch (error) {
-
         res.status(error.message.includes('not found') ? 404 : 500).json({ message: error.message });
     }
 };
@@ -156,7 +186,7 @@ exports.refreshAccessToken = async (req, res) => {
         console.log("tokenSource", tokenSource);
 
         if (!token) {
-            return res.status(401).json({ message: 'No refresh token provided' });
+            return res.status(401).json({ message: 'Please provide a refresh token.' });
         }
 
         const decoded = verifyRefreshToken(token);
@@ -189,8 +219,7 @@ exports.refreshAccessToken = async (req, res) => {
             refreshToken: newRefreshToken,
         });
     } catch (error) {
-
-        res.status(error.message.includes('Invalid') || error.message.includes('No refresh token') ? 401 : 500).json({ message: error.message });
+        res.status(error.message.includes('Invalid') || error.message.includes('refresh token') ? 401 : 500).json({ message: error.message });
     }
 };
 
@@ -211,7 +240,6 @@ exports.logoutUser = async (req, res) => {
             sameSite: 'Strict',
         });
 
-
         res.status(200).json({ message: 'Logout successful' });
     } catch (error) {
         console.error('Error during logout:', error.message);
@@ -219,23 +247,25 @@ exports.logoutUser = async (req, res) => {
     }
 };
 
-
+// @desc    Login as admin
+// @route   POST /api/v1/auth/admin-login
+// @access  Public
 exports.loginAdmin = async (req, res) => {
     try {
         const { email, password } = req.body;
 
-        // Validate required fields
-        if (!email || !password) {
-            return res.status(400).json({ message: 'All fields are required' });
+        if (!email) {
+            return res.status(400).json({ message: "Please provide email." });
+        }
+        if (!password) {
+            return res.status(400).json({ message: "Please provide password." });
         }
 
-        // Call the service to handle the login logic
         const { token, refreshToken, sessionID, user } = await authService.loginAdminService(email, password);
 
-        // Set cookies for authentication
         res.cookie('accessToken', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production', // Set to true if using HTTPS
+            secure: process.env.NODE_ENV === 'production',
             sameSite: 'Strict',
             maxAge: 24 * 60 * 60 * 1000, // 1 day
         });
@@ -247,7 +277,6 @@ exports.loginAdmin = async (req, res) => {
             maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
         });
 
-        // Send response
         res.status(200).json({
             message: 'Admin login successful',
             token,
@@ -255,9 +284,6 @@ exports.loginAdmin = async (req, res) => {
             user,
         });
     } catch (error) {
-
-
-        // Handle specific error messages with appropriate status codes
         if (error.message === 'Invalid email or password') {
             return res.status(401).json({ message: error.message });
         }
@@ -268,7 +294,6 @@ exports.loginAdmin = async (req, res) => {
             return res.status(403).json({ message: error.message });
         }
 
-        // Default to 500 for any other errors
         res.status(500).json({ message: 'Server error' });
     }
 };

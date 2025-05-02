@@ -219,7 +219,7 @@ describe('Auth Controller', () => {
                 .send({ email: 'admin@example.com' }) // Missing password
                 .expect(400);
 
-            expect(response.body.message).toBe('All fields are required');
+            expect(response.body.message).toBe('Please provide password.');
             expect(authService.loginAdminService).not.toHaveBeenCalled();
         });
 
@@ -454,7 +454,7 @@ describe('Auth Controller', () => {
                 .post('/api/v1/auth/refresh-token')
                 .expect(401);
 
-            expect(response.body.message).toBe('No refresh token provided');
+            expect(response.body.message).toBe('Please provide a refresh token.');
             expect(verifyRefreshToken).not.toHaveBeenCalled();
             expect(authService.refreshAccessToken).not.toHaveBeenCalled();
         });

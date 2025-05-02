@@ -591,9 +591,13 @@ exports.cartRecommendation = async (cart_items, k = 5) => {
     return Recommendations.map(rec => {
         const product = recommendedProducts.find(p => p.product_id == rec.product_id);
         return {
-            ...rec,
+            product_id: rec.product_id, // Explicitly include product_id
+            brand: product ? product.brand : null, // Add brand from Product
+            category_code: product ? `${product.category} ${product.type || ''}`.trim() : null, // Construct category_code
+            name: product ? product.name : null, // Add name from Product
             productDetails: product
                 ? {
+                    _id: product._id,
                     name: product.name,
                     category: product.category,
                     price: product.price,
@@ -606,7 +610,6 @@ exports.cartRecommendation = async (cart_items, k = 5) => {
         };
     });
 };
-
 
 exports.getTopTrendingProducts = async () => {
     const trendingProducts = await UserBehavior.aggregate([
