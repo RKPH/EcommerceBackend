@@ -753,7 +753,7 @@ exports.searchProducts = async (query, { offset = 0, limit = 20 } = {}) => {
         // Step 7: Fetch from MongoDB with selected fields
         const startMongo = Date.now();
         const products = await Product.find({ product_id: { $in: productIds } })
-            .select('product_id name category_code brand price')
+            .select('product_id name category_code brand price MainImage')
             .lean();
         console.log(`MongoDB query took: ${(Date.now() - startMongo) / 1000} seconds`);
 

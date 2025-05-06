@@ -61,7 +61,7 @@ exports.trackUserBehavior = async (req, res) => {
             name: product_name,
             event_type: behavior,
             event_time: eventTime,
-            is_trained: false
+      
         };
 
         const eventDoc = new UserBehavior({
@@ -71,7 +71,7 @@ exports.trackUserBehavior = async (req, res) => {
             name: product_name,
             event_type: behavior,
             event_time: new Date(eventTime),
-            is_trained:false // Convert "YYYY-MM-DD HH:mm:ss UTC" to Date
+          
         });
 
         console.log("Tracking data to send to Kafka:", trackingData);

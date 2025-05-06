@@ -26,10 +26,7 @@ const userBehaviorSchema = new mongoose.Schema({
         type: Date,
         required: true,
     },
-    is_trained:{
-        type: Boolean,
-        default: false,
-    }
+
 }, {
     timestamps: false,
     versionKey: false,

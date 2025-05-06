@@ -177,7 +177,9 @@ exports.createUser = async (userData) => {
 
         // Find the next available user_id
         let user_id;
-        let nextId = 1;
+        const userCount = await User.countDocuments();
+        let nextId = userCount;
+
         let isUnique = false;
         
         while (!isUnique) {
