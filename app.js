@@ -3,7 +3,6 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const cors = require("cors");
 const { connectProducer } = require('./kafka/kafka-producer');
-const runConsumer = require('./kafka/kafka-consumer');
 const connectDB = require('./config/db');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandlers');
 const productRouter = require('./routes/product');
@@ -14,7 +13,7 @@ const userRouter = require('./routes/User');
 const reviewRouter = require('./routes/rating');
 const trackRouter = require('./routes/tracking');
 const http = require('http');
-const socketIo = require('socket.io');
+
 const imageRouter = require('./routes/image');
 const addressRouter = require('./routes/ShipAddress');
 const momoIPNHandler = require('./routes/momo_ipn');
@@ -25,16 +24,8 @@ const logger = require('./config/logger');
 const { swaggerSetup, swaggerDocs } = require('./config/swagger');
 
 const app = express();
-const server = http.createServer(app);
-const io = socketIo(server, {
-    cors: {
-        origin: "*", // Allow all origins for Socket.IO
-        methods: ["GET", "POST", "PUT", "DELETE"],
-        credentials: true // Set to false since we're allowing all origins
-    }
-});
 
-app.locals.io = io;
+
 
 // Global CORS configuration to allow specific origin
 app.use(cors({
