@@ -69,13 +69,6 @@ connectDB();
 connectProducer();
 
 
-io.on('connection', (socket) => {
-    console.log(`New client connected: ${socket.id}`);
-    socket.on('disconnect', () => {
-        console.log(`Client disconnected: ${socket.id}`);
-    });
-});
-
 // Routes
 app.use('/api/v1/products', productRouter);
 app.use('/api/v1/auth', authRouter);
