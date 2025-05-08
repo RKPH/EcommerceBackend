@@ -473,8 +473,13 @@ exports.getProductsByCategories = async ({ category, type, page = 1, brand, pric
 
 exports.getRecommendations = async (product_id) => {
     product_id = product_id.toString();
+    // Fetch the input product's type and category
+    const inputProduct = await Product.findOne({ product_id });
+    const inputProductType = inputProduct ? inputProduct.type : null;
+    const inputProductCategory = inputProduct ? inputProduct.category : null;
+
     const response = await axios.post(
-        `${process.env.AI_API_BASE_URL}/predict`, // Use base URL from env
+        `${process.env.AI_API_BASE_URL}/predict`,
         { product_id },
         { headers: { 'Content-Type': 'application/json' } }
     );
@@ -482,11 +487,11 @@ exports.getRecommendations = async (product_id) => {
 
     const recommendations = response.data.recommendations;
     const recommendedProducts = await Product.find({
-        product_id: { $in: recommendations.map(r => r.product_id) },
+        product_id: { $in: recommendations.map(r => r.product_id.toString()) },
     });
 
-    return recommendations.map(rec => {
-        const product = recommendedProducts.find(p => p.product_id == rec.product_id);
+    const mappedRecommendations = recommendations.map(rec => {
+        const product = recommendedProducts.find(p => p.product_id === rec.product_id);
         return {
             ...rec,
             productDetails: product
@@ -498,30 +503,52 @@ exports.getRecommendations = async (product_id) => {
                     brand: product.brand,
                     MainImage: product.MainImage,
                     description: product.description,
+                    type: product.type
                 }
                 : null,
         };
+    });
+
+    // Sort: products with same type or category as input go to the end
+    return mappedRecommendations.sort((a, b) => {
+        const aType = a.productDetails?.type;
+        const bType = b.productDetails?.type;
+        const aCategory = a.productDetails?.category;
+        const bCategory = b.productDetails?.category;
+
+        if (!inputProductType && !inputProductCategory) return 0; // No sorting if input type/category unknown
+
+        const aMatches = (aType === inputProductType || aCategory === inputProductCategory);
+        const bMatches = (bType === inputProductType || bCategory === inputProductCategory);
+
+        if (aMatches && !bMatches) return 1; // a matches, b doesn't -> a to end
+        if (bMatches && !aMatches) return -1; // b matches, a doesn't -> b to end
+        return 0; // Maintain original order
     });
 };
 
 exports.sessionBasedRecommendation = async ({ user_id, product_id }) => {
     user_id = user_id.toString();
-    product_id = Number(product_id);
-    console.log("type of u_id:", typeof user_id);
-    console.log("type of p_id:", typeof product_id);
+    product_id = product_id.toString();
+    // Fetch the input product's type and category
+    const inputProduct = await Product.findOne({ product_id });
+    const inputProductType = inputProduct ? inputProduct.type : null;
+    const inputProductCategory = inputProduct ? inputProduct.category : null;
+
     const response = await axios.post(
-        `${process.env.AI_API_BASE_URL}/session-recommend`, // Use base URL from env
+        `${process.env.AI_API_BASE_URL}/session-recommend`,
         { user_id, product_id },
         { headers: { 'Content-Type': 'application/json' } }
     );
     let data = typeof response?.data === "string" ? JSON.parse(response.data.replace(/NaN/g, "0")) : response.data;
-    const Recommendations = data?.recommendations || [];
+    const recommendations = data?.recommendations || [];
 
     const recommendedProducts = await Product.find({
-        product_id: { $in: Recommendations.map(r => r.product_id) },
+        product_id: { $in: recommendations.map(r => r.product_id.toString()) },
     });
-    return Recommendations.map(rec => {
-        const product = recommendedProducts.find(p => p.product_id == rec.product_id);
+
+    const mappedRecommendations = recommendations.map(rec => {
+        const product = recommendedProducts.find(p => p.product_id === rec.product_id);
         return {
             ...rec,
             productDetails: product
@@ -533,27 +560,51 @@ exports.sessionBasedRecommendation = async ({ user_id, product_id }) => {
                     brand: product.brand,
                     MainImage: product.MainImage,
                     description: product.description,
+                    type: product.type
                 }
                 : null,
         };
+    });
+
+    // Sort: products with same type or category as input go to the end
+    return mappedRecommendations.sort((a, b) => {
+        const aType = a.productDetails?.type;
+        const bType = b.productDetails?.type;
+        const aCategory = a.productDetails?.category;
+        const bCategory = b.productDetails?.category;
+
+        if (!inputProductType && !inputProductCategory) return 0; // No sorting if input type/category unknown
+
+        const aMatches = (aType === inputProductType || aCategory === inputProductCategory);
+        const bMatches = (bType === inputProductType || bCategory === inputProductCategory);
+
+        if (aMatches && !bMatches) return 1; // a matches, b doesn't -> a to end
+        if (bMatches && !aMatches) return -1; // b matches, a doesn't -> b to end
+        return 0; // Maintain original order
     });
 };
 
 exports.anonymousRecommendation = async (product_id) => {
-    product_id = Number(product_id);
+    product_id = product_id.toString();
+    // Fetch the input product's type and category
+    const inputProduct = await Product.findOne({ product_id });
+    const inputProductType = inputProduct ? inputProduct.type : null;
+    const inputProductCategory = inputProduct ? inputProduct.category : null;
+
     const response = await axios.post(
-        `${process.env.AI_API_BASE_URL}/anonymous-recommend`, // Use base URL from env
+        `${process.env.AI_API_BASE_URL}/anonymous-recommend`,
         { product_id },
         { headers: { 'Content-Type': 'application/json' } }
     );
     let data = typeof response?.data === "string" ? JSON.parse(response.data.replace(/NaN/g, "0")) : response.data;
-    const Recommendations = data?.recommendations || [];
+    const recommendations = data?.recommendations || [];
 
     const recommendedProducts = await Product.find({
-        product_id: { $in: Recommendations.map(r => r.product_id) },
+        product_id: { $in: recommendations.map(r => r.product_id.toString()) },
     });
-    return Recommendations.map(rec => {
-        const product = recommendedProducts.find(p => p.product_id == rec.product_id);
+
+    const mappedRecommendations = recommendations.map(rec => {
+        const product = recommendedProducts.find(p => p.product_id === rec.product_id);
         return {
             ...rec,
             productDetails: product
@@ -565,9 +616,27 @@ exports.anonymousRecommendation = async (product_id) => {
                     brand: product.brand,
                     MainImage: product.MainImage,
                     description: product.description,
+                    type: product.type
                 }
                 : null,
         };
+    });
+
+    // Sort: products with same type or category as input go to the end
+    return mappedRecommendations.sort((a, b) => {
+        const aType = a.productDetails?.type;
+        const bType = b.productDetails?.type;
+        const aCategory = a.productDetails?.category;
+        const bCategory = b.productDetails?.category;
+
+        if (!inputProductType && !inputProductCategory) return 0; // No sorting if input type/category unknown
+
+        const aMatches = (aType === inputProductType || aCategory === inputProductCategory);
+        const bMatches = (bType === inputProductType || bCategory === inputProductCategory);
+
+        if (aMatches && !bMatches) return 1; // a matches, b doesn't -> a to end
+        if (bMatches && !aMatches) return -1; // b matches, a doesn't -> b to end
+        return 0; // Maintain original order
     });
 };
 
