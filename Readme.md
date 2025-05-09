@@ -1,34 +1,59 @@
-Node.js Application
-This is a Node.js application designed to run in a Docker container, utilizing MongoDB for data storage, Cloudinary for image management, MinIO for object storage, Kafka for event streaming, Jina AI for embeddings, Qdrant for vector search, and SendGrid for email services. This README provides instructions on how to set up, configure, and run the application.
-Prerequisites
-Before running the application, ensure you have the following installed:
+# Node.js Application
 
-Docker (to build and run the container)
-Node.js (version 18 LTS, if running locally without Docker)
-npm (Node package manager, included with Node.js)
-Accounts and API keys for the following services:
-MongoDB (e.g., MongoDB Atlas)
-Cloudinary
-MinIO
-Jina AI
-Apache Kafka
-Qdrant
-SendGrid
+Welcome to the Node.js Application! This project is a Dockerized Node.js application that integrates with MongoDB, Cloudinary, MinIO, Kafka, Jina AI, Qdrant, and SendGrid for a robust backend solution. This README guides you through setup, configuration, and running the application.
 
+## Table of Contents
 
+- [Prerequisites](#prerequisites)
+- [Getting Started](#getting-started)
+  - [Clone the Repository](#clone-the-repository)
+  - [Configure Environment Variables](#configure-environment-variables)
+  - [Build and Run with Docker](#build-and-run-with-docker)
+  - [Running Locally (Without Docker)](#running-locally-without-docker)
+- [Project Structure](#project-structure)
+- [Services and Integrations](#services-and-integrations)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+- [License](#license)
 
-Getting Started
-1. Clone the Repository
-Clone this repository to your local machine:
+## Prerequisites
+
+Ensure you have the following installed:
+
+- [Docker](https://www.docker.com/get-started) for containerization
+- [Node.js](https://nodejs.org/) (version 18 LTS) for local development
+- [npm](https://www.npmjs.com/) (included with Node.js)
+- Accounts and API keys for:
+  - MongoDB (e.g., MongoDB Atlas)
+  - Cloudinary
+  - MinIO
+  - Jina AI
+  - Apache Kafka
+  - Qdrant
+  - SendGrid
+
+## Getting Started
+
+### Clone the Repository
+
+Clone the repository to your local machine:
+
+```bash
 git clone <repository-url>
 cd <repository-directory>
+```
 
-2. Configure Environment Variables
-The application requires environment variables to be defined in a .env file in the root directory of the project. This file contains sensitive configuration details, such as database credentials, API keys, and service endpoints. Follow these steps to create the .env file:
+### Configure Environment Variables
 
-Create the .env file:In the project root, create a file named .env.
+The application requires a `.env` file to manage sensitive configurations like database credentials and API keys. Follow these steps:
 
-Add the required variables:Copy the template below into the .env file and replace the placeholder comments with your actual values (e.g., API keys, database credentials). Do not share this file publicly or commit it to version control.
+1. **Create a `.env` file** in the project root.
+2. **Add the required variables** using the template below. Replace placeholder comments with your actual values.
+3. **Secure the file** by adding `.env` to `.gitignore` to prevent it from being committed.
+
+**`.env` Template**:
+
+```env
 # MongoDB Configuration
 DB_USER=Your MongoDB username
 DB_PASSWORD=Your MongoDB password
@@ -87,86 +112,85 @@ QDRANT_API_URL=Your Qdrant API URL (e.g., https://qdrant.d2f.io.vn/collections/t
 
 # SendGrid Configuration
 SENDGRID_API_KEY=Your SendGrid API key
+```
 
+### Build and Run with Docker
 
-Secure the .env file:
+1. **Build the Docker image**:
 
-Add .env to your .gitignore file to prevent it from being committed to version control.
-Ensure only authorized users have access to the .env file, as it contains sensitive information.
+   ```bash
+   docker build -t my-node-app .
+   ```
 
+2. **Run the container**:
 
+   ```bash
+   docker run --env-file .env -p 3000:3000 my-node-app
+   ```
 
-3. Build and Run with Docker
-The application is containerized using Docker. Follow these steps to build and run the application:
+   - `--env-file .env` loads environment variables.
+   - `-p 3000:3000` maps port 3000.
 
-Build the Docker image:
-docker build -t my-node-app .
+3. **Access the application** at `http://localhost:3000`.
 
+### Running Locally (Without Docker)
 
-Run the Docker container:
-docker run --env-file .env -p 3000:3000 my-node-app
+1. **Install dependencies**:
 
+   ```bash
+   npm install
+   ```
 
-The --env-file .env flag loads the environment variables from the .env file.
-The -p 3000:3000 flag maps port 3000 on the host to port 3000 in the container.
+2. **Ensure the `.env` file is configured**.
 
+3. **Start the application**:
 
-Access the application:
-Once the container is running, the application will be available at http://localhost:3000.
+   ```bash
+   npm start
+   ```
 
+4. **Access the application** at `http://localhost:3000`.
 
-4. Running Locally (Without Docker)
-If you prefer to run the application locally without Docker, follow these steps:
+## Project Structure
 
-Install dependencies:
-npm install
+- `Dockerfile`: Defines the Docker image.
+- `.env`: Environment variables (create as described above).
+- `package.json`: Project dependencies and scripts.
+- `src/`: Application source code.
 
+## Services and Integrations
 
-Ensure the .env file is configured as described above.
+The application integrates with:
 
-Start the application:
-npm start
+- **MongoDB**: Data storage (`DB_*` variables).
+- **Cloudinary**: Image management (`CLOUDINARY_*` variables).
+- **MinIO**: Object storage (`MINIO_*` variables).
+- **Jina AI**: Embeddings (`JINA_*` variables).
+- **Kafka**: Event streaming (`KAFKA_*` variables).
+- **Qdrant**: Vector search (`QDRANT_*` variables).
+- **SendGrid**: Email services (`SENDGRID_API_KEY`).
 
+Ensure valid credentials and service accessibility.
 
-Access the application at http://localhost:3000.
+## Troubleshooting
 
+- **Port conflicts**: Use a different port (e.g., `-p 8080:3000`).
+- **Environment variables**: Verify all variables are set correctly.
+- **Service connectivity**: Ensure services (MongoDB, Kafka, etc.) are accessible.
+- **Docker issues**: Check logs with `docker logs <container-id>`.
 
-5. Project Structure
-Here’s an overview of the key files and directories:
+## Contributing
 
-Dockerfile: Defines the Docker image configuration for the application.
-.env: Contains environment variables (not included in the repository; create it as described above).
-package.json: Lists project dependencies and scripts.
-src/: Contains the application source code (ensure this directory exists with your application logic).
+1. Fork the repository.
+2. Create a branch (`git checkout -b feature/your-feature`).
+3. Commit changes (`git commit -m "Add your feature"`).
+4. Push to the branch (`git push origin feature/your-feature`).
+5. Open a pull request.
 
-6. Services and Integrations
-This application integrates with several external services. Ensure you have valid credentials and that the services are accessible:
+## License
 
-MongoDB: Used for data storage. Configure the connection using DB_* variables.
-Cloudinary: Handles image uploads and management. Configure with CLOUDINARY_* variables.
-MinIO: Provides object storage for images. Configure with MINIO_* variables.
-Jina AI: Generates embeddings for AI tasks. Configure with JINA_* variables.
-Kafka: Manages event streaming for user behavior data. Configure with KAFKA_* variables.
-Qdrant: Provides vector search capabilities. Configure with QDRANT_* variables.
-SendGrid: Handles email sending. Configure with SENDGRID_API_KEY.
+This project is licensed under the MIT License. See the `LICENSE` file for details.
 
-7. Troubleshooting
+---
 
-Port conflicts: If port 3000 is in use, modify the docker run command to map a different host port (e.g., -p 8080:3000).
-Environment variables: Ensure all required variables are set in the .env file and that sensitive values (e.g., API keys) are correct.
-Service connectivity: Verify that external services (MongoDB, Kafka, etc.) are running and accessible from your network.
-Docker issues: If the container fails to start, check the logs with docker logs <container-id>.
-
-8. Contributing
-If you’d like to contribute to this project, please:
-
-Fork the repository.
-Create a new branch (git checkout -b feature/your-feature).
-Make your changes and commit them (git commit -m "Add your feature").
-Push to your branch (git push origin feature/your-feature).
-Open a pull request.
-
-9. License
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-Happy coding! If you encounter any issues or have questions, feel free to open an issue in the repository.
+Happy coding! For issues or questions, open an issue in the repository.
