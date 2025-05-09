@@ -39,8 +39,8 @@ Ensure you have the following installed:
 Clone the repository to your local machine:
 
 ```bash
-git clone <repository-url>
-cd <repository-directory>
+git clone https://github.com/RKPH/EcommerceBackend.git
+cd EcommerceBackend
 ```
 
 ### Configure Environment Variables
