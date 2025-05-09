@@ -229,6 +229,17 @@ exports.submitRefundBankDetails = async (req, res) => {
             accountHolderName,
         });
 
+        // Notify admin about the refund bank details submission
+        const io = req.app.locals.io;
+        io.to("admin").emit("refundBankDetailsSubmitted", {
+            orderId: id,
+            userId,
+            bankName,
+            accountNumber,
+            accountHolderName,
+            submittedAt: new Date(),
+        });
+
         res.status(200).json({
             message: 'Refund bank details submitted successfully',
             order,
@@ -248,7 +259,6 @@ exports.submitRefundBankDetails = async (req, res) => {
         });
     }
 };
-
 
 exports.updatePaymentStatus = async (req, res) => {
     try {
@@ -372,7 +382,7 @@ exports.getMonthlyRevenue = async (req, res) => {
         console.error("Error fetching revenue:", error);
         res.status(500).json({
             message: "Internal server error",
-            error: error.message // Always include the error message
+            error: error.message
         });
     }
 };
@@ -385,7 +395,7 @@ exports.getWeeklyRevenue = async (req, res) => {
         console.error("Error fetching weekly revenue:", error);
         res.status(500).json({
             message: "Internal server error",
-            error: error.message // Always include the error message
+            error: error.message
         });
     }
 };
@@ -398,7 +408,7 @@ exports.getRevenueComparison = async (req, res) => {
         console.error("Error in getRevenueComparison controller:", error.message, error.stack);
         res.status(500).json({
             message: "Internal server error",
-            error: error.message // Always include the error message
+            error: error.message
         });
     }
 };
@@ -411,7 +421,7 @@ exports.getOrderComparison = async (req, res) => {
         console.error("Error in getOrderComparison controller:", error.message, error.stack);
         res.status(500).json({
             message: "Internal server error",
-            error: error.message // Always include the error message
+            error: error.message
         });
     }
 };
@@ -433,7 +443,7 @@ exports.getTopRatedProducts = async (req, res) => {
         console.error("Error in getTopRatedProducts controller:", error.message, error.stack);
         res.status(500).json({
             message: "Server error while fetching top rated products",
-            error: error.message // Always include the error message
+            error: error.message
         });
     }
 };
@@ -451,10 +461,11 @@ exports.getTopOrderedProductsController = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Failed to fetch top ordered products",
-            error: error.message // Always include the error message
+            error: error.message
         });
     }
 };
+
 exports.getOrdersWithRefundRequests = async (req, res) => {
     try {
         const { page = 1, limit = 10, search, refundStatus = 'All' } = req.query;
