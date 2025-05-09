@@ -119,13 +119,13 @@ SENDGRID_API_KEY=Your SendGrid API key
 1. **Build the Docker image**:
 
    ```bash
-   docker build -t my-node-app .
+   docker build -t backend .
    ```
 
 2. **Run the container**:
 
    ```bash
-   docker run --env-file .env -p 3000:3000 my-node-app
+   docker run --env-file .env -p 3000:3000 backend
    ```
 
    - `--env-file .env` loads environment variables.
